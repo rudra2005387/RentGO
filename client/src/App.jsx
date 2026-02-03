@@ -2,14 +2,14 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import MainLayout from './layouts/MainLayout';
-import Home from './pages/home.jsx'
-import Login from './pages/login.jsx';
+import Home from './pages/Home.jsx';
+import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import SearchResult from './pages/SearchResult.jsx';
 import ListingDetails from './pages/ListingDetails.jsx';
 import Profile from './pages/Profile.jsx';
 import Dashboard from './pages/Dashboard.jsx';
-import NotFound from './pages/NotFound';
+import NotFound from './pages/NotFound.jsx';
 
 function App() {
   return (
