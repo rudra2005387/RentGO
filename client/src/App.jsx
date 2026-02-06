@@ -1,21 +1,20 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import MainLayout from './layouts/MainLayout';
-import Home from './pages/Home.jsx';
-import Login from './pages/Login.jsx';
-import Register from './pages/Register.jsx';
-import SearchResult from './pages/SearchResult.jsx';
-import ListingDetails from './pages/ListingDetails.jsx';
-import Profile from './pages/Profile.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import NotFound from './pages/NotFound.jsx';
+import Home from '../src/pages/Home.jsx';
+import Login from '../src/pages/Login.jsx';
+import Register from '../src/pages/Register.jsx';
+import SearchResult from '../src/pages/SearchResult.jsx';
+import ListingDetails from '../src/pages/ListingDetails.jsx';
+import Profile from '../src/pages/Profile.jsx';
+import Dashboard from '../src/pages/Dashboard.jsx';
+import NotFound from '../src/pages/NotFound.jsx';
 
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
           <Routes>
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />
@@ -28,7 +27,6 @@ function App() {
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
-        </Router>
       </AuthProvider>
     </ThemeProvider>
   );
