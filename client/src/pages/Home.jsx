@@ -1,12 +1,13 @@
-import { useState } from 'react';
+
 import { motion } from 'framer-motion';
-import { FaHome, FaKey, FaShieldAlt, FaUsers, FaArrowRight, FaStar, FaMapMarkerAlt, FaCalendarAlt, FaCheckCircle } from 'react-icons/fa';
+import { FaHome, FaKey, FaShieldAlt, FaUsers, FaArrowRight, FaStar, FaMapMarkerAlt, FaCalendarAlt, FaCheckCircle, FaPaperPlane } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import PropertyCard from '../components/PropertyCard/PropertyCard';
+import SearchBar from '../components/SearchBar/SearchBar';
 
 const Home = () => {
-  const [hoveredCard, setHoveredCard] = useState(null);
+  
 
-  // Sample featured listings
   const featuredListings = [
     {
       id: 1,
@@ -15,7 +16,8 @@ const Home = () => {
       price: '$2,500/month',
       rating: 4.8,
       reviews: 128,
-      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop'
+      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop',
+      isNew: true
     },
     {
       id: 2,
@@ -34,6 +36,53 @@ const Home = () => {
       rating: 4.7,
       reviews: 156,
       image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&h=400&fit=crop'
+    },
+    {
+        id: 4,
+        title: 'Luxury Villa with Private Pool',
+        location: 'Miami, FL',
+        price: '$7,500/month',
+        rating: 4.9,
+        reviews: 210,
+        image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=500&h=400&fit=crop',
+        isNew: true
+    },
+    {
+        id: 5,
+        title: 'Charming Cottage in the Woods',
+        location: 'Asheville, NC',
+        price: '$1,900/month',
+        rating: 4.8,
+        reviews: 178,
+        image: 'https://images.unsplash.com/photo-1588880331179-b0b54b8acb9f?w=500&h=400&fit=crop'
+    },
+    {
+        id: 6,
+        title: 'Urban Loft with City Views',
+        location: 'San Francisco, CA',
+        price: '$3,200/month',
+        rating: 4.7,
+        reviews: 192,
+        image: 'https://images.unsplash.com/photo-1542914420-a332a4fb27d2?w=500&h=400&fit=crop'
+    },
+    {
+        id: 7,
+        title: 'Beachfront Bungalow',
+        location: 'Malibu, CA',
+        price: '$5,000/month',
+        rating: 4.9,
+        reviews: 231,
+        image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=500&h=400&fit=crop',
+        isNew: true
+    },
+    {
+        id: 8,
+        title: 'Ski-In/Ski-Out Chalet',
+        location: 'Aspen, CO',
+        price: '$6,800/month',
+        rating: 4.9,
+        reviews: 199,
+        image: 'https://images.unsplash.com/photo-1582494799538-8926955b9588?w=500&h=400&fit=crop'
     }
   ];
 
@@ -126,20 +175,7 @@ const Home = () => {
               Discover thousands of properties. Easy booking, secure transactions, and a trusted community of renters and landlords.
             </p>
             
-            <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <Link
-                to="/search"
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 px-8 rounded-lg flex items-center justify-center gap-2 transform hover:scale-105 transition-all duration-300 shadow-lg"
-              >
-                Start Browsing <FaArrowRight className="text-sm" />
-              </Link>
-              <Link
-                to="/register"
-                className="border-2 border-gray-400 text-gray-700 hover:border-blue-600 hover:text-blue-600 font-bold py-3 px-8 rounded-lg transition-all duration-300"
-              >
-                Sign Up Today
-              </Link>
-            </div>
+            <SearchBar />
 
             {/* Quick Features */}
             <div className="flex flex-col gap-3">
@@ -283,63 +319,10 @@ const Home = () => {
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true }}
-            className="grid md:grid-cols-3 gap-8"
+            className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
           >
-            {featuredListings.map((listing, index) => (
-              <motion.div
-                key={listing.id}
-                variants={itemVariants}
-                onHoverStart={() => setHoveredCard(index)}
-                onHoverEnd={() => setHoveredCard(null)}
-                whileHover={{ y: -8 }}
-                className="rounded-2xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer group"
-              >
-                {/* Image Container */}
-                <div className="relative overflow-hidden h-64">
-                  <img
-                    src={listing.image}
-                    alt={listing.title}
-                    className={`w-full h-full object-cover transition-transform duration-300 ${
-                      hoveredCard === index ? 'scale-110' : 'scale-100'
-                    }`}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20"></div>
-                  
-                  {/* Rating Badge */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-1 shadow-lg"
-                  >
-                    <FaStar className="text-yellow-400 text-sm" />
-                    <span className="font-bold text-gray-900">{listing.rating}</span>
-                    <span className="text-sm text-gray-600">({listing.reviews})</span>
-                  </motion.div>
-                </div>
-
-                {/* Content */}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">{listing.title}</h3>
-                  
-                  <div className="flex items-center text-gray-600 mb-4">
-                    <FaMapMarkerAlt className="mr-2 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm">{listing.location}</span>
-                  </div>
-
-                  {/* Footer */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                    <span className="text-2xl font-bold text-blue-600">{listing.price}</span>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 transition-colors shadow-md"
-                    >
-                      <FaArrowRight />
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
+            {featuredListings.map((listing) => (
+              <PropertyCard key={listing.id} listing={listing} variants={itemVariants} />
             ))}
           </motion.div>
         </div>
@@ -432,6 +415,46 @@ const Home = () => {
                 <p className="font-bold text-gray-900">{review.name}</p>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </motion.section>
+
+      {/* Newsletter Section */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        whileInView={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        viewport={{ once: true }}
+        className="py-20 px-4 sm:px-6 lg:px-8"
+      >
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 lg:p-16 text-center">
+            <motion.h2 
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="text-3xl md:text-4xl font-bold text-gray-900 mb-4"
+            >
+              Stay Updated
+            </motion.h2>
+            <p className="text-lg text-gray-600 mb-8">
+              Join our newsletter for weekly updates on the best properties and deals.
+            </p>
+            <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                className="flex-grow px-6 py-4 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-blue-500"
+              />
+              <button
+                type="submit"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 px-8 rounded-xl flex items-center justify-center gap-2 transform hover:scale-105 transition-transform duration-300 shadow-lg"
+              >
+                <FaPaperPlane />
+                <span>Subscribe</span>
+              </button>
+            </form>
           </div>
         </div>
       </motion.section>
