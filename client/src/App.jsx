@@ -11,6 +11,7 @@ import Profile from '../src/pages/Profile.jsx';
 import Dashboard from '../src/pages/Dashboard.jsx';
 import CreateListing from '../src/pages/CreateListing.jsx';
 import Reviews from '../src/pages/Reviews.jsx';
+import AdvancedSearch from '../src/pages/AdvancedSearch.jsx';
 import NotFound from '../src/pages/NotFound.jsx';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
             <Route path="/" element={<MainLayout />}>
               <Route index element={<Home />} />
               <Route path="/search" element={<SearchResult />} />
+              <Route path="/advanced-search" element={<AdvancedSearch />} />
               <Route path="/listing/:id" element={<ListingDetails />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
