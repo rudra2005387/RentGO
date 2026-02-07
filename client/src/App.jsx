@@ -5,6 +5,8 @@ import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import MainLayout from './layouts/MainLayout';
 import Toast from './components/Toast.jsx';
+import SkipNavigation from './components/SkipNavigation.jsx';
+import BottomNavigation from './components/BottomNavigation.jsx';
 import Home from '../src/pages/Home.jsx';
 import Login from '../src/pages/Login.jsx';
 import Register from '../src/pages/Register.jsx';
@@ -24,6 +26,7 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <ToastProvider>
+            <SkipNavigation />
             <Toast />
             <Routes>
               <Route path="/" element={<MainLayout />}>
@@ -41,6 +44,7 @@ function App() {
                 <Route path="*" element={<NotFound />} />
               </Route>
             </Routes>
+            <BottomNavigation />
           </ToastProvider>
         </NotificationProvider>
       </AuthProvider>
