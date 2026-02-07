@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FaBell, FaEnvelope, FaUser, FaSignOutAlt, FaSearch, FaBars, FaTimes, FaHome, FaMoon, FaSun, FaGlobe, FaHeart, FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../context/ThemeContext';
+import NotificationBell from '../NotificationBell';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -73,44 +74,8 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-4 lg:gap-6">
-          {/* Notifications */}
-          <div className="relative">
-            <motion.button
-              onClick={() => setNotificationDropdown(!notificationDropdown)}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              className="relative text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
-            >
-              <FaBell className="text-xl" />
-              {notificationCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                  {notificationCount}
-                </span>
-              )}
-            </motion.button>
-            
-            {/* Notification Dropdown */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: notificationDropdown ? 1 : 0, y: notificationDropdown ? 0 : -10 }}
-              transition={{ duration: 0.2 }}
-              className={`absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                notificationDropdown ? 'block' : 'hidden'
-              }`}
-            >
-              <div className="max-h-96 overflow-y-auto">
-                {notifications.map((notif) => (
-                  <div key={notif.id} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{notif.message}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">{notif.time}</p>
-                  </div>
-                ))}
-              </div>
-              <Link to="/notifications" className="block text-center px-4 py-3 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold text-sm border-t border-gray-200 dark:border-gray-700">
-                View All Notifications
-              </Link>
-            </motion.div>
-          </div>
+          {/* Notifications Bell */}
+          <NotificationBell />
 
           {/* Messages */}
           <div className="relative">
