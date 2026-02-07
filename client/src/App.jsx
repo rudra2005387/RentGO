@@ -10,6 +10,7 @@ import ListingDetails from '../src/pages/ListingDetails.jsx';
 import Profile from '../src/pages/Profile.jsx';
 import Dashboard from '../src/pages/Dashboard.jsx';
 import CreateListing from '../src/pages/CreateListing.jsx';
+import Reviews from '../src/pages/Reviews.jsx';
 import NotFound from '../src/pages/NotFound.jsx';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
               <Route path="/profile" element={<Profile />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/create-listing" element={<CreateListing />} />
+              <Route path="/reviews" element={<Reviews />} />
               <Route path="*" element={<NotFound />} />
             </Route>
           </Routes>
