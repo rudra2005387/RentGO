@@ -16,7 +16,7 @@ function formatDate(d) {
 }
 
 export default function Dashboard() {
-	const [userType, setUserType] = useState('guest'); // 'guest' or 'host'
+	const [userType, setUserType] = useState('guest'); 
 	const [tab, setTab] = useState('bookings');
 	const [bookings, setBookings] = useState([]);
 	const [hostListings, setHostListings] = useState([]);
@@ -35,7 +35,7 @@ export default function Dashboard() {
 			setWishlist([]); setMessages([]); setReviews([]);
 		}
 
-		// Load host data (sample data for demo)
+		
 		const sampleListings = [
 			{ id: 1, title: 'Modern Downtown Apartment', location: 'Downtown', status: 'active', bookingCount: 12, rating: 4.8, price: 120, createdAt: new Date() },
 			{ id: 2, title: 'Cozy Beach House', location: 'Beach', status: 'active', bookingCount: 8, rating: 4.5, price: 180, createdAt: new Date() },
@@ -117,10 +117,10 @@ export default function Dashboard() {
 				</button>
 			</div>
 
-			{/* HOST DASHBOARD */}
+			
 			{userType === 'host' && (
 				<div className="space-y-6">
-					{/* Earnings Stats */}
+					
 					<EarningsStats
 						stats={{
 							totalEarnings: 8750,
@@ -131,37 +131,37 @@ export default function Dashboard() {
 						}}
 					/>
 
-					{/* Create New Listing Button */}
+					
 					<div className="flex justify-start">
-						<button className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2">
+						<Link to="/create-listing" className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 inline-flex">
 							<span>+</span>
 							<span>Create New Listing</span>
-						</button>
+						</Link>
 					</div>
 
-					{/* Two Column Layout */}
+					
 					<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-						{/* Left Column - Listings & Calendar */}
+						
 						<div className="lg:col-span-2 space-y-6">
-							{/* Listings Management Table */}
+						
 							<ListingsManagementTable listings={hostListings} />
 
-							{/* Earnings Analytics */}
+							
 							<EarningsAnalyticsChart />
 						</div>
 
-						{/* Right Column - Calendar */}
+						
 						<div>
 							<CalendarView bookings={bookings} />
 						</div>
 					</div>
 
-					{/* Booking Requests */}
+					
 					<BookingRequestsTab requests={bookingRequests} />
 				</div>
 			)}
 
-			{/* GUEST DASHBOARD */}
+			
 			{userType === 'guest' && (
 				<div>
 					<div className="flex gap-2 mb-6 flex-wrap">
