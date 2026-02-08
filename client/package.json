@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lighthouse:audit": "lighthouse http://localhost:5173 --view",
+    "lighthouse:ci": "lhci autorun",
+    "lighthouse:collect": "lhci collect --method=node",
+    "bundle-analyze": "vite build --report"
   },
   "dependencies": {
     "axios": "^1.13.4",

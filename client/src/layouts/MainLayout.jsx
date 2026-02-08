@@ -1,13 +1,13 @@
 import { Outlet } from 'react-router-dom';
-import Navbar from '../components/navbar/Navbar';
+import AirbnbStyleNavbar from '../components/navbar/AirbnbStyleNavbar';
 
 export default function MainLayout() {
 	return (
 		<div className="min-h-screen bg-slate-50">
-			<Navbar />
+			<AirbnbStyleNavbar />
 			<main
 				id="main-content"
-				className="max-w-6xl mx-auto px-4 py-6 focus:outline-none"
+				className="container focus:outline-none"
 				role="main"
 			>
 				<Outlet />

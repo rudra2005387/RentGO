@@ -1,303 +1,216 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaHeart, FaMapMarkerAlt, FaStar, FaMap, FaTh, FaSort } from 'react-icons/fa';
-import FilterSidebar from '../components/filters/FilterSidebar';
-import PropertyCard from '../components/PropertyCard/PropertyCard';
-import QuickViewModal from '../components/modals/QuickViewModal';
-import Pagination from '../components/pagination/Pagination';
+import { FaHeart, FaMapMarkerAlt, FaStar, FaSliders, FaArrowUp, FaArrowDown, FaWifi, FaUtensilsSpoon, FaParking, FaTv } from 'react-icons/fa';
 
-export default function SearchResult() {
+const SearchResult = () => {
   const [searchParams] = useSearchParams();
-  const [viewMode, setViewMode] = useState('grid'); // grid or map
-  const [sortBy, setSortBy] = useState('newest'); // newest, price-low, price-high, rating
-  const [currentPage, setCurrentPage] = useState(1);
-  const [selectedProperty, setSelectedProperty] = useState(null);
-  const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const navigate = useNavigate();
+  const [showFilters, setShowFilters] = useState(true);
   const [favorites, setFavorites] = useState([]);
+  const [sortBy, setSortBy] = useState('newest');
+  
+  // Filter states
+  const [priceRange, setPriceRange] = useState([1000, 10000]);
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [selectedAmenities, setSelectedAmenities] = useState([]);
+  const [minRating, setMinRating] = useState(0);
 
-  // Sample properties data
+  // Sample properties
   const allProperties = [
     {
       id: 1,
       title: 'Modern Apartment in Downtown',
       location: 'New York, NY',
-      price: '$2,500/month',
-      priceNum: 2500,
+      price: 2500,
       rating: 4.8,
       reviews: 128,
       image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop',
       type: 'Apartment',
-      amenities: ['WiFi', 'Pool', 'Parking'],
-      description: 'Beautiful modern apartment with stunning views'
+      amenities: ['WiFi', 'Pool', 'Parking', 'Kitchen'],
+      bedrooms: 2,
+      bathrooms: 1,
+      guests: 4
     },
     {
       id: 2,
       title: 'Cozy Studio with Balcony',
       location: 'Los Angeles, CA',
-      price: '$1,800/month',
-      priceNum: 1800,
+      price: 1800,
       rating: 4.9,
       reviews: 95,
       image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=400&fit=crop',
       type: 'Studio',
       amenities: ['WiFi', 'Kitchen'],
-      description: 'Cozy studio perfect for single travelers'
+      bedrooms: 1,
+      bathrooms: 1,
+      guests: 2
     },
     {
       id: 3,
       title: 'Spacious 2BR Family Home',
       location: 'Chicago, IL',
-      price: '$2,200/month',
-      priceNum: 2200,
+      price: 2200,
       rating: 4.7,
       reviews: 156,
       image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&h=400&fit=crop',
       type: 'House',
-      amenities: ['WiFi', 'Kitchen', 'Garden'],
-      description: 'Spacious family home with beautiful backyard'
+      amenities: ['WiFi', 'Kitchen', 'Garden', 'Parking'],
+      bedrooms: 2,
+      bathrooms: 2,
+      guests: 5
     },
     {
       id: 4,
       title: 'Luxury Villa with Private Pool',
       location: 'Miami, FL',
-      price: '$7,500/month',
-      priceNum: 7500,
+      price: 7500,
       rating: 4.9,
       reviews: 210,
       image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=500&h=400&fit=crop',
       type: 'Villa',
-      amenities: ['WiFi', 'Pool', 'Gym', 'Parking'],
-      description: 'Luxury villa with private pool and garden'
+      amenities: ['WiFi', 'Pool', 'Gym', 'Parking', 'Kitchen'],
+      bedrooms: 4,
+      bathrooms: 3,
+      guests: 8
     },
     {
       id: 5,
       title: 'Charming Cottage in the Woods',
       location: 'Asheville, NC',
-      price: '$1,900/month',
-      priceNum: 1900,
+      price: 1900,
       rating: 4.8,
       reviews: 178,
       image: 'https://images.unsplash.com/photo-1588880331179-b0b54b8acb9f?w=500&h=400&fit=crop',
       type: 'House',
-      amenities: ['WiFi', 'Garden'],
-      description: 'Charming cottage surrounded by nature'
+      amenities: ['WiFi', 'Garden', 'TV'],
+      bedrooms: 2,
+      bathrooms: 1,
+      guests: 4
     },
     {
       id: 6,
       title: 'Urban Loft with City Views',
       location: 'San Francisco, CA',
-      price: '$3,200/month',
-      priceNum: 3200,
+      price: 3200,
       rating: 4.7,
       reviews: 192,
       image: 'https://images.unsplash.com/photo-1542914420-a332a4fb27d2?w=500&h=400&fit=crop',
       type: 'Apartment',
-      amenities: ['WiFi', 'TV', 'Parking'],
-      description: 'Modern loft with spectacular city views'
+      amenities: ['WiFi', 'TV', 'Parking', 'Kitchen'],
+      bedrooms: 1,
+      bathrooms: 1,
+      guests: 2
     },
     {
       id: 7,
       title: 'Beachfront Bungalow',
       location: 'Malibu, CA',
-      price: '$5,000/month',
-      priceNum: 5000,
+      price: 5000,
       rating: 4.9,
       reviews: 231,
       image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=500&h=400&fit=crop',
       type: 'House',
-      amenities: ['WiFi', 'Pool', 'Garden'],
-      description: 'Exclusive beachfront property'
+      amenities: ['WiFi', 'Pool', 'Garden', 'Kitchen'],
+      bedrooms: 3,
+      bathrooms: 2,
+      guests: 6
     },
     {
       id: 8,
       title: 'Ski-In/Ski-Out Chalet',
       location: 'Aspen, CO',
-      price: '$6,800/month',
-      priceNum: 6800,
+      price: 6800,
       rating: 4.9,
       reviews: 199,
       image: 'https://images.unsplash.com/photo-1582494799538-8926955b9588?w=500&h=400&fit=crop',
       type: 'House',
-      amenities: ['WiFi', 'Gym', 'Pool'],
-      description: 'Luxury ski chalet with mountain views'
+      amenities: ['WiFi', 'Gym', 'Pool', 'Kitchen'],
+      bedrooms: 4,
+      bathrooms: 2,
+      guests: 8
     },
-    {
-      id: 9,
-      title: 'Trendy Room in Shared Apartment',
-      location: 'Brooklyn, NY',
-      price: '$1,200/month',
-      priceNum: 1200,
-      rating: 4.6,
-      reviews: 87,
-      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=400&fit=crop',
-      type: 'Room',
-      amenities: ['WiFi', 'Kitchen'],
-      description: 'Trendy room in shared apartment'
-    },
-    {
-      id: 10,
-      title: 'Penthouse with Rooftop',
-      location: 'Manhattan, NY',
-      price: '$8,500/month',
-      priceNum: 8500,
-      rating: 5.0,
-      reviews: 156,
-      image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=500&h=400&fit=crop',
-      type: 'Apartment',
-      amenities: ['WiFi', 'Gym', 'Pool', 'Parking'],
-      description: 'Luxurious penthouse with panoramic views'
-    },
-    {
-      id: 11,
-      title: 'Victorian House',
-      location: 'Boston, MA',
-      price: '$2,800/month',
-      priceNum: 2800,
-      rating: 4.7,
-      reviews: 142,
-      image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&h=400&fit=crop',
-      type: 'House',
-      amenities: ['WiFi', 'Garden', 'Parking'],
-      description: 'Historic Victorian house'
-    },
-    {
-      id: 12,
-      title: 'Modern Studio Downtown',
-      location: 'Seattle, WA',
-      price: '$1,600/month',
-      priceNum: 1600,
-      rating: 4.8,
-      reviews: 119,
-      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=400&fit=crop',
-      type: 'Studio',
-      amenities: ['WiFi', 'Kitchen'],
-      description: 'Modern studio in downtown Seattle'
-    }
   ];
 
-  const [filteredProperties, setFilteredProperties] = useState(allProperties);
-  const itemsPerPage = 9;
-  const totalPages = Math.ceil(filteredProperties.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedProperties = filteredProperties.slice(startIndex, startIndex + itemsPerPage);
+  const propertyTypes = ['Apartment', 'House', 'Villa', 'Studio', 'Room'];
+  const amenityOptions = ['WiFi', 'Pool', 'Kitchen', 'Parking', 'Gym', 'Garden', 'TV'];
 
-  // Handle filters
-  const handleFilterChange = (filters) => {
-    let filtered = allProperties;
+  // Filter properties
+  const filteredProperties = useMemo(() => {
+    return allProperties.filter(property => {
+      const matchPrice = property.price >= priceRange[0] && property.price <= priceRange[1];
+      const matchType = selectedTypes.length === 0 || selectedTypes.includes(property.type);
+      const matchAmenities = selectedAmenities.length === 0 || selectedAmenities.every(a => property.amenities.includes(a));
+      const matchRating = property.rating >= minRating;
+      return matchPrice && matchType && matchAmenities && matchRating;
+    });
+  }, [priceRange, selectedTypes, selectedAmenities, minRating]);
 
-    // Price filter
-    filtered = filtered.filter(p => 
-      p.priceNum >= filters.priceRange[0] && p.priceNum <= filters.priceRange[1]
-    );
-
-    // Property type filter
-    if (filters.propertyType.length > 0) {
-      filtered = filtered.filter(p => filters.propertyType.includes(p.type));
+  // Sort properties
+  const sortedProperties = useMemo(() => {
+    const sorted = [...filteredProperties];
+    switch (sortBy) {
+      case 'price-low':
+        return sorted.sort((a, b) => a.price - b.price);
+      case 'price-high':
+        return sorted.sort((a, b) => b.price - a.price);
+      case 'rating':
+        return sorted.sort((a, b) => b.rating - a.rating);
+      default:
+        return sorted;
     }
+  }, [filteredProperties, sortBy]);
 
-    // Rating filter
-    if (filters.minRating > 0) {
-      filtered = filtered.filter(p => p.rating >= filters.minRating);
+  const handlePropertySelect = (propertyId) => {
+    if (favorites.includes(propertyId)) {
+      setFavorites(favorites.filter(id => id !== propertyId));
+    } else {
+      setFavorites([...favorites, propertyId]);
     }
-
-    // Amenities filter
-    if (filters.amenities.length > 0) {
-      filtered = filtered.filter(p => 
-        filters.amenities.some(a => p.amenities.includes(a))
-      );
-    }
-
-    setFilteredProperties(filtered);
-    setCurrentPage(1);
   };
 
-  // Handle sorting
-  const handleSort = (value) => {
-    setSortBy(value);
-    let sorted = [...filteredProperties];
-
-    if (value === 'price-low') {
-      sorted.sort((a, b) => a.priceNum - b.priceNum);
-    } else if (value === 'price-high') {
-      sorted.sort((a, b) => b.priceNum - a.priceNum);
-    } else if (value === 'rating') {
-      sorted.sort((a, b) => b.rating - a.rating);
-    }
-
-    setFilteredProperties(sorted);
-  };
-
-  const toggleFavorite = (propertyId) => {
-    setFavorites(prev => 
-      prev.includes(propertyId)
-        ? prev.filter(id => id !== propertyId)
-        : [...prev, propertyId]
-    );
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5 }
-    }
+  const amenityIcons = {
+    'WiFi': <FaWifi className="w-4 h-4" />,
+    'Kitchen': <FaUtensilsSpoon className="w-4 h-4" />,
+    'Parking': <FaParking className="w-4 h-4" />,
+    'TV': <FaTv className="w-4 h-4" />,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Search Results</h1>
-          <p className="text-gray-600">Found {filteredProperties.length} properties</p>
-        </div>
-
-        <div className="flex gap-6">
-          {/* Sidebar */}
+    <div className="bg-white min-h-screen">
+      {/* Header */}
+      <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="hidden lg:block w-80 flex-shrink-0"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
           >
-            <FilterSidebar onFilterChange={handleFilterChange} />
-          </motion.div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                Search Results
+              </h1>
+              <p className="text-gray-600 mt-1">
+                {sortedProperties.length} properties found
+              </p>
+            </div>
 
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Controls */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setViewMode('grid')}
-                  className={`p-3 rounded-lg transition-colors ${
-                    viewMode === 'grid'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border-2 border-gray-200'
-                  }`}
-                >
-                  <FaTh className="text-lg" />
-                </button>
-                <button
-                  onClick={() => setViewMode('map')}
-                  className={`p-3 rounded-lg transition-colors ${
-                    viewMode === 'map'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white text-gray-700 border-2 border-gray-200'
-                  }`}
-                >
-                  <FaMap className="text-lg" />
-                </button>
-              </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Filter Toggle */}
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                onClick={() => setShowFilters(!showFilters)}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all"
+              >
+                <FaSliders className="w-4 h-4" />
+                <span>Filters</span>
+              </motion.button>
 
-              {/* Sort */}
+              {/* Sort Dropdown */}
               <select
                 value={sortBy}
-                onChange={(e) => handleSort(e.target.value)}
-                className="px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-500 flex items-center gap-2"
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
               >
                 <option value="newest">Newest</option>
                 <option value="price-low">Price: Low to High</option>
@@ -305,86 +218,264 @@ export default function SearchResult() {
                 <option value="rating">Highest Rated</option>
               </select>
             </div>
-
-            {/* Grid/Map View */}
-            {viewMode === 'grid' ? (
-              <>
-                <motion.div
-                  initial="hidden"
-                  animate="visible"
-                  variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.1
-                      }
-                    }
-                  }}
-                  className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
-                >
-                  {displayedProperties.map(property => (
-                    <motion.div
-                      key={property.id}
-                      variants={itemVariants}
-                      className="relative"
-                    >
-                      <div
-                        onMouseEnter={() => {
-                          setSelectedProperty(property);
-                          setQuickViewOpen(true);
-                        }}
-                      >
-                        <PropertyCard
-                          listing={property}
-                          variants={itemVariants}
-                        />
-                      </div>
-
-                      {/* Heart Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.2 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => toggleFavorite(property.id)}
-                        className={`absolute top-4 left-4 z-10 p-3 rounded-full transition-all ${
-                          favorites.includes(property.id)
-                            ? 'bg-red-500 text-white'
-                            : 'bg-white/80 text-gray-400 hover:text-red-500'
-                        }`}
-                      >
-                        <FaHeart />
-                      </motion.button>
-                    </motion.div>
-                  ))}
-                </motion.div>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={totalPages}
-                    onPageChange={setCurrentPage}
-                  />
-                )}
-              </>
-            ) : (
-              <div className="bg-white rounded-lg shadow-md p-8 h-96 flex items-center justify-center text-gray-500">
-                <div className="text-center">
-                  <FaMap className="text-6xl mx-auto mb-4 opacity-30" />
-                  <p className="text-xl">Map view coming soon</p>
-                  <p className="text-sm">Google Maps/Leaflet integration</p>
-                </div>
-              </div>
-            )}
-          </div>
+          </motion.div>
         </div>
       </div>
 
-      {/* Quick View Modal */}
-      <QuickViewModal
-        property={selectedProperty}
-        isOpen={quickViewOpen}
-        onClose={() => setQuickViewOpen(false)}
-      />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="lg:w-64 flex-shrink-0"
+            >
+              <div className="sticky top-24 space-y-6">
+                {/* Price Range */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                  <h3 className="font-bold text-gray-900 mb-4">Price Range</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm text-gray-600">
+                        Minimum: ${priceRange[0].toLocaleString()}
+                      </label>
+                      <input
+                        type="range"
+                        min="1000"
+                        max="10000"
+                        step="100"
+                        value={priceRange[0]}
+                        onChange={(e) => {
+                          const newMin = Math.min(parseInt(e.target.value), priceRange[1]);
+                          setPriceRange([newMin, priceRange[1]]);
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">
+                        Maximum: ${priceRange[1].toLocaleString()}
+                      </label>
+                      <input
+                        type="range"
+                        min="1000"
+                        max="10000"
+                        step="100"
+                        value={priceRange[1]}
+                        onChange={(e) => {
+                          const newMax = Math.max(parseInt(e.target.value), priceRange[0]);
+                          setPriceRange([priceRange[0], newMax]);
+                        }}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Property Type */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                  <h3 className="font-bold text-gray-900 mb-4">Property Type</h3>
+                  <div className="space-y-2">
+                    {propertyTypes.map((type) => (
+                      <label key={type} className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedTypes.includes(type)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedTypes([...selectedTypes, type]);
+                            } else {
+                              setSelectedTypes(selectedTypes.filter(t => t !== type));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <span className="ml-3 text-gray-700">{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Amenities */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                  <h3 className="font-bold text-gray-900 mb-4">Amenities</h3>
+                  <div className="space-y-2">
+                    {amenityOptions.map((amenity) => (
+                      <label key={amenity} className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedAmenities.includes(amenity)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedAmenities([...selectedAmenities, amenity]);
+                            } else {
+                              setSelectedAmenities(selectedAmenities.filter(a => a !== amenity));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-gray-300"
+                        />
+                        <span className="ml-3 text-gray-700">{amenity}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Minimum Rating */}
+                <div className="bg-white p-6 rounded-2xl border border-gray-200">
+                  <h3 className="font-bold text-gray-900 mb-4">Minimum Rating</h3>
+                  <div className="space-y-2">
+                    {[4, 4.5, 4.7, 4.8, 4.9].map((rating) => (
+                      <label key={rating} className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="rating"
+                          checked={minRating === rating}
+                          onChange={() => setMinRating(rating)}
+                          className="w-4 h-4"
+                        />
+                        <span className="ml-3 text-gray-700">{rating}★ & up</span>
+                      </label>
+                    ))}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="rating"
+                        checked={minRating === 0}
+                        onChange={() => setMinRating(0)}
+                        className="w-4 h-4"
+                      />
+                      <span className="ml-3 text-gray-700">All ratings</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Properties Grid */}
+          <motion.div className="flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {sortedProperties.map((property, idx) => (
+                <motion.div
+                  key={property.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  viewport={{ once: true }}
+                  className="group cursor-pointer"
+                >
+                  <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all duration-300 h-full flex flex-col">
+                    {/* Image */}
+                    <div className="relative h-48 overflow-hidden bg-gray-100">
+                      <img
+                        src={property.image}
+                        alt={property.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      />
+                      
+                      {/* Favorite Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handlePropertySelect(property.id)}
+                        className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white rounded-full shadow-lg transition-all"
+                      >
+                        <FaHeart
+                          className={`w-5 h-5 ${
+                            favorites.includes(property.id)
+                              ? 'fill-red-500 text-red-500'
+                              : 'text-gray-600'
+                          }`}
+                        />
+                      </motion.button>
+
+                      {/* Rating Badge */}
+                      <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-semibold">
+                        ⭐ {property.rating}
+                      </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 text-sm">
+                        {property.title}
+                      </h3>
+                      
+                      <p className="text-xs text-gray-600 flex items-center gap-1 mb-3">
+                        <FaMapMarkerAlt className="w-3 h-3 flex-shrink-0" />
+                        {property.location}
+                      </p>
+
+                      {/* Room Details */}
+                      <div className="flex gap-3 text-xs text-gray-600 mb-3">
+                        <span>{property.bedrooms} bed</span>
+                        <span>{property.bathrooms} bath</span>
+                        <span>{property.guests} guests</span>
+                      </div>
+
+                      {/* Amenities Icons */}
+                      <div className="flex gap-2 mb-4 flex-wrap">
+                        {property.amenities.slice(0, 2).map((amenity) => (
+                          <div key={amenity} className="text-gray-600 text-xs">
+                            {amenityIcons[amenity] || amenity}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Price */}
+                      <div className="mt-auto pt-4 border-t border-gray-100">
+                        <p className="text-xl font-bold text-gray-900">
+                          ${property.price.toLocaleString()}
+                          <span className="text-sm font-normal text-gray-600">/month</span>
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          ({property.reviews} reviews)
+                        </p>
+                      </div>
+
+                      {/* View Details Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors"
+                      >
+                        View Details
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* No Results */}
+            {sortedProperties.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <p className="text-lg text-gray-600">No properties match your filters.</p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => {
+                    setPriceRange([1000, 10000]);
+                    setSelectedTypes([]);
+                    setSelectedAmenities([]);
+                    setMinRating(0);
+                  }}
+                  className="mt-4 text-blue-600 hover:text-blue-700 font-semibold"
+                >
+                  Clear Filters
+                </motion.button>
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
+      </div>
     </div>
   );
-}
+};
+
+export default SearchResult;
 

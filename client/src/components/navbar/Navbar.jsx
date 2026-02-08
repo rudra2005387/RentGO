@@ -49,7 +49,7 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full bg-white/95 backdrop-blur-md shadow-md sticky top-0 z-50 px-4 sm:px-6 py-3 dark:bg-gray-900/95 dark:text-white transition-colors">
+    <nav className="w-full bg-white border-b border-gray-100 sticky top-0 z-50 px-4 sm:px-6 py-3 dark:bg-gray-900/95 dark:border-gray-800 dark:text-white transition-colors shadow-sm">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         
         {/* Logo */}

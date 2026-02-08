@@ -22,11 +22,7 @@ const BottomNavigation = () => {
 	];
 
 	return (
-		<nav
-			className="fixed bottom-0 left-0 right-0 md:hidden bg-white border-t border-gray-200 shadow-lg z-40"
-			role="navigation"
-			aria-label="Mobile bottom navigation"
-		>
+		<nav className="bottom-nav" role="navigation" aria-label="Mobile bottom navigation">
 			<div className="flex items-center justify-around h-16 w-full max-h-16">
 				{navItems.map((item) => {
 					const Icon = item.icon;
@@ -36,22 +32,13 @@ const BottomNavigation = () => {
 						<Link
 							key={item.path}
 							to={item.path}
-							className={`flex flex-col items-center justify-center flex-1 h-full transition-all ${
-								active
-									? 'text-blue-600 border-t-2 border-blue-600'
-									: 'text-gray-600 hover:text-blue-600'
-							}`}
+							className={`bottom-nav-item ${active ? 'active' : ''}`}
 							aria-label={item.ariaLabel}
 							aria-current={active ? 'page' : undefined}
 							title={item.label}
 						>
-							<Icon
-								className="text-xl mb-1"
-								aria-hidden="true"
-							/>
-							<span className="text-xs font-medium whitespace-nowrap">
-								{item.label}
-							</span>
+							<Icon className="mb-1" aria-hidden="true" />
+							<span className="text-xs font-medium whitespace-nowrap">{item.label}</span>
 						</Link>
 					);
 				})}
