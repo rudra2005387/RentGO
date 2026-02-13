@@ -751,16 +751,15 @@ p {
 .footer-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 48px; margin-bottom: 48px; }
 .footer-column h3 { font-size: 14px; font-weight: 600; color: var(--black); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
 .footer-links a { font-size: 14px; color: var(--gray); text-decoration: none; }
--.footer-bottom { border-top: 1px solid var(--gray-lighter); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-+.footer-bottom { border-top: 1px solid var(--gray-lighter); padding: 24px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
-+
-+.footer-bottom-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-+.footer-copyright { font-size: 14px; color: var(--gray); white-space: nowrap; }
-+
-+.footer-legal-links { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
-+.footer-legal-links a { font-size: 14px; color: #0071C2; text-decoration: none; white-space: nowrap; transition: text-decoration 0.2s ease; }
-+.footer-legal-links a:hover { text-decoration: underline; }
-+.footer-legal-links a:not(:last-child)::after { content: '·'; margin-left: 16px; color: var(--gray); }
+.footer-bottom { border-top: 1px solid var(--gray-lighter); padding: 24px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+
+.footer-bottom-left { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.footer-copyright { font-size: 14px; color: var(--gray); white-space: nowrap; }
+
+.footer-legal-links { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.footer-legal-links a { font-size: 14px; color: #0071C2; text-decoration: none; white-space: nowrap; transition: text-decoration 0.2s ease; }
+.footer-legal-links a:hover { text-decoration: underline; }
+.footer-legal-links a:not(:last-child)::after { content: '·'; margin-left: 16px; color: var(--gray); }
 
 /* ============================================
    ACCESSIBILITY / FOCUS STATES
@@ -1010,6 +1009,149 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--black); outline
 /* ============================================
    RESPONSIVE
    ============================================ */
+
+/* Tablet & Large Mobile */
+@media (max-width: 1024px) {
+	.container {
+		padding: 0 24px;
+	}
+
+	.category-filters {
+		padding: 0 24px;
+	}
+
+	.category-filters-wrapper {
+		padding: 0 24px;
+	}
+
+	.why-choose-section {
+		padding: 64px 24px;
+		margin-top: 60px;
+	}
+}
+
+/* mobile */
+@media (max-width: 767px) {
+	header {
+		padding: 0 16px;
+		height: 70px;
+	}
+
+	.logo {
+		min-width: 80px;
+		font-size: 20px;
+	}
+
+	.nav-primary {
+		display: none;
+	}
+
+	.search-bar {
+		margin: 0 16px;
+		max-width: calc(100% - 32px);
+	}
+
+	.container {
+		padding: 0 16px;
+	}
+
+	.category-filters {
+		margin: -32px auto 24px;
+		padding: 0 16px;
+	}
+
+	.category-filters-wrapper {
+		padding: 0 16px;
+	}
+
+	.category-item {
+		min-width: 56px;
+		padding: 6px 10px;
+		gap: 6px;
+	}
+
+	.category-label {
+		font-size: 11px;
+	}
+
+	.why-choose-section {
+		padding: 40px 16px;
+		margin-top: 40px;
+	}
+
+	.why-choose-header {
+		margin-bottom: 32px;
+	}
+
+	.why-choose-header h2 {
+		font-size: 28px;
+		margin-bottom: 12px;
+	}
+
+	.why-choose-header p {
+		font-size: 16px;
+	}
+
+	.features-grid {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+
+	.feature-icon-container {
+		width: 56px;
+		height: 56px;
+		margin-bottom: 16px;
+	}
+
+	.feature-title {
+		font-size: 18px;
+		margin-bottom: 8px;
+	}
+
+	.feature-description {
+		font-size: 14px;
+	}
+
+	.header-container {
+		padding: 0;
+	}
+
+	.main-nav {
+		display: none;
+	}
+}
+
+/* Very small mobile devices */
+@media (max-width: 480px) {
+	.container {
+		padding: 0 12px;
+	}
+
+	.hero-two-column {
+		gap: 16px;
+		padding: 16px 12px;
+	}
+
+	.category-filters {
+		padding: 0 12px;
+	}
+
+	.why-choose-section {
+		padding: 32px 12px;
+	}
+
+	.category-item {
+		min-width: 48px;
+	}
+
+	.section-title {
+		font-size: 24px;
+	}
+
+	.section-subtitle {
+		font-size: 16px;
+	}
+}
 
 @media (max-width: 767px) {
 	header {
