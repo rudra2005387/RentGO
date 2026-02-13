@@ -277,6 +277,8 @@ button {
 }
 .listing-card .card-rating {
   @apply flex items-center gap-1 text-sm font-medium;
+}
+
 /* Hero two-column layout (Airbnb-style) */
 .hero-two-column {
   @apply container grid grid-cols-1 lg:grid-cols-2 gap-12 items-center py-16 lg:py-24;

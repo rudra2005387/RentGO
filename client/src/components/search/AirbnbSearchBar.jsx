@@ -28,55 +28,55 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white rounded-full shadow-md px-6 py-4 flex items-center gap-4 max-w-4xl mx-auto"
+          className="bg-white rounded-full shadow-md px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-4xl mx-auto w-full"
         >
           {/* Location */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="Where are you going?"
-              className="w-full bg-transparent text-base placeholder-gray-400 outline-none text-black font-medium"
+              className="w-full bg-transparent text-sm sm:text-base placeholder-gray-400 outline-none text-black font-medium"
             />
           </div>
 
           {/* Check-in */}
-          <div className="flex-1 border-l border-[#DDDDDD] pl-4">
+          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
             <input
               type="date"
               value={checkIn}
               onChange={(e) => setCheckIn(e.target.value)}
-              className="w-full bg-transparent text-base outline-none text-black font-medium"
+              className="w-full bg-transparent text-sm sm:text-base outline-none text-black font-medium"
             />
           </div>
 
           {/* Check-out */}
-          <div className="flex-1 border-l border-[#DDDDDD] pl-4">
+          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
             <input
               type="date"
               value={checkOut}
               onChange={(e) => setCheckOut(e.target.value)}
-              className="w-full bg-transparent text-base outline-none text-black font-medium"
+              className="w-full bg-transparent text-sm sm:text-base outline-none text-black font-medium"
             />
           </div>
 
           {/* Guests */}
-          <div className="flex-1 border-l border-[#DDDDDD] pl-4">
+          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
             <input
               type="number"
               value={guests}
               onChange={(e) => setGuests(e.target.value)}
               placeholder="Guests"
               min="1"
-              className="w-full bg-transparent text-base placeholder-gray-400 outline-none text-black font-medium"
+              className="w-full bg-transparent text-sm sm:text-base placeholder-gray-400 outline-none text-black font-medium"
             />
           </div>
 
           {/* Search Button */}
           <button
             type="submit"
-            className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-xl hover:scale-105 transition-transform shadow-lg flex-shrink-0"
+            className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-lg hover:scale-105 transition-transform shadow-lg flex-shrink-0"
           >
             <FaSearch />
           </button>
@@ -86,17 +86,17 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
   }
 
   return (
-    <form onSubmit={handleSearch} className="w-full">
+    <form onSubmit={handleSearch} className="w-full px-4 sm:px-0">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="bg-white rounded-full shadow-md px-2 py-2 flex items-center gap-2 max-w-2xl mx-auto h-16 relative"
+        className="bg-white rounded-full shadow-md px-2 sm:px-2 py-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 max-w-2xl mx-auto h-auto sm:h-16 relative"
       >
         {/* Location Section */}
         <motion.div
           onClick={() => setActiveSection('location')}
-          className={`flex-1 px-6 py-3 rounded-full cursor-pointer transition-all ${
+          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
             activeSection === 'location' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
           }`}
         >
@@ -110,13 +110,13 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
           />
         </motion.div>
 
-        {/* Divider */}
-        <div className="w-px h-8 bg-[#DDDDDD]"></div>
+        {/* Divider - hidden on mobile */}
+        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
 
         {/* Check-in Section */}
         <motion.div
           onClick={() => setActiveSection('checkin')}
-          className={`flex-1 px-6 py-3 rounded-full cursor-pointer transition-all ${
+          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
             activeSection === 'checkin' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
           }`}
         >
@@ -129,13 +129,13 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
           />
         </motion.div>
 
-        {/* Divider */}
-        <div className="w-px h-8 bg-[#DDDDDD]"></div>
+        {/* Divider - hidden on mobile */}
+        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
 
         {/* Check-out Section */}
         <motion.div
           onClick={() => setActiveSection('checkout')}
-          className={`flex-1 px-6 py-3 rounded-full cursor-pointer transition-all ${
+          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
             activeSection === 'checkout' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
           }`}
         >
@@ -148,13 +148,13 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
           />
         </motion.div>
 
-        {/* Divider */}
-        <div className="w-px h-8 bg-[#DDDDDD]"></div>
+        {/* Divider - hidden on mobile */}
+        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
 
         {/* Guests Section */}
         <motion.div
           onClick={() => setActiveSection('guests')}
-          className={`flex-1 px-6 py-3 rounded-full cursor-pointer transition-all ${
+          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
             activeSection === 'guests' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
           }`}
         >
@@ -172,7 +172,7 @@ export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
         {/* Search Button */}
         <button
           type="submit"
-          className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-lg hover:scale-105 transition-transform shadow-lg flex-shrink-0 mr-1"
+          className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-lg hover:scale-105 transition-transform shadow-lg flex-shrink-0 mx-1"
         >
           <FaSearch />
         </button>
