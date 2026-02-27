@@ -1,0 +1,95 @@
+.airbnb-card {
+  cursor: pointer;
+  background: #ffffff;
+  border-radius: 16px;
+  transition: all 0.25s ease;
+}
+
+.airbnb-card-image {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.airbnb-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.airbnb-card:hover .airbnb-card-image img {
+  transform: scale(1.05);
+}
+
+.airbnb-heart {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.airbnb-heart svg {
+  width: 24px;
+  height: 24px;
+  fill: rgba(0, 0, 0, 0.4);
+  stroke: white;
+  stroke-width: 2;
+}
+
+.airbnb-heart.active svg,
+.airbnb-heart:hover svg {
+  fill: #ff385c;
+  stroke: #ff385c;
+}
+
+.airbnb-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: white;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.airbnb-card-info {
+  padding: 10px 4px 0 4px;
+}
+
+.airbnb-card-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: #222;
+}
+
+.airbnb-rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.airbnb-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: #717171;
+  margin: 4px 0;
+}
+
+.airbnb-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: #222;
+}
+
+.airbnb-price span {
+  font-weight: 400;
+  color: #717171;
+}

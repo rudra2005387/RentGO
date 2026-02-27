@@ -1,127 +1,84 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FaSearch, FaMapMarkerAlt, FaCalendarAlt, FaUsers } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
-import CategoryFilter from '../CategoryFilter';
+import React, { useState } from "react";
+import "./SearchBar.css";
 
-const SearchBar = () => {
-  const navigate = useNavigate();
-  const [location, setLocation] = useState('');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
-  const [guests, setGuests] = useState(1);
-  const [expandedMobile, setExpandedMobile] = useState(false);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const searchParams = new URLSearchParams({
-      location: location || 'all',
-      checkIn: checkIn || '',
-      checkOut: checkOut || '',
-      guests: guests
-    });
-    navigate(`/search?${searchParams.toString()}`);
-  };
+function SearchBar() {
+  const [whereValue, setWhereValue] = useState("");
 
   return (
-    <motion.form
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, delay: 0.8 }}
-      onSubmit={handleSearch}
-      className="w-full max-w-6xl mx-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl p-4 sm:p-6 border border-white/50"
-    >
-      {/* Category Filter */}
-      <div className="mb-6">
-        <CategoryFilter />
-      </div>
+    <section className="search-section">
+      <div className="search-container">
+        <h1 className="search-headline">
+          Not sure where to go? Perfect.
+        </h1>
 
-      {/* Main Search Inputs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
-        {/* Location Input */}
-        <motion.div 
-          whileFocus={{ scale: 1.02 }}
-          className="relative col-span-1 md:col-span-2"
-        >
-          <FaMapMarkerAlt className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="text"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="City, address, or zip"
-            className="w-full pl-12 pr-4 py-3 md:py-4 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-blue-50/50 transition-all text-sm md:text-base"
-          />
-        </motion.div>
+        <p className="search-subheadline">
+          Explore thousands of unique properties. Book with confidence and enjoy your stay.
+        </p>
 
-        {/* Check-in Date */}
-        <motion.div whileFocus={{ scale: 1.02 }} className="relative">
-          <FaCalendarAlt className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="date"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 md:py-4 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-blue-50/50 transition-all text-sm md:text-base"
-          />
-        </motion.div>
+        {/* Unified Pill Search Bar */}
+        <div className="search-bar-pill">
 
-        {/* Check-out Date */}
-        <motion.div whileFocus={{ scale: 1.02 }} className="relative">
-          <FaCalendarAlt className="absolute top-1/2 left-4 -translate-y-1/2 text-gray-400 pointer-events-none" />
-          <input
-            type="date"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-            className="w-full pl-12 pr-4 py-3 md:py-4 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-blue-50/50 transition-all text-sm md:text-base"
-          />
-        </motion.div>
+          {/* WHERE FIELD */}
+          <div className="search-field search-where">
+            <label>Where</label>
+            <input
+              type="text"
+              placeholder="Search destinations"
+              value={whereValue}
+              onChange={(e) => setWhereValue(e.target.value)}
+            />
+          </div>
 
-        {/* Guest Counter */}
-        <motion.div 
-          whileFocus={{ scale: 1.02 }}
-          className="relative flex items-center"
-        >
-          <FaUsers className="absolute left-4 text-gray-400 pointer-events-none" />
-          <select
-            value={guests}
-            onChange={(e) => setGuests(parseInt(e.target.value))}
-            className="w-full pl-12 pr-4 py-3 md:py-4 bg-transparent border-2 border-gray-200 rounded-xl focus:outline-none focus:border-blue-500 focus:bg-blue-50/50 transition-all appearance-none text-sm md:text-base"
+          <div className="search-divider"></div>
+
+          {/* CHECK IN FIELD */}
+          <div className="search-field search-checkin">
+            <label>Check in</label>
+            <div className="search-display">Add dates</div>
+          </div>
+
+          <div className="search-divider"></div>
+
+          {/* CHECK OUT FIELD */}
+          <div className="search-field search-checkout">
+            <label>Check out</label>
+            <div className="search-display">Add dates</div>
+          </div>
+
+          <div className="search-divider"></div>
+
+          {/* WHO FIELD */}
+          <div className="search-field search-who">
+            <label>Who</label>
+            <div className="search-display">Add guests</div>
+          </div>
+
+          {/* SEARCH BUTTON */}
+          <button
+            className="search-button-round"
+            type="button"
+            aria-label="Search"
           >
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-              <option key={num} value={num}>
-                {num} {num === 1 ? 'Guest' : 'Guests'}
-              </option>
-            ))}
-          </select>
-        </motion.div>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M7 13A6 6 0 1 0 7 1a6 6 0 0 0 0 12zM15 15l-3.35-3.35"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
 
-        {/* Search Button */}
-        <motion.button
-          type="submit"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="col-span-1 md:col-span-2 lg:col-span-1 w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-3 md:py-4 px-6 md:px-8 rounded-xl flex items-center justify-center gap-2 transform transition-all duration-300 shadow-lg hover:shadow-xl text-sm md:text-base"
-        >
-          <FaSearch className="hidden md:inline" />
-          <span>Search</span>
-        </motion.button>
+        </div>
       </div>
-
-      {/* Mobile Expanded Info */}
-      {expandedMobile && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="mt-4 p-4 bg-blue-50 rounded-xl text-sm text-gray-700"
-        >
-          <p>📍 {location || 'Select a location'}</p>
-          <p>📅 {checkIn ? `Check-in: ${checkIn}` : 'Select check-in date'}</p>
-          <p>📅 {checkOut ? `Check-out: ${checkOut}` : 'Select check-out date'}</p>
-          <p>👥 {guests} {guests === 1 ? 'guest' : 'guests'}</p>
-        </motion.div>
-      )}
-    </motion.form>
+    </section>
   );
-};
+}
 
 export default SearchBar;
