@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { FaShareAlt, FaMapMarkerAlt, FaStar, FaWifi, FaUtensilsSpoon, FaParking, FaTv } from 'react-icons/fa';
+import { FaShareAlt, FaMapMarkerAlt, FaStar, FaWifi, FaUtensils, FaParking, FaTv } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import PropertyGallery from '../components/PropertyGallery/PropertyGallery.jsx';
-import HostInfo from '../components/HostInfo/HostInfo.jsx';
-import BookingCalendar from '../components/BookingCalendar/BookingCalendar.jsx';
-import CheckoutSummary from '../components/CheckoutSummary/CheckoutSummary.jsx';
+import PropertyGallery from '../components/PropertyGallery.jsx';
+import HostInfo from '../components/HostInfo.jsx';
+import BookingCalendar from '../components/BookingCalendar.jsx';
+import CheckoutSummary from '../components/CheckoutSummary.jsx';
 
 
 function AmenitiesGrid({ amenities = [] }) {
@@ -14,7 +14,7 @@ function AmenitiesGrid({ amenities = [] }) {
 
 	const amenityIcons = {
 		'WiFi': <FaWifi className="text-blue-600" />,
-		'Kitchen': <FaUtensilsSpoon className="text-blue-600" />,
+		'Kitchen': <FaUtensils className="text-blue-600" />,
 		'Parking': <FaParking className="text-blue-600" />,
 		'TV': <FaTv className="text-blue-600" />,
 	};
@@ -204,7 +204,6 @@ export default function ListingDetails() {
 		location: 'Malibu, California',
 		address: '456 Coastal Drive, Malibu, CA 90265',
 		rating: 4.87,
-		reviews: 156,
 		images: [
 			'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&h=600&fit=crop',
 			'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop',
@@ -216,6 +215,7 @@ export default function ListingDetails() {
 		serviceFee: 65,
 		taxes: 95,
 		discount: 0,
+		reviewCount: 156,
 		bedrooms: 4,
 		bathrooms: 3,
 		guests: 8,
@@ -303,7 +303,7 @@ export default function ListingDetails() {
 								))}
 							</div>
 							<span className="font-semibold text-gray-900">{sample.rating}</span>
-							<span className="text-gray-600">({sample.reviews} reviews)</span>
+							<span className="text-gray-600">({sample.reviewCount} reviews)</span>
 						</div>
 						<span className="text-gray-600 flex items-center gap-2">
 							<FaMapMarkerAlt size={16} /> {sample.location}
@@ -386,6 +386,23 @@ export default function ListingDetails() {
 						>
 							<h2 className="text-2xl font-bold mb-6">Your Host</h2>
 							<HostInfo host={sample.host} />
+						</motion.div>
+
+						{/* Map Integration */}
+						<motion.div
+							initial={{ opacity: 0, y: 20 }}
+							whileInView={{ opacity: 1, y: 0 }}
+							className="pt-6 border-t border-gray-200"
+						>
+							<h2 className="text-2xl font-bold mb-6">Where you'll be</h2>
+							<div className="rounded-2xl overflow-hidden border border-gray-200">
+								<iframe
+									title="Property location map"
+									src="https://www.openstreetmap.org/export/embed.html?bbox=-118.80%2C34.00%2C-118.30%2C34.25&layer=mapnik"
+									className="w-full h-80 border-0"
+									loading="lazy"
+								/>
+							</div>
 						</motion.div>
 
 						{/* Reviews */}

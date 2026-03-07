@@ -3,11 +3,11 @@ import AirbnbStyleNavbar from '../components/navbar/AirbnbStyleNavbar';
 
 export default function MainLayout() {
 	return (
-		<div className="min-h-screen bg-slate-50">
+		<div className="min-h-screen bg-white">
 			<AirbnbStyleNavbar />
 			<main
 				id="main-content"
-				className="container focus:outline-none"
+				className="pt-20 focus:outline-none"
 				role="main"
 			>
 				<Outlet />

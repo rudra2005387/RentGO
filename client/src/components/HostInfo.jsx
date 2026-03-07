@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { FaStar, FaPhone, FaMessageDots, FaCalendarDays, FaShieldAlt, FaLanguage } from 'react-icons/fa';
+import { FaStar, FaPhone, FaCommentDots, FaCalendarAlt, FaShieldAlt, FaLanguage } from 'react-icons/fa';
 
 const HostInfo = ({ host = {} }) => {
   const {
@@ -133,7 +133,7 @@ const HostInfo = ({ host = {} }) => {
           whileTap={{ scale: 0.98 }}
           className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
         >
-          <FaMessageDots className="w-4 h-4" />
+          <FaCommentDots className="w-4 h-4" />
           <span>Send Message</span>
         </motion.button>
 

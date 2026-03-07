@@ -1,13 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaHeart, FaMapMarkerAlt, FaStar, FaSliders, FaArrowUp, FaArrowDown, FaWifi, FaUtensilsSpoon, FaParking, FaTv } from 'react-icons/fa';
+import { FaMapMarkerAlt, FaStar, FaSlidersH, FaArrowUp, FaArrowDown, FaWifi, FaUtensils, FaParking, FaTv } from 'react-icons/fa';
 
 const SearchResult = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(true);
-  const [favorites, setFavorites] = useState([]);
   const [sortBy, setSortBy] = useState('newest');
   
   // Filter states
@@ -171,7 +170,7 @@ const SearchResult = () => {
 
   const amenityIcons = {
     'WiFi': <FaWifi className="w-4 h-4" />,
-    'Kitchen': <FaUtensilsSpoon className="w-4 h-4" />,
+    'Kitchen': <FaUtensils className="w-4 h-4" />,
     'Parking': <FaParking className="w-4 h-4" />,
     'TV': <FaTv className="w-4 h-4" />,
   };
@@ -202,7 +201,7 @@ const SearchResult = () => {
                 onClick={() => setShowFilters(!showFilters)}
                 className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all"
               >
-                <FaSliders className="w-4 h-4" />
+                <FaSlidersH className="w-4 h-4" />
                 <span>Filters</span>
               </motion.button>
 
@@ -374,22 +373,6 @@ const SearchResult = () => {
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                       />
                       
-                      {/* Favorite Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handlePropertySelect(property.id)}
-                        className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white rounded-full shadow-lg transition-all"
-                      >
-                        <FaHeart
-                          className={`w-5 h-5 ${
-                            favorites.includes(property.id)
-                              ? 'fill-red-500 text-red-500'
-                              : 'text-gray-600'
-                          }`}
-                        />
-                      </motion.button>
-
                       {/* Rating Badge */}
                       <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-semibold">
                         ⭐ {property.rating}

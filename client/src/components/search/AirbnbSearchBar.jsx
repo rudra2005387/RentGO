@@ -1,182 +1,69 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FaSearch, FaMapMarkerAlt, FaCalendarAlt, FaUsers } from 'react-icons/fa';
+import { FaSearch } from 'react-icons/fa';
 
-export default function AirbnbSearchBar({ onSearch, variant = 'default' }) {
+export default function AirbnbSearchBar({ onSearch }) {
   const [location, setLocation] = useState('');
-  const [checkIn, setCheckIn] = useState('');
-  const [checkOut, setCheckOut] = useState('');
+  const [dates, setDates] = useState('');
   const [guests, setGuests] = useState('');
-  const [activeSection, setActiveSection] = useState(null);
 
   const handleSearch = (e) => {
     e.preventDefault();
     if (onSearch) {
-      onSearch({
-        location,
-        checkIn,
-        checkOut,
-        guests
-      });
+      onSearch({ location, checkIn: dates, checkOut: '', guests });
     }
   };
 
-  if (variant === 'hero') {
-    return (
-      <form onSubmit={handleSearch} className="w-full">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="bg-white rounded-full shadow-md px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 max-w-4xl mx-auto w-full"
-        >
-          {/* Location */}
-          <div className="flex-1 min-w-0">
-            <input
-              type="text"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Where are you going?"
-              className="w-full bg-transparent text-sm sm:text-base placeholder-gray-400 outline-none text-black font-medium"
-            />
-          </div>
-
-          {/* Check-in */}
-          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
-            <input
-              type="date"
-              value={checkIn}
-              onChange={(e) => setCheckIn(e.target.value)}
-              className="w-full bg-transparent text-sm sm:text-base outline-none text-black font-medium"
-            />
-          </div>
-
-          {/* Check-out */}
-          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
-            <input
-              type="date"
-              value={checkOut}
-              onChange={(e) => setCheckOut(e.target.value)}
-              className="w-full bg-transparent text-sm sm:text-base outline-none text-black font-medium"
-            />
-          </div>
-
-          {/* Guests */}
-          <div className="flex-1 min-w-0 sm:border-l border-[#DDDDDD] sm:pl-4">
-            <input
-              type="number"
-              value={guests}
-              onChange={(e) => setGuests(e.target.value)}
-              placeholder="Guests"
-              min="1"
-              className="w-full bg-transparent text-sm sm:text-base placeholder-gray-400 outline-none text-black font-medium"
-            />
-          </div>
-
-          {/* Search Button */}
-          <button
-            type="submit"
-            className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-lg hover:scale-105 transition-transform shadow-lg flex-shrink-0"
-          >
-            <FaSearch />
-          </button>
-        </motion.div>
-      </form>
-    );
-  }
-
   return (
-    <form onSubmit={handleSearch} className="w-full px-4 sm:px-0">
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-white rounded-full shadow-md px-2 sm:px-2 py-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2 max-w-2xl mx-auto h-auto sm:h-16 relative"
-      >
-        {/* Location Section */}
-        <motion.div
-          onClick={() => setActiveSection('location')}
-          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
-            activeSection === 'location' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
-          }`}
-        >
-          <div className="text-xs font-semibold text-black mb-1">Where</div>
+    <form onSubmit={handleSearch}>
+      <div className="flex flex-row items-center bg-white rounded-full shadow-md border border-[#DDDDDD] mx-auto w-fit hover:shadow-lg transition-shadow">
+        {/* Where */}
+        <div className="px-6 py-3 cursor-pointer rounded-full hover:bg-[#F7F7F7] transition-colors">
+          <div className="text-xs font-semibold text-[#222222]">Where</div>
           <input
             type="text"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Search destinations"
-            className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
+            className="bg-transparent text-sm text-[#717171] placeholder-[#717171] outline-none w-full min-w-[140px]"
           />
-        </motion.div>
+        </div>
 
-        {/* Divider - hidden on mobile */}
-        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
+        <div className="w-px h-8 bg-[#DDDDDD]" />
 
-        {/* Check-in Section */}
-        <motion.div
-          onClick={() => setActiveSection('checkin')}
-          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
-            activeSection === 'checkin' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
-          }`}
-        >
-          <div className="text-xs font-semibold text-black mb-1">Check in</div>
+        {/* When */}
+        <div className="px-6 py-3 cursor-pointer rounded-full hover:bg-[#F7F7F7] transition-colors">
+          <div className="text-xs font-semibold text-[#222222]">When</div>
           <input
-            type="date"
-            value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            className="bg-transparent text-sm text-gray-600 outline-none w-full"
+            type="text"
+            value={dates}
+            onChange={(e) => setDates(e.target.value)}
+            placeholder="Add dates"
+            className="bg-transparent text-sm text-[#717171] placeholder-[#717171] outline-none w-full min-w-[100px]"
           />
-        </motion.div>
+        </div>
 
-        {/* Divider - hidden on mobile */}
-        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
+        <div className="w-px h-8 bg-[#DDDDDD]" />
 
-        {/* Check-out Section */}
-        <motion.div
-          onClick={() => setActiveSection('checkout')}
-          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
-            activeSection === 'checkout' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
-          }`}
-        >
-          <div className="text-xs font-semibold text-black mb-1">Check out</div>
+        {/* Who */}
+        <div className="px-6 py-3 cursor-pointer rounded-full hover:bg-[#F7F7F7] transition-colors">
+          <div className="text-xs font-semibold text-[#222222]">Who</div>
           <input
-            type="date"
-            value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-            className="bg-transparent text-sm text-gray-600 outline-none w-full"
-          />
-        </motion.div>
-
-        {/* Divider - hidden on mobile */}
-        <div className="hidden sm:block w-px h-8 bg-[#DDDDDD]"></div>
-
-        {/* Guests Section */}
-        <motion.div
-          onClick={() => setActiveSection('guests')}
-          className={`flex-1 px-4 py-3 rounded-full cursor-pointer transition-all min-w-0 ${
-            activeSection === 'guests' ? 'bg-[#F7F7F7]' : 'hover:bg-[#F7F7F7]'
-          }`}
-        >
-          <div className="text-xs font-semibold text-black mb-1">Who</div>
-          <input
-            type="number"
+            type="text"
             value={guests}
             onChange={(e) => setGuests(e.target.value)}
             placeholder="Add guests"
-            min="1"
-            className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
+            className="bg-transparent text-sm text-[#717171] placeholder-[#717171] outline-none w-full min-w-[100px]"
           />
-        </motion.div>
+        </div>
 
         {/* Search Button */}
         <button
           type="submit"
-          className="w-12 h-12 rounded-full bg-gradient-to-r from-[#E61E4D] to-[#D70466] flex items-center justify-center text-white text-lg hover:scale-105 transition-transform shadow-lg flex-shrink-0 mx-1"
+          className="w-12 h-12 bg-[#FF385C] rounded-full flex items-center justify-center mr-2 hover:bg-[#E31C5F] transition-colors flex-shrink-0"
         >
-          <FaSearch />
+          <FaSearch className="text-white text-sm" />
         </button>
-      </motion.div>
+      </div>
     </form>
   );
 }

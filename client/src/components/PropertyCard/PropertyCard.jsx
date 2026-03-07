@@ -1,98 +1,103 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { FaStar, FaHeart } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaHeart, FaRegHeart, FaStar } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import "./PropertyCard.css";
-const PropertyCard = ({ listing, variants }) => {
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+
+const PropertyCard = ({ listing, isWishlisted = false, onWishlistToggle }) => {
+  const images = listing.images?.length ? listing.images : [listing.image];
+  const [activeImage, setActiveImage] = useState(0);
+
+  const showNext = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveImage((prev) => (prev + 1) % images.length);
+  };
+
+  const showPrev = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveImage((prev) => (prev - 1 + images.length) % images.length);
+  };
 
   return (
-    <motion.div
-      variants={variants}
-      whileHover={{ y: -4 }}
-      className="property-card"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* IMAGE SECTION */}
-      <div className="property-image-container h-64">
+    <Link to={`/listing/${listing.id}`} className="property-card group">
+      {/* IMAGE */}
+      <div className="property-image-container">
         <img
-          src={listing.image}
+          src={images[activeImage]}
           alt={listing.title}
+          className="group-hover:brightness-95 transition-all"
         />
 
-        {/* Guest Favourite Badge (Optional - show conditionally if needed) */}
-        {listing.isGuestFavourite && (
-          <div className="guest-favourite-badge">
-            Guest Favourite
-          </div>
-        )}
-
-        {/* Favorite Heart */}
+        {/* Heart — no background, white with drop shadow */}
         <button
-          className={`favorite-icon ${isFavorited ? "active" : ""}`}
+          className={`wishlist-heart ${isWishlisted ? 'active' : ''}`}
           onClick={(e) => {
             e.preventDefault();
-            setIsFavorited(!isFavorited);
+            e.stopPropagation();
+            if (onWishlistToggle) onWishlistToggle(listing);
           }}
+          aria-label={isWishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
         >
-          <FaHeart />
+          {isWishlisted ? <FaHeart /> : <FaRegHeart />}
         </button>
 
-        {/* Quick View Overlay */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isHovered ? 1 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-xl"
-        >
-          <Link to={`/listing/${listing.id}`}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white px-5 py-2 rounded-lg font-semibold"
-            >
-              Quick View
-            </motion.button>
-          </Link>
-        </motion.div>
-      </div>
-
-      {/* PROPERTY INFO */}
-      <div className="property-info">
-        
-        {/* Header Row: Location + Rating */}
-        <div className="property-header">
-          <div className="property-location line-clamp-1">
-            {listing.location}
-          </div>
-
-          <div className="property-rating">
-            <FaStar className="rating-star" />
-            <span>{listing.rating}</span>
-          </div>
-        </div>
-
-        {/* Title / Type */}
-        <div className="property-title line-clamp-1">
-          {listing.title}
-        </div>
-
-        {/* Description (Optional) */}
-        {listing.description && (
-          <div className="property-description">
-            {listing.description}
+        {/* Guest Favourite Badge */}
+        {listing.isGuestFavourite && (
+          <div className="guest-favourite-badge">
+            Guest favourite
           </div>
         )}
 
-        {/* Pricing */}
+        {/* Carousel arrows — shown on hover via CSS */}
+        {images.length > 1 && (
+          <>
+            <button
+              className="image-nav image-nav-left"
+              onClick={showPrev}
+              aria-label="Previous image"
+            >
+              <FaChevronLeft />
+            </button>
+            <button
+              className="image-nav image-nav-right"
+              onClick={showNext}
+              aria-label="Next image"
+            >
+              <FaChevronRight />
+            </button>
+          </>
+        )}
+
+        {/* Dots */}
+        {images.length > 1 && (
+          <div className="image-dots" aria-hidden="true">
+            {images.map((_, index) => (
+              <span
+                key={`${listing.id}-dot-${index}`}
+                className={`image-dot ${index === activeImage ? "active" : ""}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* INFO — plain text below image, no card wrapper */}
+      <div className="property-info">
+        <div className="property-header">
+          <span className="property-location">{listing.location}</span>
+          <span className="property-rating">
+            <FaStar />
+            {listing.rating?.toFixed?.(1) || listing.rating}
+          </span>
+        </div>
+        <div className="property-title">{listing.title}</div>
         <div className="property-price">
-          <span className="price-amount">{listing.price}</span>{" "}
-          <span className="price-period">/ month</span>
+          <span className="price-amount">{listing.price}</span>
+          <span className="price-period"> / month</span>
         </div>
       </div>
-    </motion.div>
+    </Link>
   );
 };
 
