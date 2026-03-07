@@ -1,7 +1,8 @@
 const { Listing, User, Booking, Review } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo, getAvailabilityFilter, calculateAverageRating } = require('../utils/helpers');
-const { uploadImage, deleteImage } = require('../utils/cloudinary');
+const { uploadImage, deleteImage, uploadFromBuffer } = require('../utils/cloudinary');
+const { clearCache } = require('../middleware/cache.middleware');
 
 /**
  * Create a new listing
@@ -51,6 +52,8 @@ exports.createListing = asyncHandler(async (req, res) => {
 
   await listing.save();
 
+  await clearCache('/api/listings*');
+
   res.status(201).json({
     success: true,
     message: 'Listing created successfully',
@@ -83,13 +86,16 @@ exports.getListings = asyncHandler(async (req, res) => {
 
   // Build query
   const query = { status: 'published', isActive: true };
+  const andConditions = [];
 
   // Search by title or description
   if (search) {
-    query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
-    ];
+    andConditions.push({
+      $or: [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } }
+      ]
+    });
   }
 
   // Filter by city
@@ -114,10 +120,15 @@ exports.getListings = asyncHandler(async (req, res) => {
     query.guests = { $gte: parseInt(guests) };
   }
 
-  // Filter by availability (if dates provided)
+  // Filter by availability — exclude listings with conflicting bookings and manual blocks
   if (checkInDate && checkOutDate) {
-    const availQuery = getAvailabilityFilter(checkInDate, checkOutDate);
-    query.$or = [...(query.$or || []), ...availQuery.$or];
+    const conflictingListings = await Booking.distinct('listing', {
+      status: { $in: ['pending', 'confirmed'] },
+      checkInDate: { $lt: new Date(checkOutDate) },
+      checkOutDate: { $gt: new Date(checkInDate) }
+    });
+    query._id = { $nin: conflictingListings };
+    andConditions.push(getAvailabilityFilter(checkInDate, checkOutDate));
   }
 
   // Filter by amenities
@@ -134,6 +145,11 @@ exports.getListings = asyncHandler(async (req, res) => {
   // Filter by minimum rating
   if (rating) {
     query.averageRating = { $gte: parseFloat(rating) };
+  }
+
+  // Combine $and conditions if any
+  if (andConditions.length > 0) {
+    query.$and = andConditions;
   }
 
   // Get total count
@@ -182,26 +198,26 @@ exports.getListingDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const listing = await Listing.findById(id)
-    .populate('host', 'firstName lastName profileImage hostInfo stats')
-    .populate('reviews', 'overallRating comment author');
+    .populate('host', 'firstName lastName profileImage hostInfo stats');
 
   if (!listing) {
     throw new APIError('Listing not found', 404);
   }
 
-  // Get reviews for this listing
-  const Review = require('../models/Review');
+  // Fetch reviews separately (the Listing model has no embedded reviews ref)
   const reviews = await Review.find({ listing: id, isPublic: true })
     .populate('author', 'firstName lastName profileImage')
-    .limit(5)
+    .limit(10)
     .sort({ createdAt: -1 });
+
+  const reviewCount = await Review.countDocuments({ listing: id, isPublic: true });
 
   res.status(200).json({
     success: true,
     data: {
       listing,
       reviews,
-      reviewCount: reviews.length
+      reviewCount
     }
   });
 });
@@ -233,6 +249,8 @@ exports.updateListing = asyncHandler(async (req, res) => {
 
   listing.lastModifiedBy = req.user.userId;
   await listing.save();
+
+  await clearCache('/api/listings*');
 
   res.status(200).json({
     success: true,
@@ -342,6 +360,8 @@ exports.publishListing = asyncHandler(async (req, res) => {
   listing.status = 'published';
   await listing.save();
 
+  await clearCache('/api/listings*');
+
   res.status(200).json({
     success: true,
     message: 'Listing published successfully',
@@ -402,6 +422,8 @@ exports.deleteListing = asyncHandler(async (req, res) => {
   }
 
   await Listing.findByIdAndDelete(id);
+
+  await clearCache('/api/listings*');
 
   res.status(200).json({
     success: true,
@@ -547,5 +569,155 @@ exports.getFeaturedListings = asyncHandler(async (req, res) => {
     data: {
       listings
     }
+  });
+});
+
+/**
+ * Get similar listings
+ * GET /api/listings/:id/similar
+ */
+exports.getSimilarListings = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { limit = 6 } = req.query;
+
+  const listing = await Listing.findById(id);
+  if (!listing) {
+    throw new APIError('Listing not found', 404);
+  }
+
+  const priceRange = listing.pricing.basePrice * 0.3;
+
+  const similar = await Listing.find({
+    _id: { $ne: id },
+    status: 'published',
+    isActive: true,
+    $or: [
+      { propertyType: listing.propertyType },
+      { 'location.city': listing.location.city },
+      {
+        'pricing.basePrice': {
+          $gte: listing.pricing.basePrice - priceRange,
+          $lte: listing.pricing.basePrice + priceRange
+        }
+      }
+    ]
+  })
+    .populate('host', 'firstName lastName profileImage')
+    .sort({ averageRating: -1 })
+    .limit(parseInt(limit));
+
+  res.status(200).json({
+    success: true,
+    data: { listings: similar }
+  });
+});
+
+/**
+ * Get nearby listings (geolocation-based)
+ * GET /api/listings/nearby?lat=...&lng=...&radius=50
+ */
+exports.getNearbyListings = asyncHandler(async (req, res) => {
+  const { lat, lng, radius = 50, limit = 20, page = 1 } = req.query;
+
+  if (!lat || !lng) {
+    throw new APIError('Latitude and longitude are required', 400);
+  }
+
+  const latitude = parseFloat(lat);
+  const longitude = parseFloat(lng);
+  const radiusInMeters = parseFloat(radius) * 1000;
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+  const skip = (pageNum - 1) * limitNum;
+
+  const results = await Listing.aggregate([
+    {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [longitude, latitude] },
+        distanceField: 'distance',
+        maxDistance: radiusInMeters,
+        spherical: true,
+        query: { status: 'published', isActive: true }
+      }
+    },
+    {
+      $facet: {
+        data: [
+          { $skip: skip },
+          { $limit: limitNum },
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'host',
+              foreignField: '_id',
+              as: 'host',
+              pipeline: [{ $project: { firstName: 1, lastName: 1, profileImage: 1 } }]
+            }
+          },
+          { $unwind: { path: '$host', preserveNullAndEmptyArrays: true } }
+        ],
+        total: [{ $count: 'count' }]
+      }
+    }
+  ]);
+
+  const listings = results[0].data;
+  const total = results[0].total[0]?.count || 0;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      listings,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    }
+  });
+});
+
+/**
+ * Upload listing images via file upload (multer + Cloudinary)
+ * POST /api/listings/:id/upload
+ */
+exports.uploadListingFiles = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!req.files || req.files.length === 0) {
+    throw new APIError('No files uploaded', 400);
+  }
+
+  const listing = await Listing.findById(id);
+  if (!listing) {
+    throw new APIError('Listing not found', 404);
+  }
+
+  if (listing.host.toString() !== req.user.userId) {
+    throw new APIError('Not authorized', 403);
+  }
+
+  const uploadPromises = req.files.map(file =>
+    uploadFromBuffer(file.buffer, `rentgo/listings/${id}`)
+  );
+
+  const results = await Promise.all(uploadPromises);
+
+  results.forEach((result, index) => {
+    listing.images.push({
+      url: result.url,
+      publicId: result.publicId,
+      isCover: listing.images.length === 0 && index === 0
+    });
+  });
+
+  await listing.save();
+  await clearCache('/api/listings*');
+
+  res.status(200).json({
+    success: true,
+    message: `${results.length} image(s) uploaded successfully`,
+    data: { listing }
   });
 });

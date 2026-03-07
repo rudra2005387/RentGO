@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { Booking, Listing, User, Payment } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { calculateBookingPrice, calculateNights, isDateRangeAvailable, generateBookingReference, getPaginationInfo } = require('../utils/helpers');
@@ -52,10 +53,10 @@ exports.createBooking = asyncHandler(async (req, res) => {
     throw new APIError(`Maximum stay is ${listing.maximumStay} nights`, 400);
   }
 
-  // Check if dates are available
+  // Check if dates are available (include pending to prevent double-booking)
   const existingBookings = await Booking.find({
     listing: listingId,
-    status: { $in: ['confirmed', 'completed'] }
+    status: { $in: ['pending', 'confirmed', 'completed'] }
   });
 
   if (!isDateRangeAvailable(checkInDate, checkOutDate, existingBookings)) {
@@ -185,10 +186,12 @@ exports.getBookingDetails = asyncHandler(async (req, res) => {
     throw new APIError('Booking not found', 404);
   }
 
-  // Check authorization
+  // Check authorization (guest/host are populated objects)
+  const guestId = booking.guest._id ? booking.guest._id.toString() : booking.guest.toString();
+  const hostId = booking.host._id ? booking.host._id.toString() : booking.host.toString();
   if (
-    booking.guest.toString() !== req.user.userId &&
-    booking.host.toString() !== req.user.userId &&
+    guestId !== req.user.userId &&
+    hostId !== req.user.userId &&
     req.user.role !== 'admin'
   ) {
     throw new APIError('Not authorized to view this booking', 403);
@@ -494,7 +497,7 @@ exports.completeBooking = asyncHandler(async (req, res) => {
  * GET /api/bookings/stats
  */
 exports.getBookingStats = asyncHandler(async (req, res) => {
-  const userId = req.user.userId;
+  const userId = new mongoose.Types.ObjectId(req.user.userId);
 
   // Host stats
   const hostStats = await Booking.aggregate([

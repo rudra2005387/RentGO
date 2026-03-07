@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('../controllers/user.controller');
 const { verifyToken, isAuthenticated } = require('../middleware/auth.middleware');
+const { uploadSingleImage } = require('../middleware/upload.middleware');
 
 const router = express.Router();
 
@@ -27,8 +28,8 @@ router.get('/:id/listings', userController.getUserListings);
 // Update user profile
 router.put('/:id', verifyToken, userController.updateUserProfile);
 
-// Upload profile image
-router.post('/:id/profile-image', verifyToken, userController.uploadProfileImage);
+// Upload profile image (supports both file upload and URL)
+router.post('/:id/profile-image', verifyToken, uploadSingleImage, userController.uploadProfileImage);
 
 // Get user's bookings
 router.get('/:id/bookings', verifyToken, userController.getUserBookings);

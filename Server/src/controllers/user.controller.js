@@ -78,13 +78,22 @@ exports.uploadProfileImage = asyncHandler(async (req, res) => {
     throw new APIError('Not authorized', 403);
   }
 
-  if (!req.body.imageUrl) {
-    throw new APIError('Image URL is required', 400);
+  let imageUrl = req.body.imageUrl;
+
+  // If file was uploaded via multer, upload to Cloudinary
+  if (req.file) {
+    const { uploadFromBuffer } = require('../utils/cloudinary');
+    const result = await uploadFromBuffer(req.file.buffer, 'rentgo/avatars');
+    imageUrl = result.url;
+  }
+
+  if (!imageUrl) {
+    throw new APIError('Image URL or file is required', 400);
   }
 
   const user = await User.findByIdAndUpdate(
     id,
-    { profileImage: req.body.imageUrl },
+    { profileImage: imageUrl },
     { new: true }
   ).select('-password');
 

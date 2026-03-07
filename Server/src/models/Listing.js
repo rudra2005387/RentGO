@@ -50,6 +50,10 @@ const listingSchema = new mongoose.Schema(
       longitude: {
         type: Number,
         required: true
+      },
+      geo: {
+        type: { type: String, enum: ['Point'], default: 'Point' },
+        coordinates: { type: [Number], default: [0, 0] }
       }
     },
 
@@ -252,9 +256,23 @@ const listingSchema = new mongoose.Schema(
   }
 );
 
-// Index for location-based searches
-listingSchema.index({ 'location.latitude': 1, 'location.longitude': 1 });
+// Auto-populate GeoJSON coordinates from lat/lng before saving
+listingSchema.pre('save', function (next) {
+  if (this.location && this.location.latitude != null && this.location.longitude != null) {
+    this.location.geo = {
+      type: 'Point',
+      coordinates: [this.location.longitude, this.location.latitude]
+    };
+  }
+  next();
+});
+
+// Indexes
+listingSchema.index({ 'location.geo': '2dsphere' });
+listingSchema.index({ 'location.city': 1 });
 listingSchema.index({ host: 1 });
 listingSchema.index({ status: 1 });
+listingSchema.index({ 'pricing.basePrice': 1 });
+listingSchema.index({ averageRating: -1 });
 
 module.exports = mongoose.model('Listing', listingSchema);

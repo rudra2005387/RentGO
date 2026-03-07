@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const fs = require('fs').promises;
 const path = require('path');
+const { Readable } = require('stream');
 
 /**
  * Upload image to Cloudinary
@@ -120,4 +121,31 @@ exports.getImageInfo = async (publicId) => {
     console.error('❌ Failed to get image info:', error);
     throw new Error('Failed to get image information');
   }
+};
+
+/**
+ * Upload image from buffer (for multer memory-storage uploads)
+ */
+exports.uploadFromBuffer = (buffer, folder = 'rentgo') => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder,
+        resource_type: 'auto',
+        quality: 'auto',
+        fetch_format: 'auto',
+        width: 1080,
+        height: 1080,
+        crop: 'fill'
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve({ url: result.secure_url, publicId: result.public_id });
+      }
+    );
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null);
+    readable.pipe(stream);
+  });
 };
