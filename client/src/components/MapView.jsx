@@ -100,9 +100,10 @@ export default function MapView({ listings: externalListings, city, className = 
   const defaultCenter = (() => {
     if (externalListings?.length) {
       const first = externalListings[0];
-      const coords = first.location?.coordinates;
-      if (coords?.length === 2) return [coords[1], coords[0]]; // GeoJSON [lng, lat] → [lat, lng]
-      if (first.location?.lat && first.location?.lng) return [first.location.lat, first.location.lng];
+      const geoCoords = first.location?.geo?.coordinates;
+      if (geoCoords?.length === 2) return [geoCoords[1], geoCoords[0]]; // GeoJSON [lng, lat] → [lat, lng]
+      if (first.location?.latitude != null && first.location?.longitude != null)
+        return [first.location.latitude, first.location.longitude];
     }
     return [40.7128, -74.006]; // NYC fallback
   })();
@@ -146,9 +147,10 @@ export default function MapView({ listings: externalListings, city, className = 
 
   // Get [lat, lng] from a listing
   const getLatLng = (listing) => {
-    const coords = listing.location?.coordinates;
-    if (coords?.length === 2) return [coords[1], coords[0]];
-    if (listing.location?.lat && listing.location?.lng) return [listing.location.lat, listing.location.lng];
+    const geoCoords = listing.location?.geo?.coordinates;
+    if (geoCoords?.length === 2) return [geoCoords[1], geoCoords[0]]; // GeoJSON [lng, lat] → [lat, lng]
+    if (listing.location?.latitude != null && listing.location?.longitude != null)
+      return [listing.location.latitude, listing.location.longitude];
     return null;
   };
 
