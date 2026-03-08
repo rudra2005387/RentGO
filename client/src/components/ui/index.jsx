@@ -16,13 +16,13 @@ export const Button = ({
 
 	const variants = {
 		primary:
-			'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 focus:ring-blue-500',
+			'bg-primary text-white hover:bg-primary-hover active:bg-primary-hover focus:ring-primary',
 		secondary:
 			'bg-gray-200 text-gray-900 hover:bg-gray-300 active:bg-gray-400 focus:ring-gray-500',
 		danger:
 			'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus:ring-red-500',
 		outline:
-			'border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+			'border-2 border-primary text-primary hover:bg-primary-light focus:ring-primary',
 	};
 
 	const sizes = {
@@ -55,8 +55,8 @@ export const Card = ({
 }) => {
 	return (
 		<div
-			className={`bg-white rounded-lg border border-gray-200 shadow-sm ${
-				hover ? 'hover:shadow-md transition-shadow duration-200' : ''
+			className={`bg-white rounded-2xl border border-gray-border shadow-card ${
+				hover ? 'hover:shadow-card-hover transition-shadow duration-300' : ''
 			} ${className}`}
 			{...props}
 		>
@@ -85,7 +85,7 @@ export const Input = React.forwardRef(({
 			)}
 			<input
 				ref={ref}
-				className={`w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all duration-200 ${
+				className={`w-full px-4 py-2 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary-light transition-all duration-200 ${
 					error ? 'border-red-600' : ''
 				} ${className}`}
 				{...props}
@@ -108,7 +108,7 @@ export const Badge = ({
 	...props
 }) => {
 	const variants = {
-		primary: 'bg-blue-100 text-blue-800',
+		primary: 'bg-primary-light text-primary',
 		success: 'bg-green-100 text-green-800',
 		danger: 'bg-red-100 text-red-800',
 		warning: 'bg-yellow-100 text-yellow-800',

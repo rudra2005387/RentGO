@@ -30,11 +30,11 @@ const AMENITIES = ['WiFi', 'Kitchen', 'Pool', 'Gym', 'Parking', 'Air conditionin
 
 // ─── Skeleton Card ───────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="animate-pulse">
-    <div className="aspect-square bg-gray-200 rounded-2xl mb-3" />
-    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-    <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
-    <div className="h-3 bg-gray-200 rounded w-1/3" />
+  <div className="space-y-3">
+    <div className="aspect-square skeleton rounded-2xl" />
+    <div className="h-4 skeleton rounded w-3/4" />
+    <div className="h-3 skeleton rounded w-1/2" />
+    <div className="h-3 skeleton rounded w-1/3" />
   </div>
 );
 
@@ -79,8 +79,8 @@ const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) 
   };
 
   return (
-    <Link to={`/listing/${listing._id}`} className="group block">
-      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative">
+    <Link to={`/listing/${listing._id}`} className="group block transition-transform duration-300 hover:-translate-y-1">
+      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative shadow-card group-hover:shadow-card-hover transition-shadow duration-300">
         <img
           src={displayImgs[imgIndex]}
           alt={listing.title}
@@ -395,10 +395,10 @@ const SearchResult = () => {
 
   return (
     // ✅ scroll-smooth on the page container
-    <div className="min-h-screen bg-white scroll-smooth" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="min-h-screen bg-white scroll-smooth">
       {/* Header Bar */}
-      <div className="sticky top-[80px] z-30 bg-white border-b border-[#EBEBEB]">
-        <div className="max-w-[1760px] mx-auto px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+      <div className="sticky top-[80px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-divider">
+        <div className="container-page py-3 flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-lg font-semibold text-[#222222]">
               {city ? `Results for "${city}"` : 'All properties'}
@@ -451,7 +451,7 @@ const SearchResult = () => {
 
         {/* Active filter badges */}
         {activeBadges.length > 0 && (
-          <div className="max-w-[1760px] mx-auto px-6 pb-3 flex items-center gap-2 flex-wrap">
+          <div className="container-page pb-3 flex items-center gap-2 flex-wrap">
             {activeBadges.map((badge, i) => (
               <span key={i} className="inline-flex items-center gap-1 bg-[#F7F7F7] text-[#222222] text-xs font-medium px-3 py-1.5 rounded-full">
                 {badge.label}
@@ -472,7 +472,7 @@ const SearchResult = () => {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="max-w-[1760px] mx-auto px-6 pt-4"
+            className="container-page pt-4"
           >
             <div className="bg-[#FFF8F0] border border-[#FFD9B3] rounded-xl px-4 py-3 flex items-start gap-3">
               <span className="text-xl">🔍</span>
@@ -486,7 +486,7 @@ const SearchResult = () => {
       </AnimatePresence>
 
       {/* Main Content */}
-      <div className="max-w-[1760px] mx-auto px-6 py-6">
+      <div className="container-page py-6">
         <div className="flex gap-8">
           {/* Desktop Filters Sidebar */}
           {showFilters && (
@@ -506,7 +506,7 @@ const SearchResult = () => {
                 </div>
               </Suspense>
             ) : loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
               </div>
             ) : listings.length === 0 ? (
@@ -537,7 +537,7 @@ const SearchResult = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5"
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6"
               >
                 {listings.map((l, i) => (
                   <motion.div

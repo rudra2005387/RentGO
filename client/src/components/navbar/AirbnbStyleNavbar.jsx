@@ -74,8 +74,8 @@ export default function AirbnbStyleNavbar() {
 
   return (
     <>
-      <header className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-[80px] transition-shadow ${scrolled ? 'shadow-sm' : ''}`}>
-        <div className="max-w-[1760px] mx-auto px-8 h-full flex items-center justify-between">
+      <header className={`fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 h-[80px] transition-shadow duration-300 ${scrolled ? 'shadow-navbar' : ''}`}>
+        <div className="container-page h-full flex items-center justify-between">
 
           {/* LEFT: Logo */}
           <div className="flex-shrink-0">
@@ -148,7 +148,7 @@ export default function AirbnbStyleNavbar() {
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: userDropdownOpen ? 1 : 0, y: userDropdownOpen ? 0 : -6 }}
                 transition={{ duration: 0.15 }}
-                className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#DDDDDD] overflow-hidden ${userDropdownOpen ? 'block' : 'hidden'}`}
+                className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-dropdown border border-gray-divider overflow-hidden ${userDropdownOpen ? 'block' : 'hidden'}`}
               >
                 {/* User info header */}
                 <div className="px-4 py-3 border-b border-[#EBEBEB]">

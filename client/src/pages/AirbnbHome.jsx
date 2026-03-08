@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -29,11 +30,11 @@ const CATEGORIES = [
 
 // ─── Skeleton Card ───────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="animate-pulse">
-    <div className="aspect-square bg-gray-200 rounded-2xl mb-3" />
-    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
-    <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
-    <div className="h-3 bg-gray-200 rounded w-1/3" />
+  <div className="space-y-3">
+    <div className="aspect-square skeleton rounded-2xl" />
+    <div className="h-4 skeleton rounded w-3/4" />
+    <div className="h-3 skeleton rounded w-1/2" />
+    <div className="h-3 skeleton rounded w-1/3" />
   </div>
 );
 
@@ -86,9 +87,9 @@ const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange 
   };
 
   return (
-    <Link to={`/listing/${listing._id}`} className="group block">
+    <Link to={`/listing/${listing._id}`} className="group block transition-transform duration-300 hover:-translate-y-1">
       {/* Image carousel */}
-      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative">
+      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative shadow-card group-hover:shadow-card-hover transition-shadow duration-300">
         {displayImgs.length > 0 ? (
           <img
             src={displayImgs[imgIndex]}
@@ -170,13 +171,20 @@ const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds
         <h2 className="text-xl font-semibold text-[#222222]">{title} <span className="text-[#717171] font-normal text-base">→</span></h2>
       </div>
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-          {listings.map((l) => (
-            <PropertyCard key={l._id} listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={onWishlistChange} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {listings.map((l, i) => (
+            <motion.div
+              key={l._id}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: Math.min(i * 0.05, 0.4) }}
+            >
+              <PropertyCard listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={onWishlistChange} />
+            </motion.div>
           ))}
         </div>
       )}
@@ -325,12 +333,11 @@ export default function AirbnbHome() {
   };
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <div className="min-h-screen bg-white">
 
       {/* ── CATEGORY FILTER BAR */}
-      <div className="sticky top-[80px] z-30 bg-white border-b border-[#EBEBEB]">
-        <div className="max-w-[1760px] mx-auto px-6">
+      <div className="sticky top-[80px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-divider">
+        <div className="container-page">
           {/* Category pills */}
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide py-3">
             {CATEGORIES.map((cat) => (
@@ -352,7 +359,7 @@ export default function AirbnbHome() {
       </div>
 
       {/* ── MAIN CONTENT */}
-      <div className="max-w-[1760px] mx-auto px-6 py-8">
+      <div className="container-page py-8">
 
         {/* Nearby section (only if geolocation granted) */}
         {nearbyListings.length > 0 && (
@@ -409,7 +416,7 @@ export default function AirbnbHome() {
           </div>
 
           {allListings.length === 0 && loadingAll ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : allListings.length === 0 && !loadingAll ? (
@@ -425,9 +432,16 @@ export default function AirbnbHome() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
-              {allListings.map((l) => (
-                <PropertyCard key={l._id} listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={fetchWishlist} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+              {allListings.map((l, i) => (
+                <motion.div
+                  key={l._id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.5) }}
+                >
+                  <PropertyCard listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={fetchWishlist} />
+                </motion.div>
               ))}
               {/* Loading more skeletons */}
               {loadingAll && page > 1 && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}

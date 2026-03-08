@@ -215,11 +215,10 @@ export default function Dashboard() {
     .reduce((acc, b) => acc + (b.pricing?.total || 0), 0);
 
   return (
-    <div className="min-h-screen bg-[#f8f7f5]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:wght@600;700&display=swap" rel="stylesheet" />
+    <div className="min-h-screen bg-gray-soft">
 
       {/* ── Top nav */}
-      <header className="sticky top-0 z-40 bg-white border-b border-gray-100 shadow-sm">
+      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-navbar">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="text-xl font-bold" style={{ fontFamily: "Fraunces, serif", color: "#FF385C" }}>
             RentGo

@@ -27,7 +27,7 @@ function AmenitiesGrid({ amenities = [] }) {
 				{visible.map((a) => (
 					<div
 						key={a}
-						className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+						className="flex items-center gap-3 p-3 bg-gray-soft rounded-xl border border-gray-border hover:border-gray-300 transition-colors"
 					>
 						<div className="text-xl">
 							{amenityIcons[a] || '✓'}
@@ -39,7 +39,7 @@ function AmenitiesGrid({ amenities = [] }) {
 			{amenities.length > 8 && (
 				<button
 					onClick={() => setShowAll((s) => !s)}
-					className="mt-4 text-blue-600 font-medium hover:text-blue-700"
+					className="mt-4 text-primary font-medium hover:text-primary-hover"
 				>
 					{showAll ? '✕ Show less' : `+ Show all (${amenities.length})`}
 				</button>
@@ -127,7 +127,7 @@ function ReviewsSection({ reviews = [], averageRating = 0 }) {
 			{reviews.length > 3 && (
 				<button
 					onClick={() => setShowAll(s => !s)}
-					className="mt-6 text-blue-600 font-medium hover:text-blue-700"
+					className="mt-6 text-primary font-medium hover:text-primary-hover"
 				>
 					{showAll ? '✕ Show less reviews' : `+ Show all reviews (${reviews.length})`}
 				</button>
@@ -260,15 +260,16 @@ function ListingSkeleton() {
 	return (
 		<div className="min-h-screen bg-white">
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-				<div className="animate-pulse space-y-6">
-					<div className="h-8 bg-gray-200 rounded w-2/3" />
-					<div className="h-4 bg-gray-200 rounded w-1/3" />
-					<div className="aspect-[16/9] bg-gray-200 rounded-2xl" />
+				<div className="space-y-6">
+					<div className="h-8 skeleton rounded w-2/3" />
+					<div className="h-4 skeleton rounded w-1/3" />
+					<div className="aspect-[16/9] skeleton rounded-2xl" />
 					<div className="grid grid-cols-3 gap-4">
-						<div className="h-20 bg-gray-200 rounded-xl" />
-						<div className="h-20 bg-gray-200 rounded-xl" />
-						<div className="h-20 bg-gray-200 rounded-xl" />
+						<div className="h-20 skeleton rounded-xl" />
+						<div className="h-20 skeleton rounded-xl" />
+						<div className="h-20 skeleton rounded-xl" />
 					</div>
+					<div className="h-48 skeleton rounded-2xl" />
 				</div>
 			</div>
 		</div>
@@ -404,7 +405,7 @@ export default function ListingDetails() {
 			{/* Header */}
 			<div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-					<button onClick={() => navigate(-1)} className="text-blue-600 font-medium hover:text-blue-700">← Back</button>
+					<button onClick={() => navigate(-1)} className="text-primary font-medium hover:text-primary-hover">← Back</button>
 					<button
 						onClick={handleShare}
 						className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -509,16 +510,18 @@ export default function ListingDetails() {
 
 					{/* Right Column - Booking Widget */}
 					<div className="lg:col-span-1">
-						<div className="sticky top-24">
-							<BookingWidget
-								listing={listing}
-								checkInDate={checkInDate}
-								checkOutDate={checkOutDate}
-								guests={guests}
-								setGuests={setGuests}
-								onBook={handleBook}
-								bookingLoading={bookingLoading}
-							/>
+						<div className="sticky top-28">
+							<div className="shadow-card-hover rounded-2xl">
+								<BookingWidget
+									listing={listing}
+									checkInDate={checkInDate}
+									checkOutDate={checkOutDate}
+									guests={guests}
+									setGuests={setGuests}
+									onBook={handleBook}
+									bookingLoading={bookingLoading}
+								/>
+							</div>
 						</div>
 					</div>
 				</div>

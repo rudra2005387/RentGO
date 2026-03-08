@@ -42,12 +42,12 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-primary-light p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 sm:p-8"
+        className="max-w-md w-full bg-white rounded-2xl shadow-card-hover p-6 sm:p-8"
       >
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
         <p className="text-gray-600 mb-6">Sign in to continue to RentGo</p>
@@ -91,11 +91,11 @@ const Login = () => {
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
               />
               <span className="text-gray-600">Remember me</span>
             </label>
-            <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link to="/" className="text-primary hover:text-primary-hover font-medium">
               Forgot password?
             </Link>
           </div>
@@ -114,7 +114,7 @@ const Login = () => {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Don't have an account?{' '}
-          <Link to="/register" className="text-blue-600 font-semibold hover:text-blue-700">
+          <Link to="/register" className="text-primary font-semibold hover:text-primary-hover">
             Create one
           </Link>
         </div>

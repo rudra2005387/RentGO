@@ -105,12 +105,12 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4 sm:p-6">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-primary-light p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 sm:p-8"
+        className="max-w-md w-full bg-white rounded-2xl shadow-card-hover p-6 sm:p-8"
       >
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
         <p className="text-gray-600 mb-6">Join RentGo to get started</p>
@@ -198,16 +198,16 @@ const Register = () => {
             <input
               type="checkbox"
               id="terms"
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1"
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
               required
             />
             <label htmlFor="terms" className="text-sm text-gray-600">
               I agree to the{" "}
-              <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link to="/" className="text-primary hover:text-primary-hover font-medium">
                 Terms of Service
               </Link>{" "}
               and{" "}
-              <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
+              <Link to="/" className="text-primary hover:text-primary-hover font-medium">
                 Privacy Policy
               </Link>
             </label>
@@ -221,7 +221,7 @@ const Register = () => {
 
         <div className="mt-6 text-center text-sm text-gray-600">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 font-semibold hover:text-blue-700">
+          <Link to="/login" className="text-primary font-semibold hover:text-primary-hover">
             Sign in
           </Link>
         </div>
