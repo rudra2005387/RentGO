@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import ReviewForm from "../components/ReviewForm";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
@@ -74,7 +75,7 @@ const BookingRow = ({ booking }) => {
   const ref = booking.bookingReference || booking._id?.slice(-8).toUpperCase();
 
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors group">
+    <Link to={`/booking/${booking._id}`} className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors group">
       <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
         {img ? (
           <img src={img} alt={title} className="w-full h-full object-cover" />
@@ -92,7 +93,7 @@ const BookingRow = ({ booking }) => {
         {total && <p className="text-sm font-semibold text-gray-700 mt-1">${total.toLocaleString()}</p>}
         <p className="text-xs text-gray-400">#{ref}</p>
       </div>
-    </div>
+    </Link>
   );
 };
 
@@ -156,6 +157,7 @@ export default function Dashboard() {
   const [reviews, setReviews] = useState([]);
   const [stats, setStats] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [reviewBookingId, setReviewBookingId] = useState(null);
 
   // Loading / error
   const [loading, setLoading] = useState({ bookings: true, wishlist: true, reviews: true, stats: true, profile: true });
@@ -473,26 +475,73 @@ export default function Dashboard() {
 
         {/* ═══════════════════ REVIEWS TAB ═══════════════════ */}
         {activeTab === "Reviews" && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-              <span className="text-lg">⭐</span>
-              <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Reviews About You</h2>
-              <Badge color="yellow">{reviews.length}</Badge>
+          <div className="space-y-6">
+            {/* Leave a review prompt for completed bookings */}
+            {pastBookings.filter((b) => b.status?.toLowerCase() === "completed").length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                  <span className="text-lg">✍️</span>
+                  <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Leave a Review</h2>
+                </div>
+                <div className="p-6 space-y-3">
+                  {pastBookings
+                    .filter((b) => b.status?.toLowerCase() === "completed")
+                    .slice(0, 5)
+                    .map((b) => (
+                      <div key={b._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {b.listing?.images?.[0]?.url && (
+                            <img src={b.listing.images[0].url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{b.listing?.title || "Listing"}</p>
+                            <p className="text-xs text-gray-500">{b.listing?.location?.city || ""}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setReviewBookingId(b._id)}
+                          className="flex-shrink-0 text-sm font-semibold text-[#FF385C] border border-[#FF385C] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                        >
+                          Write Review
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reviews about you */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
+                <span className="text-lg">⭐</span>
+                <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Reviews About You</h2>
+                <Badge color="yellow">{reviews.length}</Badge>
+              </div>
+              {loading.reviews ? (
+                <div className="grid sm:grid-cols-2 gap-4 p-6">
+                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-5xl mb-4">💬</p>
+                  <p className="text-gray-500 font-medium">No reviews yet</p>
+                  <p className="text-xs text-gray-400 mt-1">Reviews appear here after completed stays</p>
+                </div>
+              ) : (
+                <div className="grid sm:grid-cols-2 gap-4 p-6">
+                  {reviews.map((r) => <ReviewCard key={r._id} review={r} />)}
+                </div>
+              )}
             </div>
-            {loading.reviews ? (
-              <div className="grid sm:grid-cols-2 gap-4 p-6">
-                {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
-              </div>
-            ) : reviews.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-5xl mb-4">💬</p>
-                <p className="text-gray-500 font-medium">No reviews yet</p>
-                <p className="text-xs text-gray-400 mt-1">Reviews appear here after completed stays</p>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-4 p-6">
-                {reviews.map((r) => <ReviewCard key={r._id} review={r} />)}
-              </div>
+
+            {/* ReviewForm modal */}
+            {reviewBookingId && (
+              <ReviewForm
+                bookingId={reviewBookingId}
+                token={token}
+                onClose={() => setReviewBookingId(null)}
+                onSubmitted={() => fetchAll()}
+              />
             )}
           </div>
         )}

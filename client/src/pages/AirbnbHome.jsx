@@ -38,10 +38,10 @@ const SkeletonCard = () => (
 );
 
 // ─── Property Card ───────────────────────────────────────────────────────────
-const PropertyCard = ({ listing, token, userId, onWishlistChange }) => {
+const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange }) => {
   const navigate = useNavigate();
   const [imgIndex, setImgIndex] = useState(0);
-  const [isWishlisted, setIsWishlisted] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(() => wishlistedIds?.has(listing._id) ?? false);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
   const images = listing.images || [];
@@ -64,7 +64,10 @@ const PropertyCard = ({ listing, token, userId, onWishlistChange }) => {
     setWishlistLoading(true);
     try {
       if (isWishlisted) {
-        await authFetch(`/users/${userId}/wishlist/${listing._id}`, token);
+        await fetch(`${API_BASE}/users/${userId}/wishlist/${listing._id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setIsWishlisted(false);
       } else {
         await fetch(`${API_BASE}/users/${userId}/wishlist`, {
@@ -159,7 +162,7 @@ const PropertyCard = ({ listing, token, userId, onWishlistChange }) => {
 };
 
 // ─── Section with horizontal scroll ─────────────────────────────────────────
-const ListingSection = ({ title, listings, loading, token, userId }) => {
+const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds, onWishlistChange }) => {
   if (!loading && listings.length === 0) return null;
   return (
     <section className="mb-10">
@@ -173,7 +176,7 @@ const ListingSection = ({ title, listings, loading, token, userId }) => {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
           {listings.map((l) => (
-            <PropertyCard key={l._id} listing={l} token={token} userId={userId} />
+            <PropertyCard key={l._id} listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={onWishlistChange} />
           ))}
         </div>
       )}
@@ -197,6 +200,8 @@ export default function AirbnbHome() {
   const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [loadingTrending, setLoadingTrending] = useState(true);
   const [loadingNearby, setLoadingNearby] = useState(false);
+
+  const [wishlistedIds, setWishlistedIds] = useState(new Set());
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -232,6 +237,20 @@ export default function AirbnbHome() {
       );
     }
   }, []);
+
+  // ── Fetch user's wishlist IDs on mount
+  const fetchWishlist = useCallback(() => {
+    if (!token || !userId) return;
+    authFetch(`/users/${userId}/wishlist`, token)
+      .then((d) => {
+        if (d.success && Array.isArray(d.data)) {
+          setWishlistedIds(new Set(d.data.map((item) => item._id || item.listing?._id || item)));
+        }
+      })
+      .catch(() => {});
+  }, [token, userId]);
+
+  useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
   // ── Fetch paginated listings when category or page changes
   const fetchListings = useCallback(async (cat, pageNum, reset = false) => {
@@ -343,6 +362,8 @@ export default function AirbnbHome() {
             loading={loadingNearby}
             token={token}
             userId={userId}
+            wishlistedIds={wishlistedIds}
+            onWishlistChange={fetchWishlist}
           />
         )}
 
@@ -354,6 +375,8 @@ export default function AirbnbHome() {
             loading={loadingFeatured}
             token={token}
             userId={userId}
+            wishlistedIds={wishlistedIds}
+            onWishlistChange={fetchWishlist}
           />
         )}
 
@@ -365,6 +388,8 @@ export default function AirbnbHome() {
             loading={loadingTrending}
             token={token}
             userId={userId}
+            wishlistedIds={wishlistedIds}
+            onWishlistChange={fetchWishlist}
           />
         )}
 
@@ -402,7 +427,7 @@ export default function AirbnbHome() {
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-5">
               {allListings.map((l) => (
-                <PropertyCard key={l._id} listing={l} token={token} userId={userId} />
+                <PropertyCard key={l._id} listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={fetchWishlist} />
               ))}
               {/* Loading more skeletons */}
               {loadingAll && page > 1 && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}

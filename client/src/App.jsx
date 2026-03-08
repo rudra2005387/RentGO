@@ -24,7 +24,14 @@ const Reviews = lazy(() => import('./pages/Reviews.jsx'));
 const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch.jsx'));
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
-const Services = lazy (() => import('./pages/Services.jsx')); 
+const Services = lazy (() => import('./pages/Services.jsx'));
+const Experiences = lazy(() => import('./pages/Experiences.jsx'));
+const HostDashboard = lazy(() => import('./pages/HostDashboard.jsx'));
+const BookingConfirmation = lazy(() => import('./pages/BookingConfirmation.jsx'));
+const BookingDetail = lazy(() => import('./pages/BookingDetail.jsx'));
+const PaymentPage = lazy(() => import('./pages/PaymentPage.jsx'));
+const MessagesPage = lazy(() => import('./pages/MessagesPage.jsx'));
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
 
 // Loading fallback component
 function PageLoader() {
@@ -61,7 +68,14 @@ function App() {
                   <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
                   <Route path="/create-listing" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
                   <Route path="/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
-                  <Route path="/notifications" element={<ProtectedRoute><NotificationCenter /></ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+                  <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+                  <Route path="/experiences" element={<ProtectedRoute><Experiences /></ProtectedRoute>} />
+                  <Route path="/host/dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+                  <Route path="/hosting" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+                  <Route path="/booking-confirmation/:bookingId" element={<ProtectedRoute><BookingConfirmation /></ProtectedRoute>} />
+                  <Route path="/booking/:bookingId" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
+                  <Route path="/payment/:bookingId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>

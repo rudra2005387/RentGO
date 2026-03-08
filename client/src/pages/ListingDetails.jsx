@@ -1,12 +1,14 @@
-import React, { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { FaShareAlt, FaMapMarkerAlt, FaStar, FaWifi, FaUtensils, FaParking, FaTv } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import PropertyGallery from '../components/PropertyGallery.jsx';
 import HostInfo from '../components/HostInfo.jsx';
 import BookingCalendar from '../components/BookingCalendar.jsx';
-import CheckoutSummary from '../components/CheckoutSummary.jsx';
+import ReviewList from '../components/ReviewList.jsx';
+import { useAuth } from '../hooks/useAuth';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 function AmenitiesGrid({ amenities = [] }) {
 	const [showAll, setShowAll] = useState(false);
@@ -23,63 +25,55 @@ function AmenitiesGrid({ amenities = [] }) {
 		<div>
 			<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
 				{visible.map((a) => (
-					<motion.div
+					<div
 						key={a}
-						initial={{ opacity: 0, y: 10 }}
-						whileInView={{ opacity: 1, y: 0 }}
-						whileHover={{ x: 4 }}
-						className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300"
+						className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
 					>
 						<div className="text-xl">
 							{amenityIcons[a] || '✓'}
 						</div>
 						<span className="text-sm font-medium">{a}</span>
-					</motion.div>
+					</div>
 				))}
 			</div>
 			{amenities.length > 8 && (
-				<motion.button
-					whileHover={{ scale: 1.05 }}
-					whileTap={{ scale: 0.95 }}
+				<button
 					onClick={() => setShowAll((s) => !s)}
 					className="mt-4 text-blue-600 font-medium hover:text-blue-700"
 				>
 					{showAll ? '✕ Show less' : `+ Show all (${amenities.length})`}
-				</motion.button>
+				</button>
 			)}
 		</div>
 	);
 }
 
-
-
-function ReviewsSection({ reviews = [] }) {
+function ReviewsSection({ reviews = [], averageRating = 0 }) {
 	const [showAll, setShowAll] = useState(false);
 	const visible = showAll ? reviews : reviews.slice(0, 3);
 
 	const breakdown = useMemo(() => {
 		const map = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-		reviews.forEach(r => map[r.rating] = (map[r.rating] || 0) + 1);
+		reviews.forEach(r => {
+			const rating = r.overallRating || r.rating || 0;
+			const rounded = Math.round(rating);
+			if (rounded >= 1 && rounded <= 5) map[rounded]++;
+		});
 		return map;
 	}, [reviews]);
 
-	const average = useMemo(() => {
-		if (!reviews.length) return 0;
-		return (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1);
-	}, [reviews]);
+	const average = averageRating || (reviews.length > 0
+		? (reviews.reduce((s, r) => s + (r.overallRating || r.rating || 0), 0) / reviews.length).toFixed(1)
+		: 0);
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			whileInView={{ opacity: 1, y: 0 }}
-			className="mt-8"
-		>
+		<div className="mt-8">
 			<div className="mb-6">
 				<h3 className="text-2xl font-bold mb-2">Guest Reviews</h3>
 				<div className="flex items-center gap-4 flex-wrap">
 					<div className="flex items-baseline gap-2">
 						<span className="text-4xl font-bold">{average}</span>
-						<div className="flex gap-1">{[...Array(5)].map((_, i) => 
+						<div className="flex gap-1">{[...Array(5)].map((_, i) =>
 							<FaStar key={i} className={i < Math.round(average) ? 'text-yellow-400' : 'text-gray-300'} />
 						)}</div>
 					</div>
@@ -95,10 +89,9 @@ function ReviewsSection({ reviews = [] }) {
 							<div key={star} className="flex items-center gap-3">
 								<div className="w-12 text-sm font-medium">{star}★</div>
 								<div className="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
-									<motion.div
-										initial={{ width: 0 }}
-										whileInView={{ width: `${(breakdown[star] || 0) / Math.max(1, reviews.length) * 100}%` }}
-										className="bg-yellow-400 h-2"
+									<div
+										style={{ width: `${(breakdown[star] || 0) / Math.max(1, reviews.length) * 100}%` }}
+										className="bg-yellow-400 h-2 transition-all duration-500"
 									/>
 								</div>
 								<div className="w-8 text-right text-sm text-gray-600">{breakdown[star] || 0}</div>
@@ -107,347 +100,426 @@ function ReviewsSection({ reviews = [] }) {
 				</div>
 
 				<div className="space-y-4">
-					{visible.map((r, idx) => (
-						<motion.div
-							key={idx}
-							initial={{ opacity: 0, x: 20 }}
-							whileInView={{ opacity: 1, x: 0 }}
-							transition={{ delay: idx * 0.1 }}
-							className="pb-4 border-b border-gray-200 last:border-b-0"
-						>
-							<div className="flex items-start justify-between gap-3 mb-2">
-								<div>
-									<div className="font-semibold text-gray-900">{r.author}</div>
-									<div className="flex gap-1 mt-1">{[...Array(5)].map((_, i) => 
-										<FaStar key={i} className={i < r.rating ? 'text-yellow-400 text-xs' : 'text-gray-300 text-xs'} />
-									)}</div>
+					{visible.map((r, idx) => {
+						const authorName = typeof r.author === 'object'
+							? [r.author?.firstName, r.author?.lastName].filter(Boolean).join(' ')
+							: r.author || 'Guest';
+						const rating = r.overallRating || r.rating || 0;
+						const date = r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : r.date || 'Recent';
+						return (
+							<div key={r._id || idx} className="pb-4 border-b border-gray-200 last:border-b-0">
+								<div className="flex items-start justify-between gap-3 mb-2">
+									<div>
+										<div className="font-semibold text-gray-900">{authorName}</div>
+										<div className="flex gap-1 mt-1">{[...Array(5)].map((_, i) =>
+											<FaStar key={i} className={i < rating ? 'text-yellow-400 text-xs' : 'text-gray-300 text-xs'} />
+										)}</div>
+									</div>
+									<span className="text-xs text-gray-500">{date}</span>
 								</div>
-								<span className="text-xs text-gray-500">{r.date || 'Recent'}</span>
+								<p className="text-gray-700 text-sm">{r.comment}</p>
 							</div>
-							<p className="text-gray-700 text-sm">{r.comment}</p>
-						</motion.div>
-					))}
+						);
+					})}
 				</div>
 			</div>
 
 			{reviews.length > 3 && (
-				<motion.button
-					whileHover={{ scale: 1.05 }}
-					whileTap={{ scale: 0.95 }}
+				<button
 					onClick={() => setShowAll(s => !s)}
 					className="mt-6 text-blue-600 font-medium hover:text-blue-700"
 				>
 					{showAll ? '✕ Show less reviews' : `+ Show all reviews (${reviews.length})`}
-				</motion.button>
+				</button>
 			)}
-		</motion.div>
+		</div>
 	);
 }
 
-
-
-function SimilarListings({ items = [] }) {
-	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			whileInView={{ opacity: 1, y: 0 }}
-			className="mt-12"
-		>
-			<h3 className="text-2xl font-bold mb-6">Similar Listings</h3>
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-				{items.map((prop, idx) => (
-					<motion.div
-						key={idx}
-						whileHover={{ y: -8 }}
-						className="rounded-2xl overflow-hidden bg-white border border-gray-200 hover:border-gray-300 hover:shadow-xl transition-all"
-					>
-						<div className="relative h-48 overflow-hidden bg-gray-200">
-							<motion.img
-								src={prop.image}
-								alt={prop.title}
-								className="w-full h-full object-cover"
-								whileHover={{ scale: 1.1 }}
-								transition={{ duration: 0.3 }}
-							/>
-						</div>
-						<div className="p-4">
-							<h4 className="font-bold text-gray-900 line-clamp-2">{prop.title}</h4>
-							<div className="flex items-center justify-between mt-3">
-								<div className="text-lg font-bold text-gray-900">{prop.price}</div>
-								<span className="text-xs text-gray-500">/month</span>
-							</div>
-							<motion.button
-								whileHover={{ scale: 1.02 }}
-								whileTap={{ scale: 0.98 }}
-								className="w-full mt-4 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700"
-							>
-								View Property
-							</motion.button>
-						</div>
-					</motion.div>
-				))}
-			</div>
-		</motion.div>
-	);
-}
-
-
-export default function ListingDetails() {
-	const { id } = useParams();
-	const [checkInDate, setCheckInDate] = useState(null);
-	const [checkOutDate, setCheckOutDate] = useState(null);
-
-	// Sample data — in real app fetch by id
-	const sample = {
-		id,
-		title: 'Stunning Beachfront Villa with Ocean Views',
-		location: 'Malibu, California',
-		address: '456 Coastal Drive, Malibu, CA 90265',
-		rating: 4.87,
-		images: [
-			'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900&h=600&fit=crop',
-			'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&h=600&fit=crop',
-			'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=900&h=600&fit=crop',
-			'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=900&h=600&fit=crop',
-		],
-		pricePerNight: 485,
-		cleaningFee: 120,
-		serviceFee: 65,
-		taxes: 95,
-		discount: 0,
-		reviewCount: 156,
-		bedrooms: 4,
-		bathrooms: 3,
-		guests: 8,
-		host: {
-			name: 'Alexandra Morgan',
-			avatar: 'https://i.pravatar.cc/150?img=5',
-			isSuperhost: true,
-			yearsHosting: 7,
-			responseRate: '98%',
-			responseTime: '< 1 hour',
-			bio: 'We love hosting and making sure our guests have an amazing stay. Thank you for choosing our beautiful villa!',
-			languages: ['English', 'Spanish', 'French'],
-			rating: 4.9,
-			reviewCount: 312,
-		},
-		amenities: ['WiFi', 'Kitchen', 'Parking', 'TV', 'Pool', 'Hot Tub', 'Gym', 'Washer', 'Dryer', 'Air conditioning'],
-		description: 'This spectacular beachfront villa offers breathtaking ocean views, luxury amenities, and direct beach access. Perfect for families or groups looking for an unforgettable coastal getaway.',
-		reviews: [
-			{ author: 'Sarah Johnson', rating: 5, comment: 'Absolutely stunning property! The views are incredible and the amenities are top-notch. We felt like we were in paradise.', date: '2 weeks ago' },
-			{ author: 'Mark Chen', rating: 5, comment: 'Best vacation ever! The host was incredibly helpful and responsive. Highly recommend!', date: '1 month ago' },
-			{ author: 'Emma Williams', rating: 4, comment: 'Beautiful villa with great location. The beach access is perfect. Minor issues with WiFi but overall amazing.', date: '6 weeks ago' },
-			{ author: 'James Rodriguez', rating: 5, comment: 'The villa exceeded our expectations. Everything was clean, well-maintained, and very comfortable.', date: '2 months ago' },
-		],
-		similar: [
-			{ title: 'Luxury Cliff House', price: '$520', image: 'https://images.unsplash.com/photo-1512917774080-9264f475a626?w=400&h=300&fit=crop' },
-			{ title: 'Modern Beach Home', price: '$420', image: 'https://images.unsplash.com/photo-1570129477492-45a003537e1f?w=400&h=300&fit=crop' },
-			{ title: 'Oceanview Penthouse', price: '$595', image: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400&h=300&fit=crop' },
-		]
-	};
+// ─── Booking Widget (right sidebar) ──────────────────────────────────────────
+function BookingWidget({ listing, checkInDate, checkOutDate, guests, setGuests, onDatesSelected, onBook, bookingLoading }) {
+	const pricing = listing.pricing || {};
+	const basePrice = pricing.basePrice || 0;
+	const cleaningFee = pricing.cleaningFee || 0;
+	const serviceFee = pricing.serviceFee || 0;
 
 	const nights = useMemo(() => {
 		if (!checkInDate || !checkOutDate) return 0;
-		const diffTime = checkOutDate - checkInDate;
-		return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+		return Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
 	}, [checkInDate, checkOutDate]);
 
-	const subtotal = nights > 0 ? nights * sample.pricePerNight : 0;
-	const total = subtotal + sample.cleaningFee + sample.serviceFee + sample.taxes - sample.discount;
+	const subtotal = basePrice * nights;
+	const taxes = Math.round((subtotal + cleaningFee + serviceFee) * 0.12);
+	const total = subtotal + cleaningFee + serviceFee + taxes;
+
+	const maxGuests = listing.accommodates || listing.maxGuests || 10;
+
+	return (
+		<div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5">
+			{/* Price header */}
+			<div className="border-b border-gray-200 pb-4">
+				<p className="text-2xl font-bold text-gray-900">
+					${basePrice.toLocaleString()} <span className="text-base font-normal text-gray-500">/night</span>
+				</p>
+				{listing.averageRating && (
+					<div className="flex items-center gap-1 mt-1">
+						<FaStar className="text-yellow-400 w-3 h-3" />
+						<span className="text-sm font-semibold">{listing.averageRating.toFixed(1)}</span>
+						{listing.totalReviews > 0 && <span className="text-sm text-gray-500">({listing.totalReviews} reviews)</span>}
+					</div>
+				)}
+			</div>
+
+			{/* Date inputs */}
+			<div className="grid grid-cols-2 border border-gray-300 rounded-xl overflow-hidden">
+				<div className="p-3 border-r border-gray-300">
+					<p className="text-[10px] font-bold text-gray-800 uppercase">Check-in</p>
+					<p className="text-sm text-gray-600">
+						{checkInDate ? checkInDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add date'}
+					</p>
+				</div>
+				<div className="p-3">
+					<p className="text-[10px] font-bold text-gray-800 uppercase">Check-out</p>
+					<p className="text-sm text-gray-600">
+						{checkOutDate ? checkOutDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add date'}
+					</p>
+				</div>
+			</div>
+
+			{/* Guest counter */}
+			<div className="border border-gray-300 rounded-xl p-3">
+				<p className="text-[10px] font-bold text-gray-800 uppercase mb-1">Guests</p>
+				<div className="flex items-center justify-between">
+					<span className="text-sm text-gray-600">{guests} guest{guests > 1 ? 's' : ''}</span>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={() => setGuests(Math.max(1, guests - 1))}
+							disabled={guests <= 1}
+							className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+						>−</button>
+						<span className="text-sm font-semibold w-4 text-center">{guests}</span>
+						<button
+							onClick={() => setGuests(Math.min(maxGuests, guests + 1))}
+							disabled={guests >= maxGuests}
+							className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+						>+</button>
+					</div>
+				</div>
+			</div>
+
+			{/* Reserve button */}
+			<button
+				onClick={onBook}
+				disabled={!checkInDate || !checkOutDate || nights === 0 || bookingLoading}
+				className={`w-full py-3 rounded-xl font-bold text-white transition-all ${
+					!checkInDate || !checkOutDate || nights === 0 || bookingLoading
+						? 'bg-gray-300 cursor-not-allowed'
+						: 'bg-gradient-to-r from-[#E61E4D] to-[#D70466] hover:opacity-90 cursor-pointer'
+				}`}
+			>
+				{bookingLoading ? 'Reserving...' : 'Reserve'}
+			</button>
+
+			{nights > 0 && <p className="text-center text-sm text-gray-500">You won't be charged yet</p>}
+
+			{/* Price breakdown */}
+			{nights > 0 && (
+				<div className="space-y-3 pt-4 border-t border-gray-200">
+					<div className="flex justify-between text-sm">
+						<span className="text-gray-600 underline">${basePrice} x {nights} night{nights > 1 ? 's' : ''}</span>
+						<span className="text-gray-900">${subtotal.toLocaleString()}</span>
+					</div>
+					{cleaningFee > 0 && (
+						<div className="flex justify-between text-sm">
+							<span className="text-gray-600 underline">Cleaning fee</span>
+							<span className="text-gray-900">${cleaningFee.toLocaleString()}</span>
+						</div>
+					)}
+					{serviceFee > 0 && (
+						<div className="flex justify-between text-sm">
+							<span className="text-gray-600 underline">Service fee</span>
+							<span className="text-gray-900">${serviceFee.toLocaleString()}</span>
+						</div>
+					)}
+					<div className="flex justify-between text-sm">
+						<span className="text-gray-600 underline">Taxes (12%)</span>
+						<span className="text-gray-900">${taxes.toLocaleString()}</span>
+					</div>
+					<div className="flex justify-between font-bold text-base pt-3 border-t border-gray-200">
+						<span>Total</span>
+						<span>${total.toLocaleString()}</span>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// ─── Skeleton loader ─────────────────────────────────────────────────────────
+function ListingSkeleton() {
+	return (
+		<div className="min-h-screen bg-white">
+			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+				<div className="animate-pulse space-y-6">
+					<div className="h-8 bg-gray-200 rounded w-2/3" />
+					<div className="h-4 bg-gray-200 rounded w-1/3" />
+					<div className="aspect-[16/9] bg-gray-200 rounded-2xl" />
+					<div className="grid grid-cols-3 gap-4">
+						<div className="h-20 bg-gray-200 rounded-xl" />
+						<div className="h-20 bg-gray-200 rounded-xl" />
+						<div className="h-20 bg-gray-200 rounded-xl" />
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+export default function ListingDetails() {
+	const { id } = useParams();
+	const navigate = useNavigate();
+	const { user, token } = useAuth();
+
+	const [listing, setListing] = useState(null);
+	const [reviews, setReviews] = useState([]);
+	const [unavailableDates, setUnavailableDates] = useState([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+
+	const [checkInDate, setCheckInDate] = useState(null);
+	const [checkOutDate, setCheckOutDate] = useState(null);
+	const [guests, setGuests] = useState(1);
+	const [bookingLoading, setBookingLoading] = useState(false);
+
+	// Fetch listing data
+	useEffect(() => {
+		setLoading(true);
+		Promise.all([
+			fetch(`${API_BASE}/listings/${id}`).then(r => r.json()),
+			fetch(`${API_BASE}/listings/${id}/reviews`).then(r => r.json()).catch(() => ({ success: false })),
+			fetch(`${API_BASE}/listings/${id}/availability`).then(r => r.json()).catch(() => ({ success: false })),
+		]).then(([listingRes, reviewsRes, availRes]) => {
+			if (listingRes.success) {
+				setListing(listingRes.data?.listing || listingRes.data);
+			} else {
+				setError('Listing not found');
+			}
+			if (reviewsRes.success) {
+				setReviews(reviewsRes.data?.reviews || []);
+			}
+			if (availRes.success) {
+				setUnavailableDates(availRes.data?.blockedDates || availRes.data?.unavailableDates || []);
+			}
+		}).catch(() => setError('Network error'))
+		  .finally(() => setLoading(false));
+	}, [id]);
+
+	const nights = useMemo(() => {
+		if (!checkInDate || !checkOutDate) return 0;
+		return Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+	}, [checkInDate, checkOutDate]);
+
+	// Book handler — POST /bookings
+	const handleBook = useCallback(async () => {
+		if (!token) { navigate('/login'); return; }
+		if (!checkInDate || !checkOutDate || nights === 0) return;
+
+		const pricing = listing.pricing || {};
+		const basePrice = pricing.basePrice || 0;
+		const cleaningFee = pricing.cleaningFee || 0;
+		const serviceFee = pricing.serviceFee || 0;
+		const subtotal = basePrice * nights;
+		const taxes = Math.round((subtotal + cleaningFee + serviceFee) * 0.12);
+		const total = subtotal + cleaningFee + serviceFee + taxes;
+
+		setBookingLoading(true);
+		try {
+			const res = await fetch(`${API_BASE}/bookings`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${token}`,
+				},
+				body: JSON.stringify({
+					listingId: id,
+					checkIn: checkInDate.toISOString(),
+					checkOut: checkOutDate.toISOString(),
+					guests,
+					totalPrice: total,
+				}),
+			});
+			const d = await res.json();
+			if (d.success) {
+				const bookingId = d.data?.booking?._id || d.data?._id;
+				navigate(`/payment/${bookingId}`);
+			} else {
+				alert(d.message || 'Booking failed. Please try again.');
+			}
+		} catch {
+			alert('Network error. Please try again.');
+		} finally {
+			setBookingLoading(false);
+		}
+	}, [token, checkInDate, checkOutDate, nights, guests, listing, id, navigate]);
 
 	function handleShare() {
 		const url = window.location.href;
 		if (navigator.share) {
-			navigator.share({ title: sample.title, text: sample.location, url });
+			navigator.share({ title: listing?.title, text: listing?.location?.city, url });
 		} else {
 			navigator.clipboard.writeText(url);
 		}
 	}
 
+	if (loading) return <ListingSkeleton />;
+
+	if (error || !listing) {
+		return (
+			<div className="min-h-screen bg-white flex items-center justify-center">
+				<div className="text-center">
+					<p className="text-5xl mb-4">🏠</p>
+					<p className="text-lg font-semibold text-gray-800 mb-2">Listing not found</p>
+					<p className="text-sm text-gray-500 mb-4">{error}</p>
+					<Link to="/" className="text-sm font-semibold text-[#FF385C] hover:underline">Back to Home</Link>
+				</div>
+			</div>
+		);
+	}
+
+	const images = (listing.images || []).map(i => i.url || i).filter(Boolean);
+	const location = listing.location || {};
+	const locationStr = [location.city, location.state, location.country].filter(Boolean).join(', ');
+	const hostData = listing.host || {};
+	const hostObj = {
+		name: [hostData.firstName, hostData.lastName].filter(Boolean).join(' ') || 'Host',
+		avatar: hostData.profileImage,
+		isSuperhost: hostData.isSuperhost,
+		responseRate: hostData.responseRate ? `${hostData.responseRate}%` : undefined,
+		bio: hostData.bio,
+		rating: hostData.averageRating,
+	};
+
 	return (
 		<div className="min-h-screen bg-white">
 			{/* Header */}
-			<motion.div
-				initial={{ opacity: 0, y: -10 }}
-				animate={{ opacity: 1, y: 0 }}
-				className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200"
-			>
+			<div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200">
 				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-					<Link to="/search" className="text-blue-600 font-medium hover:text-blue-700">← Back to Results</Link>
-					<motion.button
-						whileHover={{ scale: 1.05 }}
-						whileTap={{ scale: 0.95 }}
+					<button onClick={() => navigate(-1)} className="text-blue-600 font-medium hover:text-blue-700">← Back</button>
+					<button
 						onClick={handleShare}
 						className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
 					>
 						<FaShareAlt className="text-gray-600" />
 						<span className="text-sm font-medium">Share</span>
-					</motion.button>
+					</button>
 				</div>
-			</motion.div>
+			</div>
 
 			{/* Main Content */}
 			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
 				{/* Title & Rating */}
-				<motion.div
-					initial={{ opacity: 0, y: 10 }}
-					animate={{ opacity: 1, y: 0 }}
-					className="mb-6 sm:mb-8"
-				>
-					<h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{sample.title}</h1>
+				<div className="mb-6 sm:mb-8">
+					<h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">{listing.title}</h1>
 					<div className="flex items-center gap-3 flex-wrap">
-						<div className="flex items-center gap-1">
-							<div className="flex gap-0.5">
-								{[...Array(5)].map((_, i) => (
-									<FaStar key={i} className={i < Math.round(sample.rating) ? 'text-yellow-400' : 'text-gray-300'} size={16} />
-								))}
+						{listing.averageRating && (
+							<div className="flex items-center gap-1">
+								<div className="flex gap-0.5">
+									{[...Array(5)].map((_, i) => (
+										<FaStar key={i} className={i < Math.round(listing.averageRating) ? 'text-yellow-400' : 'text-gray-300'} size={16} />
+									))}
+								</div>
+								<span className="font-semibold text-gray-900">{listing.averageRating.toFixed(1)}</span>
+								<span className="text-gray-600">({listing.totalReviews || 0} reviews)</span>
 							</div>
-							<span className="font-semibold text-gray-900">{sample.rating}</span>
-							<span className="text-gray-600">({sample.reviewCount} reviews)</span>
-						</div>
+						)}
 						<span className="text-gray-600 flex items-center gap-2">
-							<FaMapMarkerAlt size={16} /> {sample.location}
+							<FaMapMarkerAlt size={16} /> {locationStr}
 						</span>
 					</div>
-				</motion.div>
+				</div>
 
 				{/* Gallery & Sidebar Layout */}
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-					{/* Left Column - Gallery & Details */}
+					{/* Left Column */}
 					<div className="lg:col-span-2 space-y-8 sm:space-y-12">
 						{/* Gallery */}
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							className="rounded-2xl overflow-hidden"
-						>
-							<PropertyGallery images={sample.images} />
-						</motion.div>
+						<div className="rounded-2xl overflow-hidden">
+							<PropertyGallery images={images.length > 0 ? images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=900']} />
+						</div>
 
 						{/* Property Info */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="space-y-4"
-						>
+						<div className="space-y-4">
 							<div className="grid grid-cols-3 gap-4 pt-6 border-t border-gray-200">
 								<div>
-									<div className="text-3xl font-bold text-gray-900">{sample.bedrooms}</div>
+									<div className="text-3xl font-bold text-gray-900">{listing.bedrooms || '—'}</div>
 									<div className="text-gray-600">Bedrooms</div>
 								</div>
 								<div>
-									<div className="text-3xl font-bold text-gray-900">{sample.bathrooms}</div>
+									<div className="text-3xl font-bold text-gray-900">{listing.bathrooms || '—'}</div>
 									<div className="text-gray-600">Bathrooms</div>
 								</div>
 								<div>
-									<div className="text-3xl font-bold text-gray-900">{sample.guests}</div>
+									<div className="text-3xl font-bold text-gray-900">{listing.accommodates || listing.maxGuests || '—'}</div>
 									<div className="text-gray-600">Guests</div>
 								</div>
 							</div>
 
 							<div className="pt-6 border-t border-gray-200">
 								<h2 className="text-2xl font-bold mb-3">About this place</h2>
-								<p className="text-gray-700 leading-relaxed">{sample.description}</p>
+								<p className="text-gray-700 leading-relaxed">{listing.description}</p>
 							</div>
-						</motion.div>
+						</div>
 
 						{/* Amenities */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
-							<h2 className="text-2xl font-bold mb-6">Amenities</h2>
-							<AmenitiesGrid amenities={sample.amenities} />
-						</motion.div>
+						{listing.amenities?.length > 0 && (
+							<div className="pt-6 border-t border-gray-200">
+								<h2 className="text-2xl font-bold mb-6">Amenities</h2>
+								<AmenitiesGrid amenities={listing.amenities} />
+							</div>
+						)}
 
 						{/* Calendar */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
+						<div className="pt-6 border-t border-gray-200">
 							<h2 className="text-2xl font-bold mb-6">Select Dates</h2>
 							<div className="bg-gray-50 p-6 rounded-2xl border border-gray-200">
 								<BookingCalendar
-									onDatesSelected={(checkIn, checkOut) => {
+									unavailableDates={unavailableDates}
+									onDatesSelected={({ checkIn, checkOut }) => {
 										setCheckInDate(checkIn);
 										setCheckOutDate(checkOut);
 									}}
 								/>
 							</div>
-						</motion.div>
+						</div>
 
 						{/* Host Info */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
+						<div className="pt-6 border-t border-gray-200">
 							<h2 className="text-2xl font-bold mb-6">Your Host</h2>
-							<HostInfo host={sample.host} />
-						</motion.div>
-
-						{/* Map Integration */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
-							<h2 className="text-2xl font-bold mb-6">Where you'll be</h2>
-							<div className="rounded-2xl overflow-hidden border border-gray-200">
-								<iframe
-									title="Property location map"
-									src="https://www.openstreetmap.org/export/embed.html?bbox=-118.80%2C34.00%2C-118.30%2C34.25&layer=mapnik"
-									className="w-full h-80 border-0"
-									loading="lazy"
-								/>
-							</div>
-						</motion.div>
+							<HostInfo host={hostObj} />
+						</div>
 
 						{/* Reviews */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
-							<ReviewsSection reviews={sample.reviews} />
-						</motion.div>
-
-						{/* Similar Listings */}
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							whileInView={{ opacity: 1, y: 0 }}
-							className="pt-6 border-t border-gray-200"
-						>
-							<SimilarListings items={sample.similar} />
-						</motion.div>
+						{reviews.length > 0 && (
+							<div className="pt-6 border-t border-gray-200">
+								<h2 className="text-2xl font-bold mb-6">Reviews</h2>
+								<ReviewList reviews={reviews} averageRating={listing.averageRating} token={token} />
+							</div>
+						)}
 					</div>
 
-					{/* Right Column - Pricing Sticky */}
+					{/* Right Column - Booking Widget */}
 					<div className="lg:col-span-1">
-						<motion.div
-							initial={{ opacity: 0, x: 20 }}
-							animate={{ opacity: 1, x: 0 }}
-							className="sticky top-24"
-						>
-							<CheckoutSummary
-								propertyTitle={sample.title}
-								pricePerNight={sample.pricePerNight}
-								nights={nights}
+						<div className="sticky top-24">
+							<BookingWidget
+								listing={listing}
 								checkInDate={checkInDate}
 								checkOutDate={checkOutDate}
-								cleaningFee={sample.cleaningFee}
-								serviceFee={sample.serviceFee}
-								taxes={sample.taxes}
-								discount={sample.discount}
-								onBook={() => {
-									// Handle booking
-									console.log('Booking initiated:', { checkInDate, checkOutDate, nights });
-								}}
-								isLoading={false}
+								guests={guests}
+								setGuests={setGuests}
+								onBook={handleBook}
+								bookingLoading={bookingLoading}
 							/>
-						</motion.div>
+						</div>
 					</div>
 				</div>
 			</div>

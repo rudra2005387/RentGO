@@ -1,16 +1,42 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FaUser, FaBars, FaTimes, FaGlobe } from 'react-icons/fa';
+import { FaUser, FaBars, FaTimes, FaGlobe, FaBell, FaComments } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import SearchBar from '../SearchBar/SearchBar';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function AirbnbStyleNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // Fetch notification unread count
+  useEffect(() => {
+    if (!token) return;
+    const fetchUnread = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/notifications`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await res.json();
+        if (d.success) {
+          const notifs = d.data?.notifications || d.data || [];
+          setUnreadCount(notifs.filter((n) => !n.read && !n.isRead).length);
+        }
+      } catch {
+        // silent
+      }
+    };
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, [token]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -58,23 +84,10 @@ export default function AirbnbStyleNavbar() {
             </Link>
           </div>
 
-          {/* CENTER: Tabs */}
-          <nav className="hidden md:flex items-center gap-1 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            {navTabs.map((tab) => (
-              <Link
-                key={tab.label}
-                to={tab.path}
-                className={`relative px-4 py-6 text-[15px] font-medium transition-colors ${
-                  isTabActive(tab) ? 'text-[#222222]' : 'text-[#717171] hover:text-[#222222]'
-                }`}
-              >
-                {tab.label}
-                {isTabActive(tab) && (
-                  <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-[#222222] rounded-full" />
-                )}
-              </Link>
-            ))}
-          </nav>
+          {/* CENTER: Search Bar + Tabs */}
+          <div className="hidden md:flex flex-col items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <SearchBar />
+          </div>
 
           {/* RIGHT: Host link + Globe + User pill */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -88,6 +101,31 @@ export default function AirbnbStyleNavbar() {
             <button className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors">
               <FaGlobe className="w-4 h-4 text-[#222222]" />
             </button>
+
+            {/* Messages */}
+            {user && (
+              <Link
+                to="/messages"
+                className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors relative"
+              >
+                <FaComments className="w-4 h-4 text-[#222222]" />
+              </Link>
+            )}
+
+            {/* Notifications bell */}
+            {user && (
+              <Link
+                to="/notifications"
+                className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors relative"
+              >
+                <FaBell className="w-4 h-4 text-[#222222]" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF385C] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* User pill */}
             <div className="relative" data-dropdown>
@@ -145,9 +183,23 @@ export default function AirbnbStyleNavbar() {
                     <Link
                       to="/dashboard?tab=bookings"
                       onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
                     >
                       My Bookings
+                    </Link>
+                    <Link
+                      to="/messages"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                    >
+                      Messages
+                    </Link>
+                    <Link
+                      to="/notifications"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
+                    >
+                      Notifications{unreadCount > 0 && ` (${unreadCount})`}
                     </Link>
                     <button
                       onClick={handleLogout}
@@ -221,6 +273,10 @@ export default function AirbnbStyleNavbar() {
             {user ? (
               <>
                 <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Dashboard</Link>
+                <Link to="/messages" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Messages</Link>
+                <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">
+                  Notifications{unreadCount > 0 && ` (${unreadCount})`}
+                </Link>
                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Profile</Link>
                 <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="w-full text-left px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">
                   Log out

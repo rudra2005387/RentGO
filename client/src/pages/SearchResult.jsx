@@ -1,464 +1,607 @@
-import { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { FaMapMarkerAlt, FaStar, FaSlidersH, FaArrowUp, FaArrowDown, FaWifi, FaUtensils, FaParking, FaTv } from 'react-icons/fa';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaSlidersH, FaTimes, FaMap, FaThLarge } from 'react-icons/fa';
+import { lazy, Suspense } from 'react';
+const MapView = lazy(() => import('../components/MapView'));
+import { useAuth } from '../hooks/useAuth';
 
-const SearchResult = () => {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const [showFilters, setShowFilters] = useState(true);
-  const [sortBy, setSortBy] = useState('newest');
-  
-  // Filter states
-  const [priceRange, setPriceRange] = useState([1000, 10000]);
-  const [selectedTypes, setSelectedTypes] = useState([]);
-  const [selectedAmenities, setSelectedAmenities] = useState([]);
-  const [minRating, setMinRating] = useState(0);
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Sample properties
-  const allProperties = [
-    {
-      id: 1,
-      title: 'Modern Apartment in Downtown',
-      location: 'New York, NY',
-      price: 2500,
-      rating: 4.8,
-      reviews: 128,
-      image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&h=400&fit=crop',
-      type: 'Apartment',
-      amenities: ['WiFi', 'Pool', 'Parking', 'Kitchen'],
-      bedrooms: 2,
-      bathrooms: 1,
-      guests: 4
-    },
-    {
-      id: 2,
-      title: 'Cozy Studio with Balcony',
-      location: 'Los Angeles, CA',
-      price: 1800,
-      rating: 4.9,
-      reviews: 95,
-      image: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&h=400&fit=crop',
-      type: 'Studio',
-      amenities: ['WiFi', 'Kitchen'],
-      bedrooms: 1,
-      bathrooms: 1,
-      guests: 2
-    },
-    {
-      id: 3,
-      title: 'Spacious 2BR Family Home',
-      location: 'Chicago, IL',
-      price: 2200,
-      rating: 4.7,
-      reviews: 156,
-      image: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&h=400&fit=crop',
-      type: 'House',
-      amenities: ['WiFi', 'Kitchen', 'Garden', 'Parking'],
-      bedrooms: 2,
-      bathrooms: 2,
-      guests: 5
-    },
-    {
-      id: 4,
-      title: 'Luxury Villa with Private Pool',
-      location: 'Miami, FL',
-      price: 7500,
-      rating: 4.9,
-      reviews: 210,
-      image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=500&h=400&fit=crop',
-      type: 'Villa',
-      amenities: ['WiFi', 'Pool', 'Gym', 'Parking', 'Kitchen'],
-      bedrooms: 4,
-      bathrooms: 3,
-      guests: 8
-    },
-    {
-      id: 5,
-      title: 'Charming Cottage in the Woods',
-      location: 'Asheville, NC',
-      price: 1900,
-      rating: 4.8,
-      reviews: 178,
-      image: 'https://images.unsplash.com/photo-1588880331179-b0b54b8acb9f?w=500&h=400&fit=crop',
-      type: 'House',
-      amenities: ['WiFi', 'Garden', 'TV'],
-      bedrooms: 2,
-      bathrooms: 1,
-      guests: 4
-    },
-    {
-      id: 6,
-      title: 'Urban Loft with City Views',
-      location: 'San Francisco, CA',
-      price: 3200,
-      rating: 4.7,
-      reviews: 192,
-      image: 'https://images.unsplash.com/photo-1542914420-a332a4fb27d2?w=500&h=400&fit=crop',
-      type: 'Apartment',
-      amenities: ['WiFi', 'TV', 'Parking', 'Kitchen'],
-      bedrooms: 1,
-      bathrooms: 1,
-      guests: 2
-    },
-    {
-      id: 7,
-      title: 'Beachfront Bungalow',
-      location: 'Malibu, CA',
-      price: 5000,
-      rating: 4.9,
-      reviews: 231,
-      image: 'https://images.unsplash.com/photo-1596394516093-501ba68a0ba6?w=500&h=400&fit=crop',
-      type: 'House',
-      amenities: ['WiFi', 'Pool', 'Garden', 'Kitchen'],
-      bedrooms: 3,
-      bathrooms: 2,
-      guests: 6
-    },
-    {
-      id: 8,
-      title: 'Ski-In/Ski-Out Chalet',
-      location: 'Aspen, CO',
-      price: 6800,
-      rating: 4.9,
-      reviews: 199,
-      image: 'https://images.unsplash.com/photo-1582494799538-8926955b9588?w=500&h=400&fit=crop',
-      type: 'House',
-      amenities: ['WiFi', 'Gym', 'Pool', 'Kitchen'],
-      bedrooms: 4,
-      bathrooms: 2,
-      guests: 8
-    },
-  ];
+const authFetch = (path, token) =>
+  fetch(`${API_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then((r) => r.json());
 
-  const propertyTypes = ['Apartment', 'House', 'Villa', 'Studio', 'Room'];
-  const amenityOptions = ['WiFi', 'Pool', 'Kitchen', 'Parking', 'Gym', 'Garden', 'TV'];
+// ─── Property types matching backend ─────────────────────────────────────────
+const PROPERTY_TYPES = [
+  { label: 'Apartment', value: 'apartment' },
+  { label: 'House', value: 'house' },
+  { label: 'Villa', value: 'villa' },
+  { label: 'Condo', value: 'condo' },
+  { label: 'Townhouse', value: 'townhouse' },
+  { label: 'Hotel', value: 'hotel' },
+  { label: 'Hostel', value: 'hostel' },
+  { label: 'Private Room', value: 'private_room' },
+  { label: 'Entire Place', value: 'entire_place' },
+];
 
-  // Filter properties
-  const filteredProperties = useMemo(() => {
-    return allProperties.filter(property => {
-      const matchPrice = property.price >= priceRange[0] && property.price <= priceRange[1];
-      const matchType = selectedTypes.length === 0 || selectedTypes.includes(property.type);
-      const matchAmenities = selectedAmenities.length === 0 || selectedAmenities.every(a => property.amenities.includes(a));
-      const matchRating = property.rating >= minRating;
-      return matchPrice && matchType && matchAmenities && matchRating;
-    });
-  }, [priceRange, selectedTypes, selectedAmenities, minRating]);
+const AMENITIES = ['WiFi', 'Kitchen', 'Pool', 'Gym', 'Parking', 'Air conditioning', 'Washer', 'TV', 'Hot tub', 'Garden'];
 
-  // Sort properties
-  const sortedProperties = useMemo(() => {
-    const sorted = [...filteredProperties];
-    switch (sortBy) {
-      case 'price-low':
-        return sorted.sort((a, b) => a.price - b.price);
-      case 'price-high':
-        return sorted.sort((a, b) => b.price - a.price);
-      case 'rating':
-        return sorted.sort((a, b) => b.rating - a.rating);
-      default:
-        return sorted;
+// ─── Skeleton Card ───────────────────────────────────────────────────────────
+const SkeletonCard = () => (
+  <div className="animate-pulse">
+    <div className="aspect-square bg-gray-200 rounded-2xl mb-3" />
+    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2" />
+    <div className="h-3 bg-gray-200 rounded w-1/2 mb-2" />
+    <div className="h-3 bg-gray-200 rounded w-1/3" />
+  </div>
+);
+
+// ─── Result Card (Airbnb style) ──────────────────────────────────────────────
+const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) => {
+  const [imgIndex, setImgIndex] = useState(0);
+  const [wishLoading, setWishLoading] = useState(false);
+
+  const images = (listing.images || []).map((i) => i.url).filter(Boolean);
+  const displayImgs = images.length > 0 ? images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'];
+
+  const city = listing.location?.city || '';
+  const state = listing.location?.state || '';
+  const locationStr = [city, state].filter(Boolean).join(', ');
+  const price = listing.pricing?.basePrice;
+  const rating = listing.averageRating;
+
+  const handleWishlist = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!token || !userId) return;
+    setWishLoading(true);
+    try {
+      if (isWishlisted) {
+        await fetch(`${API_BASE}/users/${userId}/wishlist/${listing._id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        await fetch(`${API_BASE}/users/${userId}/wishlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ listingId: listing._id }),
+        });
+      }
+      onWishlistToggle?.();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setWishLoading(false);
     }
-  }, [filteredProperties, sortBy]);
-
-  const handlePropertySelect = (propertyId) => {
-    if (favorites.includes(propertyId)) {
-      setFavorites(favorites.filter(id => id !== propertyId));
-    } else {
-      setFavorites([...favorites, propertyId]);
-    }
-  };
-
-  const amenityIcons = {
-    'WiFi': <FaWifi className="w-4 h-4" />,
-    'Kitchen': <FaUtensils className="w-4 h-4" />,
-    'Parking': <FaParking className="w-4 h-4" />,
-    'TV': <FaTv className="w-4 h-4" />,
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      {/* Header */}
-      <div className="border-b border-gray-200 bg-white sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          >
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-                Search Results
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {sortedProperties.length} properties found
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {/* Filter Toggle */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                onClick={() => setShowFilters(!showFilters)}
-                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all"
-              >
-                <FaSlidersH className="w-4 h-4" />
-                <span>Filters</span>
-              </motion.button>
-
-              {/* Sort Dropdown */}
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 rounded-lg border border-gray-300 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-all"
-              >
-                <option value="newest">Newest</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-              </select>
-            </div>
-          </motion.div>
-        </div>
+    <Link to={`/listing/${listing._id}`} className="group block">
+      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative">
+        <img
+          src={displayImgs[imgIndex]}
+          alt={listing.title}
+          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'; }}
+        />
+        {/* Wishlist button */}
+        <button
+          onClick={handleWishlist}
+          disabled={wishLoading}
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110"
+        >
+          <svg viewBox="0 0 32 32" className="w-6 h-6" fill={isWishlisted ? '#FF385C' : 'rgba(0,0,0,0.5)'} stroke={isWishlisted ? '#FF385C' : 'white'} strokeWidth="2">
+            <path d="M16 28c0 0-14-8.35-14-17.5C2 5.58 5.58 2 9.5 2c2.54 0 4.77 1.3 6.5 3.4C17.73 3.3 19.96 2 22.5 2 26.42 2 30 5.58 30 10.5 30 19.65 16 28 16 28z" />
+          </svg>
+        </button>
+        {/* Carousel arrows */}
+        {displayImgs.length > 1 && (
+          <>
+            <button
+              onClick={(e) => { e.preventDefault(); setImgIndex((i) => Math.max(0, i - 1)); }}
+              className={`absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity ${imgIndex === 0 ? 'invisible' : ''}`}
+            >‹</button>
+            <button
+              onClick={(e) => { e.preventDefault(); setImgIndex((i) => Math.min(displayImgs.length - 1, i + 1)); }}
+              className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity ${imgIndex === displayImgs.length - 1 ? 'invisible' : ''}`}
+            >›</button>
+          </>
+        )}
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="lg:w-64 flex-shrink-0"
-            >
-              <div className="sticky top-24 space-y-6">
-                {/* Price Range */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h3 className="font-bold text-gray-900 mb-4">Price Range</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm text-gray-600">
-                        Minimum: ${priceRange[0].toLocaleString()}
-                      </label>
-                      <input
-                        type="range"
-                        min="1000"
-                        max="10000"
-                        step="100"
-                        value={priceRange[0]}
-                        onChange={(e) => {
-                          const newMin = Math.min(parseInt(e.target.value), priceRange[1]);
-                          setPriceRange([newMin, priceRange[1]]);
-                        }}
-                        className="w-full"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600">
-                        Maximum: ${priceRange[1].toLocaleString()}
-                      </label>
-                      <input
-                        type="range"
-                        min="1000"
-                        max="10000"
-                        step="100"
-                        value={priceRange[1]}
-                        onChange={(e) => {
-                          const newMax = Math.max(parseInt(e.target.value), priceRange[0]);
-                          setPriceRange([priceRange[0], newMax]);
-                        }}
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Property Type */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h3 className="font-bold text-gray-900 mb-4">Property Type</h3>
-                  <div className="space-y-2">
-                    {propertyTypes.map((type) => (
-                      <label key={type} className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedTypes.includes(type)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedTypes([...selectedTypes, type]);
-                            } else {
-                              setSelectedTypes(selectedTypes.filter(t => t !== type));
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <span className="ml-3 text-gray-700">{type}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Amenities */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h3 className="font-bold text-gray-900 mb-4">Amenities</h3>
-                  <div className="space-y-2">
-                    {amenityOptions.map((amenity) => (
-                      <label key={amenity} className="flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedAmenities.includes(amenity)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedAmenities([...selectedAmenities, amenity]);
-                            } else {
-                              setSelectedAmenities(selectedAmenities.filter(a => a !== amenity));
-                            }
-                          }}
-                          className="w-4 h-4 rounded border-gray-300"
-                        />
-                        <span className="ml-3 text-gray-700">{amenity}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Minimum Rating */}
-                <div className="bg-white p-6 rounded-2xl border border-gray-200">
-                  <h3 className="font-bold text-gray-900 mb-4">Minimum Rating</h3>
-                  <div className="space-y-2">
-                    {[4, 4.5, 4.7, 4.8, 4.9].map((rating) => (
-                      <label key={rating} className="flex items-center cursor-pointer">
-                        <input
-                          type="radio"
-                          name="rating"
-                          checked={minRating === rating}
-                          onChange={() => setMinRating(rating)}
-                          className="w-4 h-4"
-                        />
-                        <span className="ml-3 text-gray-700">{rating}★ & up</span>
-                      </label>
-                    ))}
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="radio"
-                        name="rating"
-                        checked={minRating === 0}
-                        onChange={() => setMinRating(0)}
-                        className="w-4 h-4"
-                      />
-                      <span className="ml-3 text-gray-700">All ratings</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+      <div className="flex items-start justify-between">
+        <div className="min-w-0 pr-2">
+          <p className="font-semibold text-[#222222] text-sm truncate">{locationStr || listing.title}</p>
+          <p className="text-sm text-[#717171] truncate">{listing.title}</p>
+          {price && (
+            <p className="text-sm mt-1">
+              <span className="font-semibold text-[#222222]">${price.toLocaleString()}</span>
+              <span className="text-[#717171] font-normal"> /night</span>
+            </p>
           )}
-
-          {/* Properties Grid */}
-          <motion.div className="flex-1">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {sortedProperties.map((property, idx) => (
-                <motion.div
-                  key={property.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  viewport={{ once: true }}
-                  className="group cursor-pointer"
-                >
-                  <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 hover:shadow-xl hover:border-gray-300 transition-all duration-300 h-full flex flex-col">
-                    {/* Image */}
-                    <div className="relative h-48 overflow-hidden bg-gray-100">
-                      <img
-                        src={property.image}
-                        alt={property.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                      />
-                      
-                      {/* Rating Badge */}
-                      <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full text-sm font-semibold">
-                        ⭐ {property.rating}
-                      </div>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-4 flex-1 flex flex-col">
-                      <h3 className="font-bold text-gray-900 line-clamp-2 mb-1 text-sm">
-                        {property.title}
-                      </h3>
-                      
-                      <p className="text-xs text-gray-600 flex items-center gap-1 mb-3">
-                        <FaMapMarkerAlt className="w-3 h-3 flex-shrink-0" />
-                        {property.location}
-                      </p>
-
-                      {/* Room Details */}
-                      <div className="flex gap-3 text-xs text-gray-600 mb-3">
-                        <span>{property.bedrooms} bed</span>
-                        <span>{property.bathrooms} bath</span>
-                        <span>{property.guests} guests</span>
-                      </div>
-
-                      {/* Amenities Icons */}
-                      <div className="flex gap-2 mb-4 flex-wrap">
-                        {property.amenities.slice(0, 2).map((amenity) => (
-                          <div key={amenity} className="text-gray-600 text-xs">
-                            {amenityIcons[amenity] || amenity}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Price */}
-                      <div className="mt-auto pt-4 border-t border-gray-100">
-                        <p className="text-xl font-bold text-gray-900">
-                          ${property.price.toLocaleString()}
-                          <span className="text-sm font-normal text-gray-600">/month</span>
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          ({property.reviews} reviews)
-                        </p>
-                      </div>
-
-                      {/* View Details Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition-colors"
-                      >
-                        View Details
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* No Results */}
-            {sortedProperties.length === 0 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-12"
-              >
-                <p className="text-lg text-gray-600">No properties match your filters.</p>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  onClick={() => {
-                    setPriceRange([1000, 10000]);
-                    setSelectedTypes([]);
-                    setSelectedAmenities([]);
-                    setMinRating(0);
-                  }}
-                  className="mt-4 text-blue-600 hover:text-blue-700 font-semibold"
-                >
-                  Clear Filters
-                </motion.button>
-              </motion.div>
-            )}
-          </motion.div>
         </div>
+        {rating && (
+          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            <span className="text-[#222222] text-xs">★</span>
+            <span className="text-xs font-semibold text-[#222222]">{rating.toFixed(1)}</span>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+};
+
+// ─── Dual-handle Price Slider ────────────────────────────────────────────────
+const PriceRangeSlider = ({ min, max, value, onChange }) => {
+  const [localMin, setLocalMin] = useState(value[0]);
+  const [localMax, setLocalMax] = useState(value[1]);
+
+  useEffect(() => { setLocalMin(value[0]); setLocalMax(value[1]); }, [value]);
+
+  const handleMinChange = (e) => {
+    const v = Math.min(Number(e.target.value), localMax - 10);
+    setLocalMin(v);
+    onChange([v, localMax]);
+  };
+  const handleMaxChange = (e) => {
+    const v = Math.max(Number(e.target.value), localMin + 10);
+    setLocalMax(v);
+    onChange([localMin, v]);
+  };
+
+  const leftPct = ((localMin - min) / (max - min)) * 100;
+  const rightPct = ((localMax - min) / (max - min)) * 100;
+
+  return (
+    <div>
+      <div className="flex justify-between text-sm text-[#717171] mb-2">
+        <span>${localMin.toLocaleString()}</span>
+        <span>${localMax.toLocaleString()}</span>
+      </div>
+      <div className="relative h-2">
+        <div className="absolute inset-0 bg-[#EBEBEB] rounded-full" />
+        <div className="absolute top-0 h-2 bg-[#222222] rounded-full" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <input
+          type="range" min={min} max={max} step={10} value={localMin} onChange={handleMinChange}
+          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#222222] [&::-webkit-slider-thumb]:cursor-pointer"
+        />
+        <input
+          type="range" min={min} max={max} step={10} value={localMax} onChange={handleMaxChange}
+          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#222222] [&::-webkit-slider-thumb]:cursor-pointer"
+        />
       </div>
     </div>
   );
 };
 
-export default SearchResult;
+// ─── Filters Sidebar ─────────────────────────────────────────────────────────
+const FiltersPanel = ({ filters, setFilters, onClear }) => (
+  <div className="space-y-6">
+    <div>
+      <h3 className="font-semibold text-[#222222] text-sm mb-3">Price range</h3>
+      <PriceRangeSlider min={0} max={2000} value={filters.priceRange} onChange={(v) => setFilters((f) => ({ ...f, priceRange: v }))} />
+    </div>
+    <div>
+      <h3 className="font-semibold text-[#222222] text-sm mb-3">Property type</h3>
+      <div className="space-y-2">
+        {PROPERTY_TYPES.map((pt) => (
+          <label key={pt.value} className="flex items-center gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={filters.propertyTypes.includes(pt.value)}
+              onChange={(e) => {
+                setFilters((f) => ({
+                  ...f,
+                  propertyTypes: e.target.checked
+                    ? [...f.propertyTypes, pt.value]
+                    : f.propertyTypes.filter((t) => t !== pt.value),
+                }));
+              }}
+              className="w-4 h-4 rounded border-[#B0B0B0] accent-[#222222]"
+            />
+            <span className="text-sm text-[#222222] group-hover:underline">{pt.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+    <div>
+      <h3 className="font-semibold text-[#222222] text-sm mb-3">Amenities</h3>
+      <div className="space-y-2">
+        {AMENITIES.map((am) => (
+          <label key={am} className="flex items-center gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={filters.amenities.includes(am)}
+              onChange={(e) => {
+                setFilters((f) => ({
+                  ...f,
+                  amenities: e.target.checked
+                    ? [...f.amenities, am]
+                    : f.amenities.filter((a) => a !== am),
+                }));
+              }}
+              className="w-4 h-4 rounded border-[#B0B0B0] accent-[#222222]"
+            />
+            <span className="text-sm text-[#222222] group-hover:underline">{am}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+    <div>
+      <h3 className="font-semibold text-[#222222] text-sm mb-3">Minimum rating</h3>
+      <div className="flex items-center gap-2">
+        <input
+          type="range" min={3} max={5} step={0.1} value={filters.minRating}
+          onChange={(e) => setFilters((f) => ({ ...f, minRating: Number(e.target.value) }))}
+          className="flex-1 accent-[#222222]"
+        />
+        <span className="text-sm font-semibold text-[#222222] w-8 text-right">{filters.minRating.toFixed(1)}★</span>
+      </div>
+    </div>
+    <div className="flex items-center justify-between">
+      <span className="text-sm font-semibold text-[#222222]">Instant Book</span>
+      <button
+        onClick={() => setFilters((f) => ({ ...f, instantBook: !f.instantBook }))}
+        className={`w-12 h-7 rounded-full transition-colors relative ${filters.instantBook ? 'bg-[#222222]' : 'bg-[#B0B0B0]'}`}
+      >
+        <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${filters.instantBook ? 'translate-x-5' : 'translate-x-0.5'}`} />
+      </button>
+    </div>
+    <button onClick={onClear} className="w-full text-sm font-semibold text-[#FF385C] hover:underline py-2">
+      Clear all filters
+    </button>
+  </div>
+);
 
+// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+const INITIAL_FILTERS = {
+  priceRange: [0, 2000],
+  propertyTypes: [],
+  amenities: [],
+  minRating: 3.0,
+  instantBook: false,
+};
+
+// ✅ FIX: Fuzzy city search — tries multiple param strategies until results found
+const fetchWithFallback = async (baseParams, cityQuery) => {
+  const cityLower = cityQuery?.trim().toLowerCase();
+
+  // Strategy 1: send both `city` and `search` params (covers most backend implementations)
+  const p1 = new URLSearchParams(baseParams);
+  if (cityLower) {
+    p1.set('city', cityQuery.trim());
+    p1.set('search', cityQuery.trim());
+  }
+  const r1 = await fetch(`${API_BASE}/listings?${p1}`);
+  const d1 = await r1.json();
+  if (d1.success && (d1.data?.listings?.length || 0) > 0) return d1;
+
+  // Strategy 2: title/location text search only
+  const p2 = new URLSearchParams(baseParams);
+  if (cityLower) p2.set('search', cityQuery.trim());
+  const r2 = await fetch(`${API_BASE}/listings?${p2}`);
+  const d2 = await r2.json();
+  if (d2.success && (d2.data?.listings?.length || 0) > 0) return d2;
+
+  // Strategy 3: no city filter — return all (so page is never empty)
+  const p3 = new URLSearchParams(baseParams);
+  const r3 = await fetch(`${API_BASE}/listings?${p3}`);
+  const d3 = await r3.json();
+  return d3;
+};
+
+const SearchResult = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user, token } = useAuth();
+  const userId = user?._id || user?.id;
+
+  const [listings, setListings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [totalResults, setTotalResults] = useState(0);
+  const [sortBy, setSortBy] = useState('newest');
+  const [showFilters, setShowFilters] = useState(true);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const viewParam = searchParams.get('view');
+  const [mapView, setMapView] = useState(viewParam === 'map');
+  const [filters, setFilters] = useState(INITIAL_FILTERS);
+  const [wishlistedIds, setWishlistedIds] = useState(new Set());
+  const [noExactMatch, setNoExactMatch] = useState(false);
+
+  // ✅ Read URL params — support both ?city= and ?search= and ?location=
+  const city = searchParams.get('city') || searchParams.get('search') || searchParams.get('location') || searchParams.get('query') || '';
+  const checkInDate = searchParams.get('checkInDate') || searchParams.get('checkIn') || '';
+  const checkOutDate = searchParams.get('checkOutDate') || searchParams.get('checkOut') || '';
+  const guestsParam = searchParams.get('guests') || '';
+
+  // ✅ Smooth scroll to top on new search
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [city]);
+
+  // Fetch wishlist
+  const fetchWishlist = useCallback(() => {
+    if (!token || !userId) return;
+    authFetch(`/users/${userId}/wishlist`, token)
+      .then((d) => {
+        if (d.success && Array.isArray(d.data)) {
+          setWishlistedIds(new Set(d.data.map((item) => item._id || item.listing?._id || item)));
+        }
+      })
+      .catch(() => {});
+  }, [token, userId]);
+
+  useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
+
+  // ✅ Fetch listings with fuzzy city matching
+  useEffect(() => {
+    const fetchResults = async () => {
+      setLoading(true);
+      setNoExactMatch(false);
+      try {
+        // Build base params (no city — city handled by fetchWithFallback)
+        const baseParams = new URLSearchParams();
+        if (checkInDate) baseParams.set('checkInDate', checkInDate);
+        if (checkOutDate) baseParams.set('checkOutDate', checkOutDate);
+        if (guestsParam) baseParams.set('guests', guestsParam);
+        if (filters.priceRange[0] > 0) baseParams.set('minPrice', filters.priceRange[0]);
+        if (filters.priceRange[1] < 2000) baseParams.set('maxPrice', filters.priceRange[1]);
+        if (filters.propertyTypes.length > 0) baseParams.set('propertyType', filters.propertyTypes.join(','));
+        if (filters.amenities.length > 0) baseParams.set('amenities', filters.amenities.join(','));
+        if (filters.minRating > 3) baseParams.set('minRating', filters.minRating);
+        if (filters.instantBook) baseParams.set('instantBook', 'true');
+        const sortMap = { 'price-low': 'price_asc', 'price-high': 'price_desc', 'rating': 'rating', 'newest': 'newest' };
+        baseParams.set('sortBy', sortMap[sortBy] || 'newest');
+        baseParams.set('limit', '48');
+
+        const d = await fetchWithFallback(baseParams, city);
+
+        if (d.success) {
+          const resultList = d.data?.listings || [];
+          setListings(resultList);
+          setTotalResults(d.data?.pagination?.total || resultList.length);
+
+          // ✅ Detect if results are from fallback (no exact city match)
+          if (city && resultList.length > 0) {
+            const exactMatch = resultList.some(
+              (l) => l.location?.city?.toLowerCase() === city.toLowerCase()
+            );
+            if (!exactMatch) setNoExactMatch(true);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchResults();
+  }, [city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
+
+  const clearFilters = () => setFilters(INITIAL_FILTERS);
+
+  // Active filter badges
+  const activeBadges = [];
+  if (city) activeBadges.push({ label: city, clear: () => navigate('/search') });
+  if (filters.priceRange[0] > 0 || filters.priceRange[1] < 2000)
+    activeBadges.push({ label: `$${filters.priceRange[0]}–$${filters.priceRange[1]}`, clear: () => setFilters((f) => ({ ...f, priceRange: [0, 2000] })) });
+  filters.propertyTypes.forEach((pt) =>
+    activeBadges.push({ label: PROPERTY_TYPES.find((p) => p.value === pt)?.label || pt, clear: () => setFilters((f) => ({ ...f, propertyTypes: f.propertyTypes.filter((t) => t !== pt) })) })
+  );
+  if (filters.minRating > 3) activeBadges.push({ label: `${filters.minRating.toFixed(1)}★+`, clear: () => setFilters((f) => ({ ...f, minRating: 3.0 })) });
+  if (filters.instantBook) activeBadges.push({ label: 'Instant Book', clear: () => setFilters((f) => ({ ...f, instantBook: false })) });
+
+  return (
+    // ✅ scroll-smooth on the page container
+    <div className="min-h-screen bg-white scroll-smooth" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      {/* Header Bar */}
+      <div className="sticky top-[80px] z-30 bg-white border-b border-[#EBEBEB]">
+        <div className="max-w-[1760px] mx-auto px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-lg font-semibold text-[#222222]">
+              {city ? `Results for "${city}"` : 'All properties'}
+            </h1>
+            <p className="text-sm text-[#717171]">
+              {loading ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
+                  Searching...
+                </span>
+              ) : (
+                `${totalResults.toLocaleString()} propert${totalResults === 1 ? 'y' : 'ies'} found`
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
+            >
+              <FaSlidersH className="w-3.5 h-3.5" />
+              Filters
+            </button>
+            <button
+              onClick={() => setMobileFiltersOpen(true)}
+              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
+            >
+              <FaSlidersH className="w-3.5 h-3.5" />
+              Filters
+            </button>
+            <button
+              onClick={() => setMapView(!mapView)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
+            >
+              {mapView ? <FaThLarge className="w-3.5 h-3.5" /> : <FaMap className="w-3.5 h-3.5" />}
+              {mapView ? 'List' : 'Map'}
+            </button>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] text-sm outline-none transition-colors"
+            >
+              <option value="newest">Newest</option>
+              <option value="price-low">Price: Low → High</option>
+              <option value="price-high">Price: High → Low</option>
+              <option value="rating">Highest Rated</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Active filter badges */}
+        {activeBadges.length > 0 && (
+          <div className="max-w-[1760px] mx-auto px-6 pb-3 flex items-center gap-2 flex-wrap">
+            {activeBadges.map((badge, i) => (
+              <span key={i} className="inline-flex items-center gap-1 bg-[#F7F7F7] text-[#222222] text-xs font-medium px-3 py-1.5 rounded-full">
+                {badge.label}
+                <button onClick={badge.clear} className="ml-0.5 hover:text-[#FF385C] transition-colors">
+                  <FaTimes className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+            <button onClick={clearFilters} className="text-xs font-semibold text-[#FF385C] hover:underline">Clear all</button>
+          </div>
+        )}
+      </div>
+
+      {/* ✅ "No exact match" banner — shows similar listings instead of blank page */}
+      <AnimatePresence>
+        {noExactMatch && !loading && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="max-w-[1760px] mx-auto px-6 pt-4"
+          >
+            <div className="bg-[#FFF8F0] border border-[#FFD9B3] rounded-xl px-4 py-3 flex items-start gap-3">
+              <span className="text-xl">🔍</span>
+              <div>
+                <p className="text-sm font-semibold text-[#222222]">No exact results for "{city}"</p>
+                <p className="text-xs text-[#717171] mt-0.5">Showing similar properties from other locations. Try adding more listings for this city.</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="max-w-[1760px] mx-auto px-6 py-6">
+        <div className="flex gap-8">
+          {/* Desktop Filters Sidebar */}
+          {showFilters && (
+            <div className="hidden lg:block w-72 flex-shrink-0">
+              <div className="sticky top-[180px] bg-white border border-[#EBEBEB] rounded-2xl p-6">
+                <FiltersPanel filters={filters} setFilters={setFilters} onClear={clearFilters} />
+              </div>
+            </div>
+          )}
+
+          {/* Results Grid / Map */}
+          <div className="flex-1">
+            {mapView ? (
+              <Suspense fallback={<div className="h-[calc(100vh-200px)] bg-gray-100 rounded-xl animate-pulse" />}>
+                <div className="h-[calc(100vh-200px)] rounded-xl overflow-hidden">
+                  <MapView listings={listings} city={city} />
+                </div>
+              </Suspense>
+            ) : loading ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="text-center py-20">
+                <p className="text-5xl mb-4">🏠</p>
+                <p className="text-lg font-semibold text-[#222222] mb-2">No properties found</p>
+                <p className="text-[#717171] text-sm mb-6 max-w-sm mx-auto">
+                  We couldn't find properties matching your search. Try a different location or adjust your filters.
+                </p>
+                <div className="flex justify-center gap-3">
+                  <button
+                    onClick={clearFilters}
+                    className="px-5 py-2.5 text-sm font-semibold border border-[#222222] rounded-lg hover:bg-[#F7F7F7] transition-colors"
+                  >
+                    Clear filters
+                  </button>
+                  <button
+                    onClick={() => navigate('/')}
+                    className="px-5 py-2.5 text-sm font-semibold bg-[#FF385C] text-white rounded-lg hover:bg-[#e0314f] transition-colors"
+                  >
+                    Explore all homes
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <motion.div
+                key={city + sortBy}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-5"
+              >
+                {listings.map((l, i) => (
+                  <motion.div
+                    key={l._id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.5) }}
+                  >
+                    <ResultCard
+                      listing={l}
+                      token={token}
+                      userId={userId}
+                      isWishlisted={wishlistedIds.has(l._id)}
+                      onWishlistToggle={fetchWishlist}
+                    />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Filters Modal */}
+      <AnimatePresence>
+        {mobileFiltersOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50"
+              onClick={() => setMobileFiltersOpen(false)}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto"
+            >
+              <div className="sticky top-0 bg-white border-b border-[#EBEBEB] px-6 py-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-[#222222]">Filters</h2>
+                <button onClick={() => setMobileFiltersOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#F7F7F7]">
+                  <FaTimes className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="px-6 py-6">
+                <FiltersPanel filters={filters} setFilters={setFilters} onClear={clearFilters} />
+              </div>
+              <div className="sticky bottom-0 bg-white border-t border-[#EBEBEB] px-6 py-4">
+                <button
+                  onClick={() => setMobileFiltersOpen(false)}
+                  className="w-full bg-[#222222] text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors"
+                >
+                  Show {totalResults} results
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default SearchResult;
