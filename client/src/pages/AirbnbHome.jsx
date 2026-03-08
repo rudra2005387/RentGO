@@ -201,6 +201,7 @@ export default function AirbnbHome() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalListings, setTotalListings] = useState(0);
+  const isFetchingRef = useRef(false); // prevent concurrent fetches
 
   const observerRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -234,22 +235,38 @@ export default function AirbnbHome() {
 
   // ── Fetch paginated listings when category or page changes
   const fetchListings = useCallback(async (cat, pageNum, reset = false) => {
+    if (isFetchingRef.current) return; // prevent concurrent calls
+    isFetchingRef.current = true;
     setLoadingAll(true);
     try {
       const params = new URLSearchParams({ page: pageNum, limit: 24 });
       if (cat) params.set('propertyType', cat);
-      const d = await apiFetch(`/listings?${params}`);
+      const res = await fetch(`${API_BASE}/listings?${params}`);
+      
+      // Stop completely on rate limit
+      if (res.status === 429) {
+        console.warn('Rate limited — stopping pagination');
+        setHasMore(false);
+        return;
+      }
+      
+      const d = await res.json();
       if (d.success) {
         const newListings = d.data?.listings || [];
         setAllListings((prev) => reset ? newListings : [...prev, ...newListings]);
         const pagination = d.data?.pagination;
         setTotalListings(pagination?.total || 0);
-        setHasMore(pagination?.hasNextPage || false);
+        // Only allow more pages if backend confirms there are more
+        setHasMore(pagination?.hasNextPage === true && newListings.length > 0);
+      } else {
+        setHasMore(false);
       }
     } catch (e) {
       console.error(e);
+      setHasMore(false);
     } finally {
       setLoadingAll(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
@@ -269,11 +286,14 @@ export default function AirbnbHome() {
   // Intersection observer for infinite scroll
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
+    if (!hasMore) return; // don't observe if no more pages
+    
     observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore && !loadingAll) {
+      if (entries[0].isIntersecting && hasMore && !loadingAll && !isFetchingRef.current) {
         setPage((p) => p + 1);
       }
-    }, { threshold: 1.0, rootMargin: '0px 0px -100px 0px' });
+    }, { threshold: 1.0 });
+    
     if (sentinelRef.current) observerRef.current.observe(sentinelRef.current);
     return () => observerRef.current?.disconnect();
   }, [hasMore, loadingAll]);
