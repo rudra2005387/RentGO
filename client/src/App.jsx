@@ -10,6 +10,7 @@ import Toast from './components/Toast.jsx';
 import BottomNavigation from './components/BottomNavigation.jsx';
 import WebVitalsDashboard from './components/WebVitalsDashboard.jsx';
 import AirbnbHome from '../src/pages/AirbnbHome.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
 
 // Lazy load pages for route-based code splitting
 const Login = lazy(() => import('./pages/Login.jsx'));
@@ -23,6 +24,7 @@ const Reviews = lazy(() => import('./pages/Reviews.jsx'));
 const AdvancedSearch = lazy(() => import('./pages/AdvancedSearch.jsx'));
 const NotificationCenter = lazy(() => import('./pages/NotificationCenter.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const Services = lazy (() => import('./pages/Services.jsx')); 
 
 // Loading fallback component
 function PageLoader() {
@@ -45,17 +47,21 @@ function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<MainLayout />}>
-                  <Route index element={<AirbnbHome />} />
-                  <Route path="/search" element={<SearchResult />} />
-                  <Route path="/advanced-search" element={<AdvancedSearch />} />
-                  <Route path="/listing/:id" element={<ListingDetails />} />
+                  {/* Public routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/create-listing" element={<CreateListing />} />
-                  <Route path="/reviews" element={<Reviews />} />
-                  <Route path="/notifications" element={<NotificationCenter />} />
+
+                  {/* Protected routes */}
+                  <Route index element={<ProtectedRoute><AirbnbHome /></ProtectedRoute>} />
+                  <Route path="/search" element={<ProtectedRoute><SearchResult /></ProtectedRoute>} />
+                  <Route path="/advanced-search" element={<ProtectedRoute><AdvancedSearch /></ProtectedRoute>} />
+                  <Route path="/listing/:id" element={<ProtectedRoute><ListingDetails /></ProtectedRoute>} />
+                  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                  <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+                  <Route path="/create-listing" element={<ProtectedRoute><CreateListing /></ProtectedRoute>} />
+                  <Route path="/reviews" element={<ProtectedRoute><Reviews /></ProtectedRoute>} />
+                  <Route path="/notifications" element={<ProtectedRoute><NotificationCenter /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>

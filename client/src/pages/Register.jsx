@@ -1,52 +1,104 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { useAuth } from '../hooks/useAuth';
-import { Button, Input, Alert } from '../components/ui';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { useAuth } from "../hooks/useAuth";
+import { Button, Input, Alert } from "../components/ui";
 
 const Register = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    phone: "",
   });
-  const [error, setError] = useState('');
+
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    // Only allow digits for phone field
+    if (name === "phone") {
+      const digits = value.replace(/\D/g, "").slice(0, 10);
+      setFormData((prev) => ({ ...prev, [name]: digits }));
+      return;
+    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
-    if (!formData.fullName || !formData.email || !formData.password) {
-      setError('Please fill in all fields.');
+    if (!formData.fullName || !formData.email || !formData.password || !formData.phone) {
+      setError("Please fill in all fields.");
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match.');
+      setError("Passwords do not match.");
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (formData.phone.length !== 10) {
+      setError("Phone number must be 10 digits.");
       return;
     }
 
     setLoading(true);
+
     try {
-      const newUser = { id: Date.now().toString(), fullName: formData.fullName, email: formData.email };
-      login(newUser);
-      navigate('/');
+      const nameParts = formData.fullName.trim().split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ") || firstName; // fallback to firstName if no last name
+
+      const payload = {
+        firstName,
+        lastName,
+        email: formData.email.trim().toLowerCase(),
+        password: formData.password,
+        phone: Number(formData.phone), // ← send as number, not string
+        role: "guest",
+      };
+
+      console.log("Sending payload:", payload);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/register`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await response.json();
+      console.log("REGISTER RESPONSE:", data);
+
+      if (!response.ok) {
+        // Extract detailed validation errors if present
+        if (data.errors && Array.isArray(data.errors)) {
+          throw new Error(data.errors.map((e) => e.msg || e.message).join(", "));
+        }
+        throw new Error(data.message || "Registration failed");
+      }
+
+      login(data.data.user, data.data.token);
+      navigate("/", { replace: true });
+
     } catch (err) {
-      setError('Registration failed. Please try again.');
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -70,8 +122,11 @@ const Register = () => {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Full Name
+            </label>
             <Input
               type="text"
               name="fullName"
@@ -79,13 +134,13 @@ const Register = () => {
               onChange={handleChange}
               placeholder="John Doe"
               required
-              aria-required="true"
-              aria-label="Full name"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
             <Input
               type="email"
               name="email"
@@ -93,36 +148,49 @@ const Register = () => {
               onChange={handleChange}
               placeholder="you@example.com"
               required
-              aria-required="true"
-              aria-label="Email address"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Phone
+            </label>
+            <Input
+              type="tel"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="10 digit phone number"
+              maxLength={10}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
             <Input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="At least 6 characters"
+              placeholder="At least 8 characters"
               required
-              aria-required="true"
-              aria-label="Password"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Confirm Password
+            </label>
             <Input
               type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              placeholder="Confirm your password"
+              placeholder="Confirm password"
               required
-              aria-required="true"
-              aria-label="Confirm password"
             />
           </div>
 
@@ -134,31 +202,25 @@ const Register = () => {
               required
             />
             <label htmlFor="terms" className="text-sm text-gray-600">
-              I agree to the{' '}
+              I agree to the{" "}
               <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
                 Terms of Service
-              </Link>
-              {' '}and{' '}
+              </Link>{" "}
+              and{" "}
               <Link to="/" className="text-blue-600 hover:text-blue-700 font-medium">
                 Privacy Policy
               </Link>
             </label>
           </div>
 
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full"
-            variant="primary"
-            size="lg"
-            aria-busy={loading}
-          >
-            {loading ? 'Creating Account...' : 'Create Account'}
+          <Button type="submit" disabled={loading} className="w-full" variant="primary" size="lg">
+            {loading ? "Creating Account..." : "Create Account"}
           </Button>
+
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          Already have an account?{' '}
+          Already have an account?{" "}
           <Link to="/login" className="text-blue-600 font-semibold hover:text-blue-700">
             Sign in
           </Link>
@@ -169,4 +231,3 @@ const Register = () => {
 };
 
 export default Register;
-

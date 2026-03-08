@@ -9,9 +9,14 @@ http://localhost:5000/api
 
 ## 📋 Table of Contents
 - [Authentication Routes](#authentication-routes)
-- [User Routes (Option A)](#user-routes-option-a)
-- [Listing Routes (Option B)](#listing-routes-option-b)
-- [Booking Routes (Option C)](#booking-routes-option-c)
+- [User Routes](#user-routes)
+- [Listing Routes](#listing-routes)
+- [Booking Routes](#booking-routes)
+- [Review Routes](#review-routes) *(NEW)*
+- [Payment Routes](#payment-routes) *(NEW)*
+- [Admin Routes](#admin-routes) *(NEW)*
+- [Caching](#caching) *(NEW)*
+- [Frontend Auth Flow](#frontend-auth-flow) *(NEW)*
 
 ---
 
@@ -119,7 +124,7 @@ http://localhost:5000/api
 
 ---
 
-## User Routes (Option A)
+## User Routes
 
 ### Get User Profile (Public)
 **Endpoint:** `GET /users/:id`
@@ -179,14 +184,22 @@ http://localhost:5000/api
 
 ### Upload Profile Image
 **Endpoint:** `POST /users/:id/profile-image`  
-**Auth Required:** ✅ Bearer Token
+**Auth Required:** ✅ Bearer Token  
+**Content-Type:** `application/json` OR `multipart/form-data`
 
-**Request:**
+**Option A — URL-based:**
 ```json
 {
   "imageUrl": "https://example.com/image.jpg"
 }
 ```
+
+**Option B — File upload (multipart/form-data):**
+| Field | Type | Description |
+|-------|------|-------------|
+| `image` | File | JPEG, PNG, GIF, or WebP (max 5 MB) |
+
+> When a file is uploaded, it is streamed to Cloudinary and the resulting URL is saved.
 
 ### Get User Statistics
 **Endpoint:** `GET /users/:id/stats`
@@ -342,10 +355,11 @@ http://localhost:5000/api
 
 ---
 
-## Listing Routes (Option B)
+## Listing Routes
 
 ### Get All Listings (Search & Filter)
-**Endpoint:** `GET /listings?page=1&limit=12&search=apartment&city=NewYork&propertyType=apartment&minPrice=50&maxPrice=300&guests=2&checkInDate=2026-02-15&checkOutDate=2026-02-20&rating=4&sortBy=newest`
+**Endpoint:** `GET /listings?page=1&limit=12&search=apartment&city=NewYork&propertyType=apartment&minPrice=50&maxPrice=300&guests=2&checkInDate=2026-02-15&checkOutDate=2026-02-20&rating=4&sortBy=newest`  
+**Cached:** 120 s
 
 **Query Parameters:**
 - `page` - Page number (default: 1)
@@ -415,13 +429,54 @@ http://localhost:5000/api
 ```
 
 ### Get Trending Listings
-**Endpoint:** `GET /listings/trending?limit=10`
+**Endpoint:** `GET /listings/trending?limit=10`  
+**Cached:** 300 s
 
 ### Get Featured Listings
-**Endpoint:** `GET /listings/featured?limit=10`
+**Endpoint:** `GET /listings/featured?limit=10`  
+**Cached:** 300 s
+
+### Get Nearby Listings (Geolocation) *(NEW)*
+**Endpoint:** `GET /listings/nearby?lat=40.7128&lng=-74.0060&radius=50&page=1&limit=20`  
+**Cached:** 120 s
+
+**Query Parameters:**
+- `lat` *(required)* — Latitude
+- `lng` *(required)* — Longitude
+- `radius` — Search radius in km (default: 50)
+- `page` — Page number (default: 1)
+- `limit` — Results per page (default: 20)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "listings": [
+      {
+        "_id": "...",
+        "title": "...",
+        "distance": 3245.6,
+        "host": { "firstName": "...", "lastName": "...", "profileImage": "..." },
+        "pricing": { ... },
+        "images": [ ... ]
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 42,
+      "totalPages": 3
+    }
+  }
+}
+```
+
+> Requires a `2dsphere` index on `location.geo`. The Listing model auto-populates the GeoJSON `geo` field from `latitude`/`longitude` on save.
 
 ### Get Single Listing Details
-**Endpoint:** `GET /listings/:id`
+**Endpoint:** `GET /listings/:id`  
+**Cached:** 180 s
 
 **Response:** `200 OK`
 ```json
@@ -560,6 +615,44 @@ http://localhost:5000/api
 **Endpoint:** `DELETE /listings/:id/images/:imageIndex`  
 **Auth Required:** ✅ Bearer Token (Host only)
 
+### Upload Listing Images via File Upload *(NEW)*
+**Endpoint:** `POST /listings/:id/upload`  
+**Auth Required:** ✅ Bearer Token (Host only)  
+**Content-Type:** `multipart/form-data`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `images` | File[] | Up to 10 image files (JPEG, PNG, GIF, WebP), max 5 MB each |
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "message": "3 image(s) uploaded successfully",
+  "data": {
+    "listing": { ... }
+  }
+}
+```
+
+> Files are streamed from memory to Cloudinary (no temp disk files). The first image becomes the cover if the listing has no existing images.
+
+### Get Similar Listings *(NEW)*
+**Endpoint:** `GET /listings/:id/similar?limit=6`  
+**Cached:** 180 s
+
+Returns listings matching the same property type, city, or ±30% price range.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "listings": [ ... ]
+  }
+}
+```
+
 ### Get Availability Calendar
 **Endpoint:** `GET /listings/:id/availability?startDate=2026-02-15&endDate=2026-03-15`
 
@@ -617,11 +710,13 @@ http://localhost:5000/api
 
 ---
 
-## Booking Routes (Option C)
+## Booking Routes
 
 ### Create Booking
 **Endpoint:** `POST /bookings`  
 **Auth Required:** ✅ Bearer Token
+
+> **Availability check:** The server checks for conflicting bookings with `pending`, `confirmed`, or `completed` status to prevent double-booking.
 
 **Request:**
 ```json
@@ -824,6 +919,296 @@ http://localhost:5000/api
 
 ---
 
+## Review Routes *(NEW)*
+
+Base path: `/api/reviews`
+
+### Get Listing Reviews (Public)
+**Endpoint:** `GET /reviews/listing/:listingId?page=1&limit=10&sortBy=newest`  
+**Cached:** 180 s
+
+**Query Parameters:**
+- `page` — Page number (default: 1)
+- `limit` — Results per page (default: 10)
+- `sortBy` — `newest`, `rating_high`, `rating_low`, `helpful`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "reviews": [
+      {
+        "_id": "...",
+        "author": { "firstName": "Alice", "lastName": "Smith", "profileImage": "..." },
+        "overallRating": 5,
+        "comment": "Amazing place!",
+        "ratings": {
+          "cleanliness": 5,
+          "communication": 5,
+          "checkin": 5,
+          "accuracy": 5,
+          "location": 5,
+          "value": 4
+        },
+        "helpfulCount": 3,
+        "createdAt": "2026-02-12T10:30:00Z"
+      }
+    ],
+    "pagination": { ... },
+    "averageRating": 4.8,
+    "totalReviews": 25,
+    "ratingBreakdown": [
+      { "_id": 5, "count": 18 },
+      { "_id": 4, "count": 5 },
+      { "_id": 3, "count": 2 }
+    ],
+    "categoryAverages": {
+      "cleanliness": 4.9,
+      "communication": 4.8,
+      "checkin": 4.7,
+      "accuracy": 4.8,
+      "location": 4.6,
+      "value": 4.5
+    }
+  }
+}
+```
+
+### Get Single Review (Public)
+**Endpoint:** `GET /reviews/:id`
+
+### Create Review
+**Endpoint:** `POST /reviews`  
+**Auth Required:** ✅ Bearer Token
+
+**Request:**
+```json
+{
+  "bookingId": "507f1f77bcf86cd799439012",
+  "overallRating": 5,
+  "comment": "Fantastic stay!",
+  "title": "Loved every minute",
+  "ratings": {
+    "cleanliness": 5,
+    "communication": 5,
+    "checkin": 5,
+    "accuracy": 5,
+    "location": 4,
+    "value": 5
+  },
+  "highlights": ["clean", "great location", "responsive host"]
+}
+```
+
+**Rules:**
+- Only completed bookings can be reviewed
+- One review per booking per user per direction (guest→host or host→guest)
+- Review type is automatically determined from booking role
+- Listing and host average ratings are recalculated on each new review
+
+### Update Review
+**Endpoint:** `PUT /reviews/:id`  
+**Auth Required:** ✅ Bearer Token (Author only, within 48 hours)
+
+### Delete Review
+**Endpoint:** `DELETE /reviews/:id`  
+**Auth Required:** ✅ Bearer Token (Author or Admin)
+
+### Respond to Review
+**Endpoint:** `POST /reviews/:id/respond`  
+**Auth Required:** ✅ Bearer Token (Target user — typically the host)
+
+**Request:**
+```json
+{
+  "response": "Thank you for your kind words!"
+}
+```
+
+### Mark Review as Helpful
+**Endpoint:** `POST /reviews/:id/helpful`  
+**Auth Required:** ✅ Bearer Token
+
+---
+
+## Payment Routes *(NEW)*
+
+Base path: `/api/payments`  
+All routes require authentication.
+
+> **Note:** If `STRIPE_SECRET_KEY` is not configured, payments fall back to manual tracking (no Stripe calls). This allows the booking flow to work in development without Stripe.
+
+### Create Payment / Checkout Session
+**Endpoint:** `POST /payments/checkout`  
+**Auth Required:** ✅ Bearer Token (Guest who owns the booking)
+
+**Request:**
+```json
+{
+  "bookingId": "507f1f77bcf86cd799439012",
+  "paymentMethod": "credit_card"
+}
+```
+
+**Response (Stripe configured):** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "sessionId": "cs_test_...",
+    "sessionUrl": "https://checkout.stripe.com/...",
+    "payment": { ... }
+  }
+}
+```
+
+**Response (Manual fallback):** `200 OK`
+```json
+{
+  "success": true,
+  "message": "Payment recorded successfully",
+  "data": {
+    "payment": { ... },
+    "booking": { ... }
+  }
+}
+```
+
+### Stripe Webhook
+**Endpoint:** `POST /payments/webhook`  
+**Auth Required:** ❌ (Stripe signature verified)
+
+> Registered with `express.raw()` body parser in `app.js`. Handles `checkout.session.completed` and `payment_intent.payment_failed` events.
+
+### Get Payment History
+**Endpoint:** `GET /payments?page=1&limit=10&status=completed`  
+**Auth Required:** ✅ Bearer Token
+
+### Get Payment Details
+**Endpoint:** `GET /payments/:id`  
+**Auth Required:** ✅ Bearer Token
+
+### Request Refund
+**Endpoint:** `POST /payments/:id/refund`  
+**Auth Required:** ✅ Bearer Token (Guest who made the payment)
+
+**Request:**
+```json
+{
+  "reason": "Booking cancelled"
+}
+```
+
+---
+
+## Admin Routes *(NEW)*
+
+Base path: `/api/admin`  
+All routes require authentication **and** the `admin` role.
+
+### Dashboard Overview
+**Endpoint:** `GET /admin/dashboard`
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "overview": {
+      "totalUsers": 150,
+      "activeUsers": 142,
+      "totalListings": 85,
+      "publishedListings": 72,
+      "totalBookings": 340,
+      "totalReviews": 210,
+      "totalRevenue": 52000,
+      "paidBookings": 280
+    },
+    "recentBookings": [ ... ]
+  }
+}
+```
+
+### List All Users
+**Endpoint:** `GET /admin/users?page=1&limit=20&role=host&status=active&search=john`
+
+### Update User Status
+**Endpoint:** `PUT /admin/users/:id/status`
+
+**Request:**
+```json
+{
+  "isActive": false,
+  "role": "host"
+}
+```
+
+### List All Listings
+**Endpoint:** `GET /admin/listings?page=1&limit=20&status=published&search=apartment`
+
+### Update Listing Status
+**Endpoint:** `PUT /admin/listings/:id/status`
+
+**Request:**
+```json
+{
+  "status": "blocked"
+}
+```
+
+Valid statuses: `draft`, `published`, `archived`, `blocked`
+
+### List All Bookings
+**Endpoint:** `GET /admin/bookings?page=1&limit=20&status=confirmed`
+
+### List All Reviews
+**Endpoint:** `GET /admin/reviews?page=1&limit=20&flagged=true`
+
+### Flag / Unflag Review
+**Endpoint:** `POST /admin/reviews/:id/flag`
+
+**Request:**
+```json
+{
+  "isFlagged": true,
+  "flagReason": "Inappropriate content"
+}
+```
+
+### Revenue Analytics
+**Endpoint:** `GET /admin/revenue?period=monthly`
+
+**Query Parameters:**
+- `period` — `daily`, `weekly`, or `monthly` (default: monthly)
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "revenueByPeriod": [
+      { "_id": "2026-03", "revenue": 12500, "bookings": 35 },
+      { "_id": "2026-02", "revenue": 10800, "bookings": 28 }
+    ],
+    "revenueByStatus": [
+      { "_id": "confirmed", "count": 25, "revenue": 18750 },
+      { "_id": "completed", "count": 180, "revenue": 95000 }
+    ],
+    "topListings": [
+      {
+        "listingTitle": "Modern Apartment Downtown",
+        "hostName": "John Doe",
+        "totalBookings": 15,
+        "totalRevenue": 8500
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## Error Responses
 
 All error responses follow this format:
@@ -899,6 +1284,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+## Caching *(NEW)*
+
+Redis-based response caching is enabled for read-heavy endpoints. If Redis is not available, caching is silently skipped and all requests hit the database.
+
+| Endpoint Pattern | TTL |
+|---|---|
+| `GET /listings` | 120 s |
+| `GET /listings/trending` | 300 s |
+| `GET /listings/featured` | 300 s |
+| `GET /listings/nearby` | 120 s |
+| `GET /listings/:id` | 180 s |
+| `GET /listings/:id/similar` | 180 s |
+| `GET /reviews/listing/:listingId` | 180 s |
+
+Caches are automatically invalidated when listings or reviews are created, updated, or deleted.
+
+**Environment variable:** `REDIS_URL=redis://localhost:6379` (optional)
+
+---
+
+## Frontend Auth Flow *(NEW)*
+
+The React client enforces token-based route protection:
+
+1. On app load, `AuthContext` checks `localStorage` for an existing `token`
+2. If no token is found, all routes except `/login` and `/register` redirect to `/login`
+3. On successful login/register, the API returns `{ data: { user, token } }`
+4. The client stores both via `localStorage.setItem('token', token)` and `localStorage.setItem('rentgo_user', JSON.stringify(user))`
+5. The user is redirected to their originally intended page (or `/` by default)
+6. On logout, both keys are removed and the user is redirected to `/login`
+
+**Public routes:** `/login`, `/register`  
+**Protected routes:** `/`, `/search`, `/listing/:id`, `/profile`, `/dashboard`, `/create-listing`, `/reviews`, `/notifications`, `/advanced-search`
+
+---
+
 ## Rate Limiting
 
 - **Global**: 100 requests per 15 minutes per IP
@@ -918,6 +1339,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ---
 
+## Environment Variables
+
+```
+# Server
+PORT=5000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+
+# Database
+MONGODB_URI=mongodb://localhost:27017/rentgo
+
+# JWT
+JWT_SECRET=your_jwt_secret_key_change_this
+JWT_EXPIRE=7d
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+
+# Email (Optional)
+EMAIL_SERVICE=gmail
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD=your_app_specific_password
+
+# Stripe (Optional — falls back to manual tracking)
+STRIPE_SECRET_KEY=sk_test_your_stripe_key
+STRIPE_PUBLIC_KEY=pk_test_your_stripe_key
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret
+
+# Redis (Optional — caching disabled if unavailable)
+REDIS_URL=redis://localhost:6379
+```
+
+---
+
 ## Deployment Notes
 
 For production deployment:
@@ -927,3 +1384,6 @@ For production deployment:
 - Configure CORS with specific domains
 - Enable request logging
 - Set up monitoring and alerts
+- Configure `STRIPE_WEBHOOK_SECRET` for live Stripe webhooks
+- Use a managed Redis instance (e.g., Redis Cloud, ElastiCache) for caching
+- Ensure MongoDB has a `2dsphere` index on `location.geo` for geolocation queries

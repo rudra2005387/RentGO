@@ -18,6 +18,17 @@ export default function AirbnbStyleNavbar() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('[data-dropdown]')) {
+        setUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleLogout = () => {
     logout();
     setUserDropdownOpen(false);
@@ -26,14 +37,20 @@ export default function AirbnbStyleNavbar() {
 
   const navTabs = [
     { label: 'Homes', path: '/' },
-    { label: 'Experiences', path: '/search' },
-    { label: 'Services', path: '#' },
+    { label: 'Experiences', path: '/experiences' },
+    { label: 'Services', path: '/services' },  // ← fixed
   ];
+
+  const isTabActive = (tab) => {
+    if (tab.path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(tab.path);
+  };
 
   return (
     <>
       <header className={`fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 h-[80px] transition-shadow ${scrolled ? 'shadow-sm' : ''}`}>
         <div className="max-w-[1760px] mx-auto px-8 h-full flex items-center justify-between">
+
           {/* LEFT: Logo */}
           <div className="flex-shrink-0">
             <Link to="/" className="text-[#FF385C] text-2xl font-bold no-underline">
@@ -43,43 +60,44 @@ export default function AirbnbStyleNavbar() {
 
           {/* CENTER: Tabs */}
           <nav className="hidden md:flex items-center gap-1 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            {navTabs.map((tab) => {
-              const isActive = tab.path === '/' ? location.pathname === '/' : location.pathname.startsWith(tab.path) && tab.path !== '#';
-              return (
-                <Link
-                  key={tab.label}
-                  to={tab.path}
-                  className={`relative px-4 py-6 text-[15px] font-medium transition-colors ${
-                    isActive ? 'text-[#222222]' : 'text-[#717171] hover:text-[#222222]'
-                  }`}
-                >
-                  {tab.label}
-                  {isActive && (
-                    <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-[#222222] rounded-full" />
-                  )}
-                </Link>
-              );
-            })}
+            {navTabs.map((tab) => (
+              <Link
+                key={tab.label}
+                to={tab.path}
+                className={`relative px-4 py-6 text-[15px] font-medium transition-colors ${
+                  isTabActive(tab) ? 'text-[#222222]' : 'text-[#717171] hover:text-[#222222]'
+                }`}
+              >
+                {tab.label}
+                {isTabActive(tab) && (
+                  <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-[#222222] rounded-full" />
+                )}
+              </Link>
+            ))}
           </nav>
 
           {/* RIGHT: Host link + Globe + User pill */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <a href="#" className="hidden lg:block text-sm font-semibold text-[#222222] px-3 py-2 rounded-full hover:bg-[#F7F7F7] transition-colors">
+            <Link
+              to="/become-host"
+              className="hidden lg:block text-sm font-semibold text-[#222222] px-3 py-2 rounded-full hover:bg-[#F7F7F7] transition-colors"
+            >
               Become a Host
-            </a>
+            </Link>
 
             <button className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors">
               <FaGlobe className="w-4 h-4 text-[#222222]" />
             </button>
 
-            <div className="relative">
+            {/* User pill */}
+            <div className="relative" data-dropdown>
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
                 className="flex items-center gap-3 pl-3 pr-1.5 py-1.5 border border-[#DDDDDD] rounded-full bg-white hover:shadow-md transition-shadow cursor-pointer"
                 aria-expanded={userDropdownOpen}
               >
                 <FaBars className="w-4 h-4 text-[#222222]" />
-                <div className="w-8 h-8 rounded-full bg-[#717171] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-[#717171] flex items-center justify-center overflow-hidden">
                   {user?.avatar ? (
                     <img src={user.avatar} alt="Profile" className="w-8 h-8 rounded-full object-cover" />
                   ) : (
@@ -94,11 +112,14 @@ export default function AirbnbStyleNavbar() {
                 transition={{ duration: 0.15 }}
                 className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-[#DDDDDD] overflow-hidden ${userDropdownOpen ? 'block' : 'hidden'}`}
               >
+                {/* User info header */}
                 <div className="px-4 py-3 border-b border-[#EBEBEB]">
                   {user ? (
                     <>
-                      <p className="text-sm font-semibold text-[#222222]">{user.email?.split('@')[0]}</p>
-                      <p className="text-xs text-[#717171]">{user.email}</p>
+                      <p className="text-sm font-semibold text-[#222222]">
+                        {user.firstName ? `${user.firstName} ${user.lastName || ''}`.trim() : user.email?.split('@')[0]}
+                      </p>
+                      <p className="text-xs text-[#717171] truncate">{user.email}</p>
                     </>
                   ) : (
                     <p className="text-sm text-[#717171]">Not logged in</p>
@@ -107,20 +128,60 @@ export default function AirbnbStyleNavbar() {
 
                 {user ? (
                   <>
-                    <Link to="/dashboard" className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7]">Dashboard</Link>
-                    <Link to="/profile" className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] border-b border-[#EBEBEB]">Profile</Link>
-                    <button onClick={handleLogout} className="w-full text-left px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7]">Log out</button>
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/profile"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      to="/dashboard?tab=bookings"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
+                    >
+                      My Bookings
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                    >
+                      Log out
+                    </button>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className="block px-4 py-3 text-sm font-semibold text-[#222222] hover:bg-[#F7F7F7]">Log in</Link>
-                    <Link to="/register" className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] border-b border-[#EBEBEB]">Sign up</Link>
+                    <Link
+                      to="/login"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm font-semibold text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
+                    >
+                      Sign up
+                    </Link>
                   </>
                 )}
               </motion.div>
             </div>
 
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden text-xl text-[#222222]">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden text-xl text-[#222222] ml-1"
+            >
               {mobileMenuOpen ? <FaTimes /> : <FaBars />}
             </button>
           </div>
@@ -140,14 +201,38 @@ export default function AirbnbStyleNavbar() {
               key={tab.label}
               to={tab.path}
               onClick={() => setMobileMenuOpen(false)}
-              className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg transition-colors text-sm font-medium"
+              className={`block px-4 py-3 rounded-lg transition-colors text-sm font-medium ${
+                isTabActive(tab)
+                  ? 'bg-[#F7F7F7] text-[#222222] font-semibold'
+                  : 'text-[#222222] hover:bg-[#F7F7F7]'
+              }`}
             >
               {tab.label}
             </Link>
           ))}
-          <a href="#" className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg transition-colors text-sm font-medium">
+          <Link
+            to="/become-host"
+            onClick={() => setMobileMenuOpen(false)}
+            className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg transition-colors text-sm font-medium"
+          >
             Become a Host
-          </a>
+          </Link>
+          <div className="border-t border-[#EBEBEB] pt-2 mt-2">
+            {user ? (
+              <>
+                <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Dashboard</Link>
+                <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Profile</Link>
+                <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="w-full text-left px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">
+                  Log out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-semibold">Log in</Link>
+                <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Sign up</Link>
+              </>
+            )}
+          </div>
         </div>
       </motion.div>
     </>

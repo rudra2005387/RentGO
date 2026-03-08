@@ -7,9 +7,11 @@ export const useAuth = () => {
   if (!context) {
     return {
       user: null,
+      token: null,
+      loading: false,
+      isAuthenticated: false,
       login: () => {},
       logout: () => {},
-      isAuthenticated: false
     };
   }
   
