@@ -8,7 +8,6 @@ import MainLayout from './layouts/MainLayout';
 import Toast from './components/Toast.jsx';
 // SkipNavigation removed — skip link hidden/caused layout issues
 import BottomNavigation from './components/BottomNavigation.jsx';
-import WebVitalsDashboard from './components/WebVitalsDashboard.jsx';
 import AirbnbHome from '../src/pages/AirbnbHome.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 
@@ -32,6 +31,7 @@ const BookingDetail = lazy(() => import('./pages/BookingDetail.jsx'));
 const PaymentPage = lazy(() => import('./pages/PaymentPage.jsx'));
 const MessagesPage = lazy(() => import('./pages/MessagesPage.jsx'));
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage.jsx'));
+const BecomeHost = lazy(() => import('./pages/BecomeHost.jsx'));
 
 // Loading fallback component
 function PageLoader() {
@@ -48,9 +48,7 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <ToastProvider>
-            {/* SkipNavigation removed per UX cleanup */}
             <Toast />
-            <WebVitalsDashboard />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<MainLayout />}>
@@ -73,6 +71,7 @@ function App() {
                   <Route path="/experiences" element={<ProtectedRoute><Experiences /></ProtectedRoute>} />
                   <Route path="/host/dashboard" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
                   <Route path="/hosting" element={<ProtectedRoute><HostDashboard /></ProtectedRoute>} />
+                  <Route path="/become-host" element={<ProtectedRoute><BecomeHost /></ProtectedRoute>} />
                   <Route path="/booking-confirmation/:bookingId" element={<ProtectedRoute><BookingConfirmation /></ProtectedRoute>} />
                   <Route path="/booking/:bookingId" element={<ProtectedRoute><BookingDetail /></ProtectedRoute>} />
                   <Route path="/payment/:bookingId" element={<ProtectedRoute><PaymentPage /></ProtectedRoute>} />

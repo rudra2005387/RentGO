@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaSlidersH, FaTimes, FaMap, FaThLarge } from 'react-icons/fa';
+import { FaSlidersH, FaTimes, FaMap, FaThLarge, FaStar, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { lazy, Suspense } from 'react';
 const MapView = lazy(() => import('../components/MapView'));
 import { useAuth } from '../hooks/useAuth';
@@ -13,7 +13,7 @@ const authFetch = (path, token) =>
     headers: { Authorization: `Bearer ${token}` },
   }).then((r) => r.json());
 
-// ─── Property types matching backend ─────────────────────────────────────────
+// ─── Property types ──────────────────────────────────────────────────────────
 const PROPERTY_TYPES = [
   { label: 'Apartment', value: 'apartment' },
   { label: 'House', value: 'house' },
@@ -30,20 +30,23 @@ const AMENITIES = ['WiFi', 'Kitchen', 'Pool', 'Gym', 'Parking', 'Air conditionin
 
 // ─── Skeleton Card ───────────────────────────────────────────────────────────
 const SkeletonCard = () => (
-  <div className="space-y-3">
-    <div className="aspect-square skeleton rounded-2xl" />
-    <div className="h-4 skeleton rounded w-3/4" />
-    <div className="h-3 skeleton rounded w-1/2" />
-    <div className="h-3 skeleton rounded w-1/3" />
+  <div className="animate-pulse">
+    <div className="aspect-[4/3] skeleton rounded-2xl mb-3" />
+    <div className="space-y-2">
+      <div className="h-4 skeleton rounded-lg w-3/4" />
+      <div className="h-3 skeleton rounded-lg w-1/2" />
+      <div className="h-4 skeleton rounded-lg w-1/3" />
+    </div>
   </div>
 );
 
-// ─── Result Card (Airbnb style) ──────────────────────────────────────────────
+// ─── Modern Result Card (Airbnb style) ───────────────────────────────────────
 const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) => {
   const [imgIndex, setImgIndex] = useState(0);
   const [wishLoading, setWishLoading] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
 
-  const images = (listing.images || []).map((i) => i.url).filter(Boolean);
+  const images = (listing.images || []).map((i) => i.url || i).filter(Boolean);
   const displayImgs = images.length > 0 ? images : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'];
 
   const city = listing.location?.city || '';
@@ -51,6 +54,10 @@ const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) 
   const locationStr = [city, state].filter(Boolean).join(', ');
   const price = listing.pricing?.basePrice;
   const rating = listing.averageRating;
+  const reviews = listing.totalReviews || 0;
+  const guests = listing.guests;
+  const bedrooms = listing.bedrooms;
+  const propType = listing.propertyType?.replace('_', ' ');
 
   const handleWishlist = async (e) => {
     e.preventDefault();
@@ -79,54 +86,90 @@ const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) 
   };
 
   return (
-    <Link to={`/listing/${listing._id}`} className="group block transition-transform duration-300 hover:-translate-y-1">
-      <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3 relative shadow-card group-hover:shadow-card-hover transition-shadow duration-300">
+    <Link to={`/listing/${listing._id}`} className="group block">
+      {/* Image */}
+      <div className="aspect-[4/3] rounded-2xl overflow-hidden bg-[#F0F0F0] mb-3 relative">
+        {!imgLoaded && <div className="absolute inset-0 skeleton" />}
         <img
           src={displayImgs[imgIndex]}
           alt={listing.title}
-          className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
-          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'; }}
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-[1.03] ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          loading="lazy"
+          onLoad={() => setImgLoaded(true)}
+          onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'; setImgLoaded(true); }}
         />
-        {/* Wishlist button */}
+
+        {/* Gradient overlay bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+
+        {/* Wishlist heart */}
         <button
           onClick={handleWishlist}
           disabled={wishLoading}
-          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110"
+          className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center transition-all hover:scale-110 active:scale-95 z-10"
         >
-          <svg viewBox="0 0 32 32" className="w-6 h-6" fill={isWishlisted ? '#FF385C' : 'rgba(0,0,0,0.5)'} stroke={isWishlisted ? '#FF385C' : 'white'} strokeWidth="2">
+          <svg viewBox="0 0 32 32" className="w-6 h-6 drop-shadow-sm" fill={isWishlisted ? '#FF385C' : 'rgba(0,0,0,0.5)'} stroke={isWishlisted ? '#FF385C' : 'white'} strokeWidth="2">
             <path d="M16 28c0 0-14-8.35-14-17.5C2 5.58 5.58 2 9.5 2c2.54 0 4.77 1.3 6.5 3.4C17.73 3.3 19.96 2 22.5 2 26.42 2 30 5.58 30 10.5 30 19.65 16 28 16 28z" />
           </svg>
         </button>
+
+        {/* Guest favourite badge */}
+        {rating >= 4.8 && reviews >= 5 && (
+          <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm text-[#222222] text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
+            Guest favourite
+          </div>
+        )}
+
         {/* Carousel arrows */}
         {displayImgs.length > 1 && (
           <>
             <button
-              onClick={(e) => { e.preventDefault(); setImgIndex((i) => Math.max(0, i - 1)); }}
-              className={`absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity ${imgIndex === 0 ? 'invisible' : ''}`}
-            >‹</button>
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIndex((i) => Math.max(0, i - 1)); }}
+              className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-105 ${imgIndex === 0 ? 'invisible' : ''}`}
+            >
+              <FaChevronLeft size={10} className="text-[#222222]" />
+            </button>
             <button
-              onClick={(e) => { e.preventDefault(); setImgIndex((i) => Math.min(displayImgs.length - 1, i + 1)); }}
-              className={`absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 bg-white rounded-full shadow flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity ${imgIndex === displayImgs.length - 1 ? 'invisible' : ''}`}
-            >›</button>
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setImgIndex((i) => Math.min(displayImgs.length - 1, i + 1)); }}
+              className={`absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 bg-white/90 backdrop-blur-sm rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-white hover:scale-105 ${imgIndex === displayImgs.length - 1 ? 'invisible' : ''}`}
+            >
+              <FaChevronRight size={10} className="text-[#222222]" />
+            </button>
           </>
         )}
+
+        {/* Image dots */}
+        {displayImgs.length > 1 && (
+          <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1">
+            {displayImgs.slice(0, 5).map((_, i) => (
+              <span key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${i === imgIndex ? 'bg-white w-2' : 'bg-white/60'}`} />
+            ))}
+          </div>
+        )}
       </div>
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 pr-2">
-          <p className="font-semibold text-[#222222] text-sm truncate">{locationStr || listing.title}</p>
-          <p className="text-sm text-[#717171] truncate">{listing.title}</p>
-          {price && (
-            <p className="text-sm mt-1">
-              <span className="font-semibold text-[#222222]">${price.toLocaleString()}</span>
-              <span className="text-[#717171] font-normal"> /night</span>
-            </p>
+
+      {/* Info */}
+      <div className="space-y-0.5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold text-[#222222] text-[15px] leading-5 truncate">{locationStr || listing.title}</p>
+          {rating > 0 && (
+            <span className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+              <FaStar className="text-[#222222]" size={11} />
+              <span className="text-sm font-medium text-[#222222]">{rating.toFixed(1)}</span>
+            </span>
           )}
         </div>
-        {rating && (
-          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
-            <span className="text-[#222222] text-xs">★</span>
-            <span className="text-xs font-semibold text-[#222222]">{rating.toFixed(1)}</span>
-          </div>
+        <p className="text-sm text-[#717171] truncate">{listing.title}</p>
+        {propType && (
+          <p className="text-sm text-[#717171] capitalize">
+            {propType}{guests ? ` · ${guests} guest${guests !== 1 ? 's' : ''}` : ''}{bedrooms ? ` · ${bedrooms} bed${bedrooms !== 1 ? 's' : ''}` : ''}
+          </p>
+        )}
+        {price != null && (
+          <p className="text-[15px] mt-1">
+            <span className="font-semibold text-[#222222]">${price.toLocaleString()}</span>
+            <span className="text-[#717171] font-normal"> /night</span>
+          </p>
         )}
       </div>
     </Link>
@@ -157,99 +200,132 @@ const PriceRangeSlider = ({ min, max, value, onChange }) => {
   return (
     <div>
       <div className="flex justify-between text-sm text-[#717171] mb-2">
-        <span>${localMin.toLocaleString()}</span>
-        <span>${localMax.toLocaleString()}</span>
+        <span className="bg-[#F7F7F7] px-2.5 py-1 rounded-lg text-xs font-medium">${localMin.toLocaleString()}</span>
+        <span className="bg-[#F7F7F7] px-2.5 py-1 rounded-lg text-xs font-medium">${localMax.toLocaleString()}</span>
       </div>
-      <div className="relative h-2">
+      <div className="relative h-1.5 my-3">
         <div className="absolute inset-0 bg-[#EBEBEB] rounded-full" />
-        <div className="absolute top-0 h-2 bg-[#222222] rounded-full" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
+        <div className="absolute top-0 h-1.5 bg-[#FF385C] rounded-full" style={{ inset-inline-start: `${leftPct}%`, inset-inline-end: `${100 - rightPct}%` }} />
         <input
           type="range" min={min} max={max} step={10} value={localMin} onChange={handleMinChange}
-          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#222222] [&::-webkit-slider-thumb]:cursor-pointer"
+          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#FF385C] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
         />
         <input
           type="range" min={min} max={max} step={10} value={localMax} onChange={handleMaxChange}
-          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#222222] [&::-webkit-slider-thumb]:cursor-pointer"
+          className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#FF385C] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
         />
       </div>
     </div>
   );
 };
 
-// ─── Filters Sidebar ─────────────────────────────────────────────────────────
+// ─── Filters Panel ───────────────────────────────────────────────────────────
 const FiltersPanel = ({ filters, setFilters, onClear }) => (
   <div className="space-y-6">
     <div>
       <h3 className="font-semibold text-[#222222] text-sm mb-3">Price range</h3>
       <PriceRangeSlider min={0} max={2000} value={filters.priceRange} onChange={(v) => setFilters((f) => ({ ...f, priceRange: v }))} />
     </div>
+
+    <div className="h-px bg-[#EBEBEB]" />
+
     <div>
       <h3 className="font-semibold text-[#222222] text-sm mb-3">Property type</h3>
-      <div className="space-y-2">
-        {PROPERTY_TYPES.map((pt) => (
-          <label key={pt.value} className="flex items-center gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={filters.propertyTypes.includes(pt.value)}
-              onChange={(e) => {
+      <div className="grid grid-cols-2 gap-2">
+        {PROPERTY_TYPES.map((pt) => {
+          const isActive = filters.propertyTypes.includes(pt.value);
+          return (
+            <button
+              key={pt.value}
+              onClick={() => {
                 setFilters((f) => ({
                   ...f,
-                  propertyTypes: e.target.checked
-                    ? [...f.propertyTypes, pt.value]
-                    : f.propertyTypes.filter((t) => t !== pt.value),
+                  propertyTypes: isActive
+                    ? f.propertyTypes.filter((t) => t !== pt.value)
+                    : [...f.propertyTypes, pt.value],
                 }));
               }}
-              className="w-4 h-4 rounded border-[#B0B0B0] accent-[#222222]"
-            />
-            <span className="text-sm text-[#222222] group-hover:underline">{pt.label}</span>
-          </label>
-        ))}
+              className={`px-3 py-2 text-xs font-medium rounded-xl border transition-all ${
+                isActive
+                  ? 'bg-[#222222] text-white border-[#222222]'
+                  : 'bg-white text-[#222222] border-[#DDDDDD] hover:border-[#222222]'
+              }`}
+            >
+              {pt.label}
+            </button>
+          );
+        })}
       </div>
     </div>
+
+    <div className="h-px bg-[#EBEBEB]" />
+
     <div>
       <h3 className="font-semibold text-[#222222] text-sm mb-3">Amenities</h3>
-      <div className="space-y-2">
-        {AMENITIES.map((am) => (
-          <label key={am} className="flex items-center gap-3 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={filters.amenities.includes(am)}
-              onChange={(e) => {
+      <div className="flex flex-wrap gap-2">
+        {AMENITIES.map((am) => {
+          const isActive = filters.amenities.includes(am);
+          return (
+            <button
+              key={am}
+              onClick={() => {
                 setFilters((f) => ({
                   ...f,
-                  amenities: e.target.checked
-                    ? [...f.amenities, am]
-                    : f.amenities.filter((a) => a !== am),
+                  amenities: isActive
+                    ? f.amenities.filter((a) => a !== am)
+                    : [...f.amenities, am],
                 }));
               }}
-              className="w-4 h-4 rounded border-[#B0B0B0] accent-[#222222]"
-            />
-            <span className="text-sm text-[#222222] group-hover:underline">{am}</span>
-          </label>
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                isActive
+                  ? 'bg-[#222222] text-white border-[#222222]'
+                  : 'bg-white text-[#717171] border-[#DDDDDD] hover:border-[#222222] hover:text-[#222222]'
+              }`}
+            >
+              {am}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div className="h-px bg-[#EBEBEB]" />
+
+    <div>
+      <h3 className="font-semibold text-[#222222] text-sm mb-3">Minimum rating</h3>
+      <div className="flex gap-2">
+        {[3.0, 3.5, 4.0, 4.5, 4.8].map((r) => (
+          <button
+            key={r}
+            onClick={() => setFilters((f) => ({ ...f, minRating: f.minRating === r ? 3.0 : r }))}
+            className={`flex-1 py-2 text-xs font-medium rounded-xl border transition-all ${
+              filters.minRating === r
+                ? 'bg-[#222222] text-white border-[#222222]'
+                : 'bg-white text-[#717171] border-[#DDDDDD] hover:border-[#222222]'
+            }`}
+          >
+            {r}★+
+          </button>
         ))}
       </div>
     </div>
-    <div>
-      <h3 className="font-semibold text-[#222222] text-sm mb-3">Minimum rating</h3>
-      <div className="flex items-center gap-2">
-        <input
-          type="range" min={3} max={5} step={0.1} value={filters.minRating}
-          onChange={(e) => setFilters((f) => ({ ...f, minRating: Number(e.target.value) }))}
-          className="flex-1 accent-[#222222]"
-        />
-        <span className="text-sm font-semibold text-[#222222] w-8 text-right">{filters.minRating.toFixed(1)}★</span>
-      </div>
-    </div>
+
+    <div className="h-px bg-[#EBEBEB]" />
+
     <div className="flex items-center justify-between">
-      <span className="text-sm font-semibold text-[#222222]">Instant Book</span>
+      <div>
+        <span className="text-sm font-semibold text-[#222222]">Instant Book</span>
+        <p className="text-xs text-[#717171] mt-0.5">Book without waiting for host approval</p>
+      </div>
       <button
         onClick={() => setFilters((f) => ({ ...f, instantBook: !f.instantBook }))}
-        className={`w-12 h-7 rounded-full transition-colors relative ${filters.instantBook ? 'bg-[#222222]' : 'bg-[#B0B0B0]'}`}
+        className={`w-12 h-7 rounded-full transition-colors relative flex-shrink-0 ${filters.instantBook ? 'bg-[#222222]' : 'bg-[#B0B0B0]'}`}
       >
         <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${filters.instantBook ? 'translate-x-5' : 'translate-x-0.5'}`} />
       </button>
     </div>
-    <button onClick={onClear} className="w-full text-sm font-semibold text-[#FF385C] hover:underline py-2">
+
+    <button onClick={onClear} className="w-full text-sm font-semibold text-[#FF385C] hover:underline py-2 mt-2">
       Clear all filters
     </button>
   </div>
@@ -264,13 +340,9 @@ const INITIAL_FILTERS = {
   instantBook: false,
 };
 
-// ✅ FIX: Fuzzy city search — tries multiple param strategies until results found
 const fetchWithFallback = async (baseParams, cityQuery) => {
-  const cityLower = cityQuery?.trim().toLowerCase();
-
-  // Strategy 1: send both `city` and `search` params (covers most backend implementations)
   const p1 = new URLSearchParams(baseParams);
-  if (cityLower) {
+  if (cityQuery?.trim()) {
     p1.set('city', cityQuery.trim());
     p1.set('search', cityQuery.trim());
   }
@@ -278,18 +350,15 @@ const fetchWithFallback = async (baseParams, cityQuery) => {
   const d1 = await r1.json();
   if (d1.success && (d1.data?.listings?.length || 0) > 0) return d1;
 
-  // Strategy 2: title/location text search only
   const p2 = new URLSearchParams(baseParams);
-  if (cityLower) p2.set('search', cityQuery.trim());
+  if (cityQuery?.trim()) p2.set('search', cityQuery.trim());
   const r2 = await fetch(`${API_BASE}/listings?${p2}`);
   const d2 = await r2.json();
   if (d2.success && (d2.data?.listings?.length || 0) > 0) return d2;
 
-  // Strategy 3: no city filter — return all (so page is never empty)
   const p3 = new URLSearchParams(baseParams);
   const r3 = await fetch(`${API_BASE}/listings?${p3}`);
-  const d3 = await r3.json();
-  return d3;
+  return await r3.json();
 };
 
 const SearchResult = () => {
@@ -302,26 +371,21 @@ const SearchResult = () => {
   const [loading, setLoading] = useState(true);
   const [totalResults, setTotalResults] = useState(0);
   const [sortBy, setSortBy] = useState('newest');
-  const [showFilters, setShowFilters] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const viewParam = searchParams.get('view');
-  const [mapView, setMapView] = useState(viewParam === 'map');
+  const [showMap, setShowMap] = useState(viewParam !== 'list');
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [wishlistedIds, setWishlistedIds] = useState(new Set());
   const [noExactMatch, setNoExactMatch] = useState(false);
 
-  // ✅ Read URL params — support both ?city= and ?search= and ?location=
   const city = searchParams.get('city') || searchParams.get('search') || searchParams.get('location') || searchParams.get('query') || '';
   const checkInDate = searchParams.get('checkInDate') || searchParams.get('checkIn') || '';
   const checkOutDate = searchParams.get('checkOutDate') || searchParams.get('checkOut') || '';
   const guestsParam = searchParams.get('guests') || '';
 
-  // ✅ Smooth scroll to top on new search
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [city]);
+  useEffect(() => { window.scrollTo({ inset-block-start: 0, behavior: 'smooth' }); }, [city]);
 
-  // Fetch wishlist
   const fetchWishlist = useCallback(() => {
     if (!token || !userId) return;
     authFetch(`/users/${userId}/wishlist`, token)
@@ -335,13 +399,11 @@ const SearchResult = () => {
 
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
-  // ✅ Fetch listings with fuzzy city matching
   useEffect(() => {
     const fetchResults = async () => {
       setLoading(true);
       setNoExactMatch(false);
       try {
-        // Build base params (no city — city handled by fetchWithFallback)
         const baseParams = new URLSearchParams();
         if (checkInDate) baseParams.set('checkInDate', checkInDate);
         if (checkOutDate) baseParams.set('checkOutDate', checkOutDate);
@@ -354,7 +416,7 @@ const SearchResult = () => {
         if (filters.instantBook) baseParams.set('instantBook', 'true');
         const sortMap = { 'price-low': 'price_asc', 'price-high': 'price_desc', 'rating': 'rating', 'newest': 'newest' };
         baseParams.set('sortBy', sortMap[sortBy] || 'newest');
-        baseParams.set('limit', '48');
+        baseParams.set('limit', '100');
 
         const d = await fetchWithFallback(baseParams, city);
 
@@ -363,7 +425,6 @@ const SearchResult = () => {
           setListings(resultList);
           setTotalResults(d.data?.pagination?.total || resultList.length);
 
-          // ✅ Detect if results are from fallback (no exact city match)
           if (city && resultList.length > 0) {
             const exactMatch = resultList.some(
               (l) => l.location?.city?.toLowerCase() === city.toLowerCase()
@@ -382,7 +443,13 @@ const SearchResult = () => {
 
   const clearFilters = () => setFilters(INITIAL_FILTERS);
 
-  // Active filter badges
+  const activeFilterCount =
+    (filters.priceRange[0] > 0 || filters.priceRange[1] < 2000 ? 1 : 0) +
+    filters.propertyTypes.length +
+    filters.amenities.length +
+    (filters.minRating > 3 ? 1 : 0) +
+    (filters.instantBook ? 1 : 0);
+
   const activeBadges = [];
   if (city) activeBadges.push({ label: city, clear: () => navigate('/search') });
   if (filters.priceRange[0] > 0 || filters.priceRange[1] < 2000)
@@ -394,174 +461,231 @@ const SearchResult = () => {
   if (filters.instantBook) activeBadges.push({ label: 'Instant Book', clear: () => setFilters((f) => ({ ...f, instantBook: false })) });
 
   return (
-    // ✅ scroll-smooth on the page container
-    <div className="min-h-screen bg-white scroll-smooth">
-      {/* Header Bar */}
-      <div className="sticky top-[80px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-divider">
-        <div className="container-page py-3 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-lg font-semibold text-[#222222]">
-              {city ? `Results for "${city}"` : 'All properties'}
-            </h1>
-            <p className="text-sm text-[#717171]">
-              {loading ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="w-3 h-3 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
-                  Searching...
-                </span>
-              ) : (
-                `${totalResults.toLocaleString()} propert${totalResults === 1 ? 'y' : 'ies'} found`
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
-            >
-              <FaSlidersH className="w-3.5 h-3.5" />
-              Filters
-            </button>
-            <button
-              onClick={() => setMobileFiltersOpen(true)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
-            >
-              <FaSlidersH className="w-3.5 h-3.5" />
-              Filters
-            </button>
-            <button
-              onClick={() => setMapView(!mapView)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] transition-colors text-sm font-medium"
-            >
-              {mapView ? <FaThLarge className="w-3.5 h-3.5" /> : <FaMap className="w-3.5 h-3.5" />}
-              {mapView ? 'List' : 'Map'}
-            </button>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-[#DDDDDD] hover:border-[#222222] text-sm outline-none transition-colors"
-            >
-              <option value="newest">Newest</option>
-              <option value="price-low">Price: Low → High</option>
-              <option value="price-high">Price: High → Low</option>
-              <option value="rating">Highest Rated</option>
-            </select>
-          </div>
-        </div>
+    <div className="min-h-screen bg-white">
+      {/* ─── Sticky Header ──────────────────────────────────────────── */}
+      <div className="sticky top-[80px] z-30 bg-white border-b border-[#EBEBEB]">
+        <div className="max-w-[2000px] mx-auto px-4 lg:px-6">
+          <div className="py-3 flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-[#222222] truncate">
+                {city ? `Stays in ${city}` : 'All properties'}
+              </h1>
+              <p className="text-sm text-[#717171]">
+                {loading ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-3 h-3 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
+                    Searching...
+                  </span>
+                ) : (
+                  <>
+                    <span className="font-medium text-[#222222]">{totalResults.toLocaleString()}</span>
+                    {' '}propert{totalResults === 1 ? 'y' : 'ies'}
+                    {city ? ` in ${city}` : ''}
+                  </>
+                )}
+              </p>
+            </div>
 
-        {/* Active filter badges */}
-        {activeBadges.length > 0 && (
-          <div className="container-page pb-3 flex items-center gap-2 flex-wrap">
-            {activeBadges.map((badge, i) => (
-              <span key={i} className="inline-flex items-center gap-1 bg-[#F7F7F7] text-[#222222] text-xs font-medium px-3 py-1.5 rounded-full">
-                {badge.label}
-                <button onClick={badge.clear} className="ml-0.5 hover:text-[#FF385C] transition-colors">
-                  <FaTimes className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
-            <button onClick={clearFilters} className="text-xs font-semibold text-[#FF385C] hover:underline">Clear all</button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { if (window.innerWidth < 1024) setMobileFiltersOpen(true); else setShowFilters(!showFilters); }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${
+                  showFilters || activeFilterCount > 0 ? 'border-[#222222] bg-[#222222] text-white' : 'border-[#DDDDDD] hover:border-[#222222] text-[#222222]'
+                }`}
+              >
+                <FaSlidersH className="w-3.5 h-3.5" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className={`w-5 h-5 rounded-full text-xs flex items-center justify-center font-bold ${
+                    showFilters || activeFilterCount > 0 ? 'bg-white text-[#222222]' : 'bg-[#FF385C] text-white'
+                  }`}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-2.5 rounded-xl border border-[#DDDDDD] hover:border-[#222222] text-sm outline-none transition-colors font-medium bg-white"
+              >
+                <option value="newest">Newest</option>
+                <option value="price-low">Price: Low to High</option>
+                <option value="price-high">Price: High to Low</option>
+                <option value="rating">Highest Rated</option>
+              </select>
+
+              <button
+                onClick={() => setShowMap(!showMap)}
+                className="hidden lg:flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#DDDDDD] hover:border-[#222222] transition-all text-sm font-medium"
+              >
+                {showMap ? <FaThLarge className="w-3.5 h-3.5" /> : <FaMap className="w-3.5 h-3.5" />}
+                {showMap ? 'Hide map' : 'Show map'}
+              </button>
+            </div>
           </div>
-        )}
+
+          {activeBadges.length > 0 && (
+            <div className="pb-3 flex items-center gap-2 flex-wrap">
+              {activeBadges.map((badge, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 bg-[#F7F7F7] text-[#222222] text-xs font-medium px-3 py-1.5 rounded-full border border-[#EBEBEB]">
+                  {badge.label}
+                  <button onClick={badge.clear} className="hover:text-[#FF385C] transition-colors">
+                    <FaTimes className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+              <button onClick={clearFilters} className="text-xs font-semibold text-[#FF385C] hover:underline ml-1">Clear all</button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* ✅ "No exact match" banner — shows similar listings instead of blank page */}
+      {/* ─── No exact match banner ──────────────────────────────────── */}
       <AnimatePresence>
         {noExactMatch && !loading && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="container-page pt-4"
+            initial={{ opacity: 0, block-size: 0 }}
+            animate={{ opacity: 1, block-size: 'auto' }}
+            exit={{ opacity: 0, block-size: 0 }}
+            className="overflow-hidden"
           >
-            <div className="bg-[#FFF8F0] border border-[#FFD9B3] rounded-xl px-4 py-3 flex items-start gap-3">
-              <span className="text-xl">🔍</span>
-              <div>
-                <p className="text-sm font-semibold text-[#222222]">No exact results for "{city}"</p>
-                <p className="text-xs text-[#717171] mt-0.5">Showing similar properties from other locations. Try adding more listings for this city.</p>
+            <div className="max-w-[2000px] mx-auto px-4 lg:px-6 pt-4">
+              <div className="bg-[#FFF8F0] border border-[#FFD9B3] rounded-xl px-4 py-3 flex items-start gap-3">
+                <span className="text-xl">🔍</span>
+                <div>
+                  <p className="text-sm font-semibold text-[#222222]">No exact results for "{city}"</p>
+                  <p className="text-xs text-[#717171] mt-0.5">Showing similar properties from other locations.</p>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Main Content */}
-      <div className="container-page py-6">
-        <div className="flex gap-8">
-          {/* Desktop Filters Sidebar */}
-          {showFilters && (
-            <div className="hidden lg:block w-72 flex-shrink-0">
-              <div className="sticky top-[180px] bg-white border border-[#EBEBEB] rounded-2xl p-6">
-                <FiltersPanel filters={filters} setFilters={setFilters} onClear={clearFilters} />
-              </div>
-            </div>
-          )}
+      {/* ─── Main Split Layout (Airbnb-style) ───────────────────────── */}
+      <div className="max-w-[2000px] mx-auto flex" style={{ block-size: 'calc(100vh - 145px)' }}>
+        {/* inset-inline-start: Filters + Listings (scrollable) */}
+        <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
+          <div className="flex">
+            {/* Filters sidebar (desktop) */}
+            <AnimatePresence>
+              {showFilters && (
+                <motion.div
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: 280, opacity: 1 }}
+                  exit={{ width: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="hidden lg:block flex-shrink-0 overflow-hidden"
+                >
+                  <div className="w-[280px] h-full overflow-y-auto border-r border-[#EBEBEB] p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-base font-semibold text-[#222222]">Filters</h2>
+                      <button onClick={() => setShowFilters(false)} className="w-7 h-7 rounded-full hover:bg-[#F7F7F7] flex items-center justify-center transition-colors">
+                        <FaTimes className="w-3 h-3 text-[#717171]" />
+                      </button>
+                    </div>
+                    <FiltersPanel filters={filters} setFilters={setFilters} onClear={clearFilters} />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {/* Results Grid / Map */}
-          <div className="flex-1">
-            {mapView ? (
-              <Suspense fallback={<div className="h-[calc(100vh-200px)] bg-gray-100 rounded-xl animate-pulse" />}>
-                <div className="h-[calc(100vh-200px)] rounded-xl overflow-hidden">
-                  <MapView listings={listings} city={city} />
+            {/* Listings grid */}
+            <div className="flex-1 p-4 lg:p-6">
+              {loading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                  {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
-              </Suspense>
-            ) : loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
-              </div>
-            ) : listings.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-5xl mb-4">🏠</p>
-                <p className="text-lg font-semibold text-[#222222] mb-2">No properties found</p>
-                <p className="text-[#717171] text-sm mb-6 max-w-sm mx-auto">
-                  We couldn't find properties matching your search. Try a different location or adjust your filters.
-                </p>
-                <div className="flex justify-center gap-3">
-                  <button
-                    onClick={clearFilters}
-                    className="px-5 py-2.5 text-sm font-semibold border border-[#222222] rounded-lg hover:bg-[#F7F7F7] transition-colors"
-                  >
-                    Clear filters
-                  </button>
-                  <button
-                    onClick={() => navigate('/')}
-                    className="px-5 py-2.5 text-sm font-semibold bg-[#FF385C] text-white rounded-lg hover:bg-[#e0314f] transition-colors"
-                  >
-                    Explore all homes
-                  </button>
+              ) : listings.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div className="w-16 h-16 rounded-full bg-[#F7F7F7] flex items-center justify-center mb-4">
+                    <span className="text-3xl">🏠</span>
+                  </div>
+                  <p className="text-lg font-semibold text-[#222222] mb-2">No properties found</p>
+                  <p className="text-[#717171] text-sm mb-6 max-w-sm text-center">
+                    We couldn't find properties matching your search. Try a different location or adjust your filters.
+                  </p>
+                  <div className="flex gap-3">
+                    <button onClick={clearFilters} className="px-5 py-2.5 text-sm font-semibold border border-[#222222] rounded-xl hover:bg-[#F7F7F7] transition-colors">
+                      Clear filters
+                    </button>
+                    <button onClick={() => navigate('/')} className="px-5 py-2.5 text-sm font-semibold bg-[#FF385C] text-white rounded-xl hover:bg-[#e0314f] transition-colors">
+                      Explore all homes
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <motion.div
-                key={city + sortBy}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              >
-                {listings.map((l, i) => (
-                  <motion.div
-                    key={l._id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: Math.min(i * 0.04, 0.5) }}
-                  >
-                    <ResultCard
-                      listing={l}
-                      token={token}
-                      userId={userId}
-                      isWishlisted={wishlistedIds.has(l._id)}
-                      onWishlistToggle={fetchWishlist}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
+              ) : (
+                <motion.div
+                  key={city + sortBy + filters.propertyTypes.join(',')}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-x-6 gap-y-8"
+                >
+                  {listings.map((l, i) => (
+                    <motion.div
+                      key={l._id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.2, delay: Math.min(i * 0.03, 0.4) }}
+                    >
+                      <ResultCard
+                        listing={l}
+                        token={token}
+                        userId={userId}
+                        isWishlisted={wishlistedIds.has(l._id)}
+                        onWishlistToggle={fetchWishlist}
+                      />
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* RIGHT: Sticky Map (desktop) */}
+        {showMap && (
+          <div className="hidden lg:block w-[45%] xl:w-[50%] 2xl:w-[55%] flex-shrink-0 border-l border-[#EBEBEB]">
+            <Suspense fallback={<div className="w-full h-full bg-[#F7F7F7] animate-pulse" />}>
+              <div className="w-full h-full">
+                <MapView listings={listings} city={city} />
+              </div>
+            </Suspense>
+          </div>
+        )}
       </div>
 
-      {/* Mobile Filters Modal */}
+      {/* ─── Mobile: Floating Map Button ────────────────────────────── */}
+      <div className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className="flex items-center gap-2 bg-[#222222] text-white px-5 py-3 rounded-full shadow-xl hover:bg-black transition-colors text-sm font-semibold"
+        >
+          {showMap ? <FaThLarge size={14} /> : <FaMap size={14} />}
+          {showMap ? 'Show list' : 'Map'}
+        </button>
+      </div>
+
+      {/* ─── Mobile Map Overlay ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {showMap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="lg:hidden fixed inset-0 z-30 bg-white"
+            style={{ top: '80px' }}
+          >
+            <Suspense fallback={<div className="w-full h-full bg-[#F7F7F7] animate-pulse" />}>
+              <MapView listings={listings} city={city} className="h-full" />
+            </Suspense>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ─── Mobile Filters Modal ───────────────────────────────────── */}
       <AnimatePresence>
         {mobileFiltersOpen && (
           <>
@@ -591,7 +715,7 @@ const SearchResult = () => {
               <div className="sticky bottom-0 bg-white border-t border-[#EBEBEB] px-6 py-4">
                 <button
                   onClick={() => setMobileFiltersOpen(false)}
-                  className="w-full bg-[#222222] text-white font-semibold py-3 rounded-lg hover:bg-black transition-colors"
+                  className="w-full bg-[#222222] text-white font-semibold py-3 rounded-xl hover:bg-black transition-colors"
                 >
                   Show {totalResults} results
                 </button>

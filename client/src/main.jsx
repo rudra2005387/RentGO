@@ -5,7 +5,7 @@ import './styles/consistency.css' // UI/UX Consistency Layer
 import './styles/airbnb-design-system.css' // Airbnb Design System tokens and components
 import App from './App'
 import { BrowserRouter } from 'react-router-dom'
-import './utils/webVitals' // Initialize Web Vitals monitoring
+// Web vitals monitoring disabled (dev widget removed)
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
