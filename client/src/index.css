@@ -57,6 +57,14 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ─── Typography utility classes ─────────────────────────────────────────── */
+.font-heading {
+  font-family: 'Fraunces', Georgia, serif;
+}
+.font-body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -126,4 +134,82 @@ html {
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+/* ─── Listing detail responsive grid ─────────────────────────────────────── */
+.listing-body-grid {
+  grid-template-columns: 1fr;
+}
+.listing-booking-col {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .listing-body-grid {
+    grid-template-columns: minmax(0,1fr) 380px;
+  }
+  .listing-booking-col {
+    display: block;
+  }
+}
+
+/* ─── Listing image mosaic responsive ────────────────────────────────────── */
+.listing-mosaic {
+  display: grid;
+  gap: 4px;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+@media (max-width: 767px) {
+  .listing-mosaic {
+    grid-template-columns: 1fr;
+    grid-template-rows: 260px;
+  }
+  .listing-mosaic > :not(:first-child) {
+    display: none;
+  }
+}
+@media (min-width: 768px) {
+  .listing-mosaic {
+    grid-template-columns: repeat(4,1fr);
+    grid-template-rows: repeat(2,200px);
+  }
+  .listing-mosaic-hero {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+}
+
+/* ─── Reviews grid responsive ────────────────────────────────────────────── */
+.reviews-grid {
+  display: grid;
+  gap: 28px;
+}
+@media (min-width: 768px) {
+  .reviews-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Amenities grid responsive ──────────────────────────────────────────── */
+.amenities-grid {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 640px) {
+  .amenities-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Calendar responsive ────────────────────────────────────────────────── */
+.calendar-months {
+  display: flex;
+  gap: 24px;
+  padding: 20px 22px;
+}
+@media (max-width: 639px) {
+  .calendar-months {
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+  }
+  .calendar-divider { display: none; }
 }

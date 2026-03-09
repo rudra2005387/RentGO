@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import EmptyState from '../components/ui/EmptyState';
+import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -172,7 +174,7 @@ const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds
       </div>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          {Array.from({ length: 6 }).map((_, i) => <SkeletonPropertyCard key={i} />)}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -417,20 +419,16 @@ export default function AirbnbHome() {
 
           {allListings.length === 0 && loadingAll ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+              {Array.from({ length: 12 }).map((_, i) => <SkeletonPropertyCard key={i} />)}
             </div>
           ) : allListings.length === 0 && !loadingAll ? (
-            <div className="text-center py-20">
-              <p className="text-5xl mb-4">🏠</p>
-              <p className="text-lg font-semibold text-[#222222] mb-2">No listings found</p>
-              <p className="text-[#717171] text-sm mb-4">Try a different category or check back soon</p>
-              <button
-                onClick={() => setActiveCategory('')}
-                className="text-sm font-semibold text-[#FF385C] hover:underline"
-              >
-                Clear filter
-              </button>
-            </div>
+            <EmptyState
+              icon="🏠"
+              title="No listings found"
+              subtitle="Try a different category or check back soon"
+              actionLabel="Clear filter"
+              onAction={() => setActiveCategory('')}
+            />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {allListings.map((l, i) => (
@@ -444,7 +442,7 @@ export default function AirbnbHome() {
                 </motion.div>
               ))}
               {/* Loading more skeletons */}
-              {loadingAll && page > 1 && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)}
+              {loadingAll && page > 1 && Array.from({ length: 6 }).map((_, i) => <SkeletonPropertyCard key={`sk-${i}`} />)}
             </div>
           )}
 

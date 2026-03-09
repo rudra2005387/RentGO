@@ -1,181 +1,124 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
-  FaShareAlt, FaMapMarkerAlt, FaStar, FaWifi, FaUtensils, FaParking,
-  FaTv, FaHeart, FaTh, FaChevronLeft, FaChevronRight, FaTimes,
-  FaSwimmingPool, FaDumbbell, FaSnowflake, FaBath, FaTree, FaShower
+  FaShareAlt, FaStar, FaWifi, FaUtensils, FaParking,
+  FaTv, FaHeart, FaChevronLeft, FaChevronRight, FaTimes,
+  FaSwimmingPool, FaDumbbell, FaSnowflake, FaBath, FaTree, FaShower,
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import HostInfo from '../components/HostInfo.jsx';
-import BookingCalendar from '../components/BookingCalendar.jsx';
 import ReviewList from '../components/ReviewList.jsx';
 import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// ─── Google Fonts injection ──────────────────────────────────────────────────
-const FontLink = () => {
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = 'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=DM+Sans:wght@300;400;500;600&display=swap';
-    document.head.appendChild(link);
-    return () => document.head.removeChild(link);
-  }, []);
-  return null;
+/* ── fonts ── */
+let _fontsLoaded = false;
+function loadFonts() {
+  if (_fontsLoaded || typeof document === 'undefined') return;
+  _fontsLoaded = true;
+  const l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600&display=swap';
+  document.head.appendChild(l);
+}
+
+/* ── design tokens ── */
+const T = {
+  primary:     '#FF385C',
+  primaryDark: '#E31C5F',
+  text:        '#222222',
+  sub:         '#717171',
+  border:      '#DDDDDD',
+  borderLight: '#EBEBEB',
+  bg:          '#FFFFFF',
+  bgSoft:      '#F7F7F7',
+  radius:      { card: 16, input: 12, tag: 8 },
+  shadow: {
+    card: '0 8px 32px rgba(0,0,0,.10), 0 2px 8px rgba(0,0,0,.05)',
+    button: '0 4px 18px rgba(255,56,92,.35)',
+  },
+};
+const HF = "'Fraunces', Georgia, serif";
+const BF = "'DM Sans', system-ui, sans-serif";
+
+/* ── amenity config ── */
+const AMENITY = {
+  'WiFi':             { Icon: FaWifi,         bg:'#EFF6FF', fg:'#2563EB' },
+  'Kitchen':          { Icon: FaUtensils,     bg:'#FFF7ED', fg:'#EA580C' },
+  'Parking':          { Icon: FaParking,      bg:'#F5F3FF', fg:'#7C3AED' },
+  'TV':               { Icon: FaTv,           bg:'#F0FDFA', fg:'#0D9488' },
+  'Pool':             { Icon: FaSwimmingPool, bg:'#EFF6FF', fg:'#0284C7' },
+  'Gym':              { Icon: FaDumbbell,     bg:'#FFF1F2', fg:'#E11D48' },
+  'Air conditioning': { Icon: FaSnowflake,   bg:'#ECFEFF', fg:'#0891B2' },
+  'Hot tub':          { Icon: FaBath,         bg:'#FDF4FF', fg:'#A21CAF' },
+  'Garden':           { Icon: FaTree,         bg:'#F0FDF4', fg:'#16A34A' },
+  'Washer':           { Icon: FaShower,       bg:'#F5F3FF', fg:'#7C3AED' },
+  'Heating':          { Icon: FaSnowflake,   bg:'#FFF7ED', fg:'#C2410C' },
 };
 
-// ─── Amenity config ──────────────────────────────────────────────────────────
-const AMENITY_ICONS = {
-  'WiFi': { icon: FaWifi, color: '#0070f3' },
-  'Kitchen': { icon: FaUtensils, color: '#f97316' },
-  'Parking': { icon: FaParking, color: '#8b5cf6' },
-  'TV': { icon: FaTv, color: '#14b8a6' },
-  'Pool': { icon: FaSwimmingPool, color: '#0ea5e9' },
-  'Gym': { icon: FaDumbbell, color: '#ef4444' },
-  'Air conditioning': { icon: FaSnowflake, color: '#06b6d4' },
-  'Hot tub': { icon: FaBath, color: '#ec4899' },
-  'Garden': { icon: FaTree, color: '#22c55e' },
-  'Washer': { icon: FaShower, color: '#a855f7' },
-};
-
-// ─── IMAGE GRID ──────────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════
+   IMAGE GRID
+════════════════════════════════════════════════════════════════════ */
 function ImageGrid({ images = [], title = '' }) {
-  const [showAll, setShowAll] = useState(false);
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const displayImages = images.length > 0
-    ? images
-    : ['https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=900'];
-
-  const mainImg = displayImages[0];
-  const sideImgs = displayImages.slice(1, 5);
+  const [open, setOpen] = useState(false);
+  const [cur,  setCur]  = useState(0);
+  const imgs = images.length ? images : ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=900'];
 
   return (
     <>
-      {/* ── Mosaic grid ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="relative rounded-2xl overflow-hidden cursor-pointer group"
-        style={{ borderRadius: '16px' }}
-        onClick={() => setShowAll(true)}
-      >
-        {displayImages.length === 1 ? (
-          <div className="aspect-[16/9]">
-            <img src={mainImg} alt={title} className="w-full h-full object-cover" />
+      {/* mosaic */}
+      <div className="listing-mosaic" onClick={() => setOpen(true)}>
+        <div className="listing-mosaic-hero" style={{ overflow:'hidden' }}>
+          <img src={imgs[0]} alt={title} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform .55s' }}
+            onMouseOver={e=>e.currentTarget.style.transform='scale(1.04)'}
+            onMouseOut={e=>e.currentTarget.style.transform='scale(1)'} />
+        </div>
+        {[1,2,3,4].map(i=>(
+          <div key={i} style={{ overflow:'hidden', background:'#f0ece8' }}>
+            {imgs[i] && <img src={imgs[i]} alt="" style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform .55s', display:'block' }}
+              onMouseOver={e=>e.currentTarget.style.transform='scale(1.04)'}
+              onMouseOut={e=>e.currentTarget.style.transform='scale(1)'} />}
           </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gridTemplateRows: 'repeat(2,1fr)', gap: '4px', aspectRatio: '2.2/1' }}>
-            {/* Main large image */}
-            <div style={{ gridColumn: 'span 2', gridRow: 'span 2', overflow: 'hidden' }}>
-              <img
-                src={mainImg} alt={title}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-              />
-            </div>
-            {/* Side images */}
-            {sideImgs.map((img, i) => (
-              <div key={i} style={{ overflow: 'hidden', position: 'relative' }}>
-                <img
-                  src={img} alt={`${title} ${i + 2}`}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]"
-                  onError={e => { e.target.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'; }}
-                />
-              </div>
-            ))}
-            {Array.from({ length: Math.max(0, 4 - sideImgs.length) }).map((_, i) => (
-              <div key={`e${i}`} style={{ background: '#f0ece8' }} />
-            ))}
-          </div>
-        )}
+        ))}
+        {/* show all pill */}
+        <button onClick={e=>{e.stopPropagation();setOpen(true);}}
+          style={{ position:'absolute', bottom:16, right:16, display:'flex', alignItems:'center', gap:7, background:'#fff', border:`1.5px solid ${T.text}`, borderRadius:T.radius.input, padding:'9px 16px', fontFamily:BF, fontSize:13, fontWeight:700, color:T.text, cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.12)', zIndex:2 }}>
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}>
+            <rect x="1" y="1" width="6" height="6" rx="1" stroke="#222" strokeWidth="1.5"/>
+            <rect x="9" y="1" width="6" height="6" rx="1" stroke="#222" strokeWidth="1.5"/>
+            <rect x="1" y="9" width="6" height="6" rx="1" stroke="#222" strokeWidth="1.5"/>
+            <rect x="9" y="9" width="6" height="6" rx="1" stroke="#222" strokeWidth="1.5"/>
+          </svg>
+          Show all photos
+        </button>
+      </div>
 
-        {/* Show all photos pill */}
-        {displayImages.length > 1 && (
-          <button
-            onClick={e => { e.stopPropagation(); setShowAll(true); }}
-            className="absolute bottom-4 right-4 flex items-center gap-2 bg-white text-[#222] text-sm font-semibold px-4 py-2.5 rounded-xl border border-[#222] hover:bg-[#f7f7f7] transition-all shadow-md"
-            style={{ fontFamily: "'DM Sans', sans-serif" }}
-          >
-            <FaTh size={12} /> Show all photos
-          </button>
-        )}
-      </motion.div>
-
-      {/* ── Fullscreen lightbox ── */}
+      {/* lightbox */}
       <AnimatePresence>
-        {showAll && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            style={{ position: 'fixed', inset: 0, background: '#0a0a0a', zIndex: 9999, display: 'flex', flexDirection: 'column' }}
-          >
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <button
-                onClick={() => setShowAll(false)}
-                style={{ color: '#fff', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.2s' }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              >
-                <FaTimes size={16} />
-              </button>
-              <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: 14, fontFamily: "'DM Sans', sans-serif" }}>
-                {activeIndex + 1} / {displayImages.length}
-              </span>
-              <div style={{ width: 40 }} />
+        {open && (
+          <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.2}}
+            style={{ position:'fixed', inset:0, background:'#0d0d0d', zIndex:9999, display:'flex', flexDirection:'column' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 24px', borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+              <button onClick={()=>setOpen(false)} style={{ width:40, height:40, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><FaTimes size={14}/></button>
+              <span style={{ fontFamily:BF, fontSize:13, color:'rgba(255,255,255,.55)' }}>{cur+1} / {imgs.length}</span>
+              <div style={{width:40}}/>
             </div>
-
-            {/* Main image */}
-            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', position: 'relative' }}>
-              <motion.img
-                key={activeIndex}
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                src={displayImages[activeIndex]}
-                alt={`${title} ${activeIndex + 1}`}
-                style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain', borderRadius: 12 }}
-              />
-              {displayImages.length > 1 && (
-                <>
-                  <button
-                    onClick={() => setActiveIndex(p => (p - 1 + displayImages.length) % displayImages.length)}
-                    style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', transition: 'background 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                  >
-                    <FaChevronLeft />
-                  </button>
-                  <button
-                    onClick={() => setActiveIndex(p => (p + 1) % displayImages.length)}
-                    style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: 48, height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', transition: 'background 0.2s' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.3)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                  >
-                    <FaChevronRight />
-                  </button>
-                </>
-              )}
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24, position:'relative' }}>
+              <motion.img key={cur} initial={{opacity:0,scale:.97}} animate={{opacity:1,scale:1}} transition={{duration:.18}}
+                src={imgs[cur]} alt="" style={{ maxHeight:'100%', maxWidth:'100%', objectFit:'contain', borderRadius:10 }} />
+              {imgs.length>1 && <>
+                <button onClick={()=>setCur(i=>(i-1+imgs.length)%imgs.length)} style={{ position:'absolute', left:16, top:'50%', transform:'translateY(-50%)', width:48, height:48, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><FaChevronLeft/></button>
+                <button onClick={()=>setCur(i=>(i+1)%imgs.length)} style={{ position:'absolute', right:16, top:'50%', transform:'translateY(-50%)', width:48, height:48, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><FaChevronRight/></button>
+              </>}
             </div>
-
-            {/* Thumbnail strip */}
-            {displayImages.length > 1 && (
-              <div style={{ display: 'flex', gap: 6, padding: '12px 24px', overflowX: 'auto', justifyContent: 'center', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                {displayImages.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveIndex(i)}
-                    style={{ flexShrink: 0, width: 64, height: 48, borderRadius: 8, overflow: 'hidden', border: `2px solid ${activeIndex === i ? '#fff' : 'transparent'}`, opacity: activeIndex === i ? 1 : 0.45, cursor: 'pointer', transition: 'all 0.2s', padding: 0 }}
-                  >
-                    <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </button>
-                ))}
-              </div>
-            )}
+            <div style={{ display:'flex', gap:6, padding:'10px 24px', overflowX:'auto', justifyContent:'center', borderTop:'1px solid rgba(255,255,255,.08)' }}>
+              {imgs.map((img,i)=>(
+                <button key={i} onClick={()=>setCur(i)} style={{ flexShrink:0, width:60, height:44, borderRadius:7, overflow:'hidden', border:`2px solid ${i===cur?'#fff':'transparent'}`, opacity:i===cur?1:.4, cursor:'pointer', padding:0, background:'none' }}>
+                  <img src={img} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                </button>
+              ))}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -183,760 +126,799 @@ function ImageGrid({ images = [], title = '' }) {
   );
 }
 
-// ─── AMENITIES GRID ──────────────────────────────────────────────────────────
-function AmenitiesGrid({ amenities = [] }) {
-  const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? amenities : amenities.slice(0, 10);
+/* ════════════════════════════════════════════════════════════════════
+   AIRBNB-STYLE CALENDAR
+   Props:
+     unavailableDates – array of date strings/objects to block
+     checkIn / checkOut – controlled values from parent
+     activeField – 'checkin' | 'checkout' | null  (which field is focused)
+     onDatesSelected({ checkIn, checkOut }) – callback
+════════════════════════════════════════════════════════════════════ */
+function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField, onDatesSelected }) {
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const [view,    setView]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  const [hovered, setHovered] = useState(null);
+
+  // Derived: which click are we on?
+  // If activeField===checkin OR no checkIn yet OR both filled → next click = checkIn
+  // If activeField===checkout AND checkIn exists → next click = checkOut
+  const pickingEnd = activeField === 'checkout' && !!checkIn;
+
+  const blocked = useMemo(() => {
+    const s = new Set();
+    unavailableDates.forEach(d => { const x = new Date(d); x.setHours(0,0,0,0); s.add(x.getTime()); });
+    return s;
+  }, [unavailableDates]);
+
+  const isOff = d => !d || d < today || blocked.has(d.getTime());
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  function mkGrid(y, m) {
+    const first = new Date(y, m, 1).getDay();
+    const last  = new Date(y, m+1, 0).getDate();
+    const cells = Array(first).fill(null);
+    for (let d = 1; d <= last; d++) cells.push(new Date(y, m, d));
+    return cells;
+  }
+
+  const ly = view.getFullYear(), lm = view.getMonth();
+  const rv = new Date(ly, lm+1, 1);
+  const ry = rv.getFullYear(), rm = rv.getMonth();
+
+  function pick(d) {
+    if (!d || isOff(d)) return;
+
+    if (!pickingEnd) {
+      // Selecting check-in: reset checkout if new checkin is after current checkout
+      const newCheckOut = checkOut && d >= checkOut ? null : checkOut;
+      onDatesSelected?.({ checkIn: d, checkOut: newCheckOut });
+    } else {
+      // Selecting check-out
+      if (d <= checkIn) {
+        // clicked before check-in → swap to new check-in
+        onDatesSelected?.({ checkIn: d, checkOut: null });
+        return;
+      }
+      // verify no blocked date in range
+      let c = new Date(checkIn); c.setDate(c.getDate()+1);
+      while (c < d) {
+        if (blocked.has(c.getTime())) {
+          // blocked date in range → treat as new check-in
+          onDatesSelected?.({ checkIn: d, checkOut: null });
+          return;
+        }
+        c.setDate(c.getDate()+1);
+      }
+      onDatesSelected?.({ checkIn, checkOut: d });
+    }
+  }
+
+  function getCellStyle(d) {
+    if (!d) return {};
+    const t   = d.getTime();
+    const st  = checkIn?.getTime();
+    const et  = checkOut?.getTime();
+    const ht  = hovered?.getTime();
+    const isS = st && t === st;
+    const isE = et && t === et;
+    const rangeEnd = et || (pickingEnd && ht);
+    const inRange  = st && rangeEnd && d > checkIn && d.getTime() < rangeEnd;
+    const off      = isOff(d);
+
+    // Row-spanning background (the band connecting start→end)
+    let bandBg = 'transparent';
+    if (inRange) bandBg = '#F7F7F7';
+    if (isS && rangeEnd) bandBg = 'linear-gradient(to right, transparent 50%, #F7F7F7 50%)';
+    if (isE)             bandBg = 'linear-gradient(to right, #F7F7F7 50%, transparent 50%)';
+
+    // Circle on selected day
+    const dotFilled = isS || isE;
+    const isToday   = t === today.getTime();
+
+    return { bandBg, dotFilled, off, isToday };
+  }
+
+  function renderMonth(grid, y, m) {
+    return (
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <p style={{ fontFamily:BF, fontWeight:700, fontSize:13, color:T.text, textAlign:'center', marginBottom:14 }}>
+          {MONTHS[m]} {y}
+        </p>
+        {/* Day labels */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
+          {DAYS.map(d => (
+            <div key={d} style={{ fontFamily:BF, fontSize:11, fontWeight:600, color:T.sub, textAlign:'center', padding:'3px 0' }}>{d}</div>
+          ))}
+        </div>
+        {/* Date cells */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+          {grid.map((d, i) => {
+            const { bandBg, dotFilled, off, isToday } = getCellStyle(d);
+            const isHoverable = d && !off && !dotFilled;
+            return (
+              <div key={i}
+                onClick={() => pick(d)}
+                onMouseEnter={() => { if (d && !off && pickingEnd && checkIn && !checkOut) setHovered(d); }}
+                onMouseLeave={() => setHovered(null)}
+                style={{ height:44, display:'flex', alignItems:'center', justifyContent:'center', background: d ? bandBg : 'transparent', cursor: d ? (off ? 'default' : 'pointer') : 'default' }}
+              >
+                {d && (
+                  <span
+                    style={{
+                      width:36, height:36,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      borderRadius:'50%',
+                      background: dotFilled ? T.text : (isHoverable && hovered?.getTime()===d.getTime()) ? '#F0F0F0' : 'transparent',
+                      color: dotFilled ? '#fff' : off ? '#C8C8C8' : T.text,
+                      fontFamily: BF,
+                      fontSize: 13,
+                      fontWeight: dotFilled ? 700 : 400,
+                      border: isToday && !dotFilled ? `1.5px solid ${T.text}` : 'none',
+                      opacity: off ? 0.35 : 1,
+                      transition: 'background .12s',
+                      userSelect: 'none',
+                      position: 'relative',
+                      zIndex: 1,
+                      textDecoration: off ? 'line-through' : 'none',
+                    }}
+                  >
+                    {d.getDate()}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const nights = checkIn && checkOut ? Math.ceil((checkOut - checkIn) / 86400000) : 0;
+  const fmts   = d => d?.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+
+  const statusMsg = checkIn && checkOut
+    ? <><b style={{fontWeight:700,color:T.text}}>{nights} night{nights!==1?'s':''}</b><span style={{color:T.sub}}> · {fmts(checkIn)} – {fmts(checkOut)}</span></>
+    : checkIn
+      ? <span style={{color:T.primary,fontWeight:500}}>Select your check-out date →</span>
+      : <span style={{color:T.sub}}>Select your check-in date</span>;
 
   return (
+    <div style={{ border:`1px solid ${T.border}`, borderRadius:T.radius.card, overflow:'hidden', background:'#fff' }}>
+      {/* top nav */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'15px 22px', borderBottom:`1px solid ${T.borderLight}` }}>
+        <button onClick={() => setView(new Date(ly, lm-1, 1))}
+          style={{ width:32, height:32, borderRadius:'50%', border:`1px solid ${T.border}`, background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:T.text, transition:'border-color .15s' }}
+          onMouseOver={e=>e.currentTarget.style.borderColor=T.text}
+          onMouseOut={e=>e.currentTarget.style.borderColor=T.border}>
+          <FaChevronLeft size={10}/>
+        </button>
+        <span style={{ fontFamily:BF, fontWeight:600, fontSize:13, color:T.text }}>
+          {MONTHS[lm]} {ly} — {MONTHS[rm]} {ry}
+        </span>
+        <button onClick={() => setView(new Date(ly, lm+1, 1))}
+          style={{ width:32, height:32, borderRadius:'50%', border:`1px solid ${T.border}`, background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:T.text, transition:'border-color .15s' }}
+          onMouseOver={e=>e.currentTarget.style.borderColor=T.text}
+          onMouseOut={e=>e.currentTarget.style.borderColor=T.border}>
+          <FaChevronRight size={10}/>
+        </button>
+      </div>
+
+      {/* two-month grid */}
+      <div className="calendar-months">
+        {renderMonth(mkGrid(ly, lm), ly, lm)}
+        <div className="calendar-divider" style={{ width:1, background:T.borderLight, flexShrink:0 }}/>
+        {renderMonth(mkGrid(ry, rm), ry, rm)}
+      </div>
+
+      {/* footer status */}
+      <div style={{ borderTop:`1px solid ${T.borderLight}`, padding:'13px 22px', display:'flex', alignItems:'center', justifyContent:'space-between', minHeight:48 }}>
+        <span style={{ fontFamily:BF, fontSize:13 }}>{statusMsg}</span>
+        {(checkIn || checkOut) && (
+          <button
+            onClick={() => { setHovered(null); onDatesSelected?.({ checkIn:null, checkOut:null }); }}
+            style={{ fontFamily:BF, fontSize:13, fontWeight:600, color:T.text, textDecoration:'underline', background:'none', border:'none', cursor:'pointer', textUnderlineOffset:2 }}>
+            Clear dates
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   AMENITIES
+════════════════════════════════════════════════════════════════════ */
+function AmenitiesGrid({ amenities = [] }) {
+  const [all, setAll] = useState(false);
+  const show = all ? amenities : amenities.slice(0, 10);
+  return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
-        {visible.map(a => {
-          const cfg = AMENITY_ICONS[a] || {};
-          const IconComp = cfg.icon;
+      <div className="amenities-grid">
+        {show.map(a => {
+          const cfg = AMENITY[a] || {};
+          const Ic  = cfg.Icon;
           return (
-            <div
-              key={a}
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', background: '#fafafa', borderRadius: 12, border: '1px solid #ebebeb', transition: 'border-color 0.2s, box-shadow 0.2s', cursor: 'default' }}
-              onMouseOver={e => { e.currentTarget.style.borderColor = '#d0d0d0'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'; }}
-              onMouseOut={e => { e.currentTarget.style.borderColor = '#ebebeb'; e.currentTarget.style.boxShadow = 'none'; }}
-            >
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: cfg.color ? `${cfg.color}14` : '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {IconComp
-                  ? <IconComp style={{ color: cfg.color || '#555', fontSize: 16 }} />
-                  : <span style={{ fontSize: 16 }}>✓</span>
-                }
+            <div key={a}
+              style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', borderRadius:14, border:`1.5px solid ${T.borderLight}`, background:'#fafafa', transition:'border-color .15s, box-shadow .15s' }}
+              onMouseOver={e=>{e.currentTarget.style.borderColor='#ccc';e.currentTarget.style.boxShadow='0 2px 10px rgba(0,0,0,.06)';}}
+              onMouseOut={e=>{e.currentTarget.style.borderColor=T.borderLight;e.currentTarget.style.boxShadow='none';}}>
+              <div style={{ width:36, height:36, borderRadius:10, background:cfg.bg||'#f0f0f0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                {Ic ? <Ic style={{ color:cfg.fg||'#555', fontSize:15 }}/> : <span style={{fontSize:15}}>✓</span>}
               </div>
-              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 500, color: '#222' }}>{a}</span>
+              <span style={{ fontFamily:BF, fontSize:14, fontWeight:500, color:T.text }}>{a}</span>
             </div>
           );
         })}
       </div>
       {amenities.length > 10 && (
-        <button
-          onClick={() => setShowAll(s => !s)}
-          style={{ marginTop: 16, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: '#222', textDecoration: 'underline', background: 'none', border: '1px solid #222', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', transition: 'background 0.15s' }}
-          onMouseOver={e => e.currentTarget.style.background = '#f7f7f7'}
-          onMouseOut={e => e.currentTarget.style.background = 'none'}
-        >
-          {showAll ? 'Show less' : `Show all ${amenities.length} amenities`}
+        <button onClick={()=>setAll(v=>!v)}
+          style={{ marginTop:16, fontFamily:BF, fontSize:14, fontWeight:600, color:T.text, background:'none', border:`1.5px solid ${T.text}`, borderRadius:10, padding:'11px 22px', cursor:'pointer' }}>
+          {all ? 'Show less' : `Show all ${amenities.length} amenities`}
         </button>
       )}
     </div>
   );
 }
 
-// ─── REVIEWS SECTION ─────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════
+   REVIEWS
+════════════════════════════════════════════════════════════════════ */
 function ReviewsSection({ reviews = [], averageRating = 0 }) {
-  const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? reviews : reviews.slice(0, 4);
+  const [all, setAll] = useState(false);
+  const show = all ? reviews : reviews.slice(0, 6);
+  const bkd  = useMemo(() => {
+    const m={5:0,4:0,3:0,2:0,1:0};
+    reviews.forEach(r=>{const k=Math.round(r.overallRating||r.rating||0);if(k>=1&&k<=5)m[k]++;});
+    return m;
+  },[reviews]);
+  const avg  = averageRating||(reviews.length?(reviews.reduce((s,r)=>s+(r.overallRating||r.rating||0),0)/reviews.length).toFixed(1):0);
+  const PAL  = ['#FF385C','#0070f3','#00a699','#f97316','#8b5cf6','#10b981'];
 
-  const breakdown = useMemo(() => {
-    const map = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-    reviews.forEach(r => {
-      const rounded = Math.round(r.overallRating || r.rating || 0);
-      if (rounded >= 1 && rounded <= 5) map[rounded]++;
-    });
-    return map;
-  }, [reviews]);
-
-  const avg = averageRating || (reviews.length > 0
-    ? (reviews.reduce((s, r) => s + (r.overallRating || r.rating || 0), 0) / reviews.length).toFixed(1)
-    : 0);
-
-  if (reviews.length === 0) {
-    return (
-      <div style={{ textAlign: 'center', padding: '32px 0' }}>
-        <p style={{ fontSize: 40, marginBottom: 12 }}>✨</p>
-        <p style={{ fontFamily: "'Fraunces', serif", fontSize: 20, fontWeight: 600, color: '#222', marginBottom: 6 }}>No reviews yet</p>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: '#717171' }}>Be the first to leave a review after your stay.</p>
-      </div>
-    );
-  }
+  if (!reviews.length) return (
+    <div style={{ textAlign:'center', padding:'36px 0' }}>
+      <div style={{fontSize:44,marginBottom:12}}>✨</div>
+      <p style={{ fontFamily:HF, fontSize:20, fontWeight:600, color:T.text, marginBottom:6 }}>No reviews yet</p>
+      <p style={{ fontFamily:BF, fontSize:14, color:T.sub }}>Be the first to leave a review after your stay.</p>
+    </div>
+  );
 
   return (
     <div>
-      {/* Rating headline */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-        <FaStar style={{ color: '#222', fontSize: 20 }} />
-        <span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: '#222' }}>{Number(avg).toFixed(1)}</span>
-        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: '#717171' }}>·</span>
-        <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: '#717171', textDecoration: 'underline', cursor: 'pointer' }}>
-          {reviews.length} review{reviews.length !== 1 ? 's' : ''}
-        </span>
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:24 }}>
+        <FaStar style={{ color:T.text, fontSize:20 }}/>
+        <span style={{ fontFamily:HF, fontSize:26, fontWeight:700, color:T.text }}>{Number(avg).toFixed(1)}</span>
+        <span style={{ color:T.border }}>·</span>
+        <span style={{ fontFamily:BF, fontSize:15, color:T.sub, textDecoration:'underline', cursor:'pointer' }}>{reviews.length} review{reviews.length!==1?'s':''}</span>
       </div>
-
-      {/* Rating bars */}
-      <div style={{ marginBottom: 32 }}>
-        {[5, 4, 3, 2, 1].map(star => (
-          <div key={star} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: '#717171', width: 8, textAlign: 'right' }}>{star}</span>
-            <div style={{ flex: 1, height: 4, background: '#ebebeb', borderRadius: 4, overflow: 'hidden' }}>
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${(breakdown[star] / Math.max(1, reviews.length)) * 100}%` }}
-                transition={{ duration: 0.6, delay: (5 - star) * 0.08, ease: 'easeOut' }}
-                style={{ height: '100%', background: '#222', borderRadius: 4 }}
-              />
+      {/* bars */}
+      <div style={{ marginBottom:32, maxWidth:260 }}>
+        {[5,4,3,2,1].map(s=>(
+          <div key={s} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+            <span style={{ fontFamily:BF, fontSize:11, color:T.sub, width:8 }}>{s}</span>
+            <div style={{ flex:1, height:4, background:T.borderLight, borderRadius:4, overflow:'hidden' }}>
+              <motion.div initial={{width:0}} animate={{width:`${(bkd[s]/Math.max(1,reviews.length))*100}%`}} transition={{duration:.7,delay:(5-s)*.06}}
+                style={{ height:'100%', background:T.text, borderRadius:4 }}/>
             </div>
-            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: '#aaa', width: 16 }}>{breakdown[star]}</span>
+            <span style={{ fontFamily:BF, fontSize:11, color:'#bbb', width:12, textAlign:'right' }}>{bkd[s]}</span>
           </div>
         ))}
       </div>
-
-      {/* Review cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 24 }}>
-        {visible.map((r, idx) => {
-          const authorName = typeof r.author === 'object'
-            ? [r.author?.firstName, r.author?.lastName].filter(Boolean).join(' ')
-            : r.author || 'Guest';
-          const rating = r.overallRating || r.rating || 0;
-          const date = r.createdAt
-            ? new Date(r.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-            : 'Recent';
-          const initials = authorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-          const avatarColors = ['#FF385C', '#0070f3', '#00a699', '#f97316', '#8b5cf6'];
-          const avatarColor = avatarColors[idx % avatarColors.length];
-
+      {/* cards */}
+      <div className="reviews-grid">
+        {show.map((r,i) => {
+          const name   = typeof r.author==='object' ? [r.author?.firstName,r.author?.lastName].filter(Boolean).join(' ') : r.author||'Guest';
+          const rating = r.overallRating||r.rating||0;
+          const date   = r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Recent';
+          const init   = name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
           return (
-            <motion.div
-              key={r._id || idx}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.06 }}
-              style={{ padding: 0 }}
-            >
-              {/* Author */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                <div style={{ width: 44, height: 44, borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <motion.div key={r._id||i} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{delay:i*.05}}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:12 }}>
+                <div style={{ width:44, height:44, borderRadius:'50%', background:PAL[i%PAL.length], display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                   {r.author?.profileImage
-                    ? <img src={r.author.profileImage} alt={authorName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                    : <span style={{ color: '#fff', fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 15 }}>{initials}</span>
-                  }
+                    ? <img src={r.author.profileImage} alt={name} style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}}/>
+                    : <span style={{color:'#fff',fontFamily:BF,fontWeight:700,fontSize:14}}>{init}</span>}
                 </div>
                 <div>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: 14, color: '#222', marginBottom: 2 }}>{authorName}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ display: 'flex', gap: 2 }}>
-                      {[...Array(5)].map((_, i) => (
-                        <FaStar key={i} style={{ fontSize: 10, color: i < rating ? '#FF385C' : '#ddd' }} />
-                      ))}
-                    </div>
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: '#aaa' }}>·</span>
-                    <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: '#aaa' }}>{date}</span>
+                  <p style={{ fontFamily:BF, fontWeight:600, fontSize:14, color:T.text, marginBottom:3 }}>{name}</p>
+                  <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                    {[...Array(5)].map((_,j)=><FaStar key={j} style={{fontSize:10,color:j<rating?T.primary:'#e5e7eb'}}/>)}
+                    <span style={{ fontFamily:BF, fontSize:12, color:'#bbb', marginLeft:4 }}>{date}</span>
                   </div>
                 </div>
               </div>
-              {/* Comment */}
-              <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, lineHeight: 1.65, color: '#484848', margin: 0 }}>
-                {r.comment?.length > 180 ? r.comment.slice(0, 180) + '...' : r.comment}
+              <p style={{ fontFamily:BF, fontSize:14, lineHeight:1.65, color:'#484848' }}>
+                {r.comment?.length>200 ? r.comment.slice(0,200)+'…' : r.comment}
               </p>
             </motion.div>
           );
         })}
       </div>
-
-      {reviews.length > 4 && (
-        <button
-          onClick={() => setShowAll(s => !s)}
-          style={{ marginTop: 28, fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: '#222', background: 'none', border: '1px solid #222', borderRadius: 10, padding: '12px 24px', cursor: 'pointer', transition: 'background 0.15s' }}
-          onMouseOver={e => e.currentTarget.style.background = '#f7f7f7'}
-          onMouseOut={e => e.currentTarget.style.background = 'none'}
-        >
-          {showAll ? 'Show less' : `Show all ${reviews.length} reviews`}
+      {reviews.length>6 && (
+        <button onClick={()=>setAll(v=>!v)}
+          style={{ marginTop:24, fontFamily:BF, fontSize:14, fontWeight:600, color:T.text, background:'none', border:`1.5px solid ${T.text}`, borderRadius:10, padding:'11px 22px', cursor:'pointer' }}>
+          {all ? 'Show less' : `Show all ${reviews.length} reviews`}
         </button>
       )}
     </div>
   );
 }
 
-// ─── BOOKING WIDGET ──────────────────────────────────────────────────────────
-function BookingWidget({ listing, checkInDate, checkOutDate, guests, setGuests, onBook, bookingLoading }) {
-  const pricing = listing.pricing || {};
-  const basePrice = pricing.basePrice || 0;
-  const cleaningFee = pricing.cleaningFee || 0;
-  const serviceFee = pricing.serviceFee || 0;
-  const maxGuests = listing.accommodates || listing.maxGuests || 10;
+/* ════════════════════════════════════════════════════════════════════
+   BOOKING WIDGET  — professional date pickers + inline dropdown calendar
+════════════════════════════════════════════════════════════════════ */
+function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, loading: bLoading, onDatesSelected, unavailableDates }) {
+  const { basePrice=0, cleaningFee=0, serviceFee=0 } = listing.pricing || {};
+  const nights   = checkIn && checkOut ? Math.ceil((checkOut - checkIn) / 86400000) : 0;
+  const sub      = basePrice * nights;
+  const taxes    = Math.round((sub + cleaningFee + serviceFee) * 0.12);
+  const total    = sub + cleaningFee + serviceFee + taxes;
+  const max      = listing.accommodates || listing.maxGuests || 10;
+  const canBook  = checkIn && checkOut && nights > 0 && !bLoading;
+  const fmt      = d => d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) : null;
 
-  const nights = useMemo(() => {
-    if (!checkInDate || !checkOutDate) return 0;
-    return Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-  }, [checkInDate, checkOutDate]);
+  const [activeField, setActiveField]   = useState(null);   // 'checkin' | 'checkout' | null
+  const [showGuests,  setShowGuests]    = useState(false);
+  const dropRef = useRef(null);
 
-  const subtotal = basePrice * nights;
-  const taxes = Math.round((subtotal + cleaningFee + serviceFee) * 0.12);
-  const total = subtotal + cleaningFee + serviceFee + taxes;
-  const canBook = checkInDate && checkOutDate && nights > 0 && !bookingLoading;
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e) {
+      if (dropRef.current && !dropRef.current.contains(e.target)) {
+        setActiveField(null);
+        setShowGuests(false);
+      }
+    }
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const fmtDate = d => d ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Add date';
+  // Auto-advance: when check-in selected, open checkout
+  function handleDates({ checkIn: ci, checkOut: co }) {
+    onDatesSelected({ checkIn: ci, checkOut: co });
+    if (ci && !co) setActiveField('checkout');
+    if (ci && co)  setActiveField(null);
+    if (!ci && !co) setActiveField('checkin');
+  }
+
+  const inputBase = (active, filled) => ({
+    flex: 1,
+    padding: '10px 14px',
+    cursor: 'pointer',
+    background: active ? '#fff' : 'transparent',
+    transition: 'background .15s',
+    outline: active ? `2px solid ${T.text}` : '2px solid transparent',
+    outlineOffset: -2,
+    borderRadius: 10,
+  });
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Price + rating */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 26, fontWeight: 700, color: '#222' }}>
-            ${basePrice.toLocaleString()}
-          </span>
-          <span style={{ fontSize: 15, color: '#717171', fontWeight: 400 }}>/night</span>
-        </div>
+    <div style={{ fontFamily:BF }} ref={dropRef}>
+      {/* ── price ── */}
+      <div style={{ marginBottom:20 }}>
+        <span style={{ fontFamily:HF, fontSize:26, fontWeight:700, color:T.text }}>${basePrice.toLocaleString()}</span>
+        <span style={{ fontSize:15, color:T.sub }}> /night</span>
         {listing.averageRating > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
-            <FaStar style={{ color: '#FF385C', fontSize: 12 }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>{listing.averageRating.toFixed(1)}</span>
+          <div style={{ display:'flex', alignItems:'center', gap:5, marginTop:4 }}>
+            <FaStar style={{ color:T.primary, fontSize:12 }}/>
+            <span style={{ fontSize:13, fontWeight:600, color:T.text }}>{listing.averageRating.toFixed(1)}</span>
             {listing.totalReviews > 0 && (
-              <span style={{ fontSize: 13, color: '#717171' }}>· {listing.totalReviews} review{listing.totalReviews !== 1 ? 's' : ''}</span>
+              <span style={{ fontSize:13, color:T.sub }}>· {listing.totalReviews} review{listing.totalReviews!==1?'s':''}</span>
             )}
           </div>
         )}
       </div>
 
-      {/* Date inputs */}
-      <div style={{ border: '1.5px solid #ddd', borderRadius: 12, overflow: 'hidden', marginBottom: 12 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-          <div style={{ padding: '12px 14px', borderRight: '1px solid #ddd' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#222', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Check-in</p>
-            <p style={{ fontSize: 14, color: checkInDate ? '#222' : '#aaa' }}>{fmtDate(checkInDate)}</p>
-          </div>
-          <div style={{ padding: '12px 14px' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#222', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>Check-out</p>
-            <p style={{ fontSize: 14, color: checkOutDate ? '#222' : '#aaa' }}>{fmtDate(checkOutDate)}</p>
-          </div>
+      {/* ── date + guest fields ── */}
+      <div style={{ border:`1.5px solid ${activeField ? T.text : T.border}`, borderRadius:T.radius.input, overflow:'visible', marginBottom:12, transition:'border-color .2s', position:'relative' }}>
+        {/* Check-in / Check-out row */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:`1px solid ${T.border}` }}>
+          {/* CHECK-IN */}
+          <button
+            onClick={() => { setActiveField(activeField==='checkin' ? null : 'checkin'); setShowGuests(false); }}
+            style={{ ...inputBase(activeField==='checkin', !!checkIn), borderRadius:'10px 0 0 0', textAlign:'left', border:'none', borderRight:`1px solid ${T.border}`, background: activeField==='checkin'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', outline:'none' }}
+          >
+            <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:4 }}>Check-in</p>
+            <p style={{ fontSize:14, color: checkIn ? T.text : '#aaa', fontWeight: checkIn?500:400 }}>
+              {fmt(checkIn) || 'Add date'}
+            </p>
+          </button>
+          {/* CHECK-OUT */}
+          <button
+            onClick={() => { setActiveField(activeField==='checkout' ? null : 'checkout'); setShowGuests(false); }}
+            style={{ textAlign:'left', border:'none', background: activeField==='checkout'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', borderRadius:'0 10px 0 0', outline:'none' }}
+          >
+            <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:4 }}>Check-out</p>
+            <p style={{ fontSize:14, color: checkOut ? T.text : '#aaa', fontWeight: checkOut?500:400 }}>
+              {fmt(checkOut) || 'Add date'}
+            </p>
+          </button>
         </div>
-        {/* Guest counter */}
-        <div style={{ borderTop: '1px solid #ddd', padding: '12px 14px' }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: '#222', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Guests</p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 14, color: '#222' }}>{guests} guest{guests !== 1 ? 's' : ''}</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button
-                onClick={() => setGuests(Math.max(1, guests - 1))}
-                disabled={guests <= 1}
-                style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid', borderColor: guests <= 1 ? '#ddd' : '#888', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: guests <= 1 ? 'not-allowed' : 'pointer', color: guests <= 1 ? '#ddd' : '#222', fontSize: 18, fontWeight: 300, transition: 'all 0.15s' }}
-              >−</button>
-              <span style={{ fontSize: 14, fontWeight: 600, minWidth: 16, textAlign: 'center', color: '#222' }}>{guests}</span>
-              <button
-                onClick={() => setGuests(Math.min(maxGuests, guests + 1))}
-                disabled={guests >= maxGuests}
-                style={{ width: 30, height: 30, borderRadius: '50%', border: '1.5px solid', borderColor: guests >= maxGuests ? '#ddd' : '#888', background: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: guests >= maxGuests ? 'not-allowed' : 'pointer', color: guests >= maxGuests ? '#ddd' : '#222', fontSize: 18, fontWeight: 300, transition: 'all 0.15s' }}
-              >+</button>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Reserve button */}
-      <button
-        onClick={onBook}
-        disabled={!canBook}
-        style={{
-          width: '100%', padding: '15px', borderRadius: 12, border: 'none',
-          fontFamily: "'DM Sans', sans-serif", fontSize: 16, fontWeight: 700,
-          color: '#fff', cursor: canBook ? 'pointer' : 'not-allowed',
-          background: canBook
-            ? 'linear-gradient(135deg, #FF385C 0%, #E31C5F 100%)'
-            : '#ddd',
-          transition: 'opacity 0.2s, transform 0.15s',
-          transform: 'scale(1)',
-          boxShadow: canBook ? '0 4px 16px rgba(255,56,92,0.35)' : 'none',
-        }}
-        onMouseOver={e => { if (canBook) { e.currentTarget.style.opacity = '0.92'; e.currentTarget.style.transform = 'scale(1.01)'; } }}
-        onMouseOut={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'scale(1)'; }}
-      >
-        {bookingLoading ? 'Reserving...' : nights > 0 ? `Reserve · $${total.toLocaleString()}` : 'Reserve'}
-      </button>
-
-      {nights > 0 && (
-        <p style={{ textAlign: 'center', fontSize: 13, color: '#717171', marginTop: 10 }}>You won't be charged yet</p>
-      )}
-
-      {/* Price breakdown */}
-      {nights > 0 && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #ebebeb' }}
+        {/* GUESTS row */}
+        <button
+          onClick={() => { setShowGuests(v => !v); setActiveField(null); }}
+          style={{ width:'100%', textAlign:'left', border:'none', background: showGuests?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', borderRadius:'0 0 10px 10px', outline:'none' }}
         >
-          {[
-            { label: `$${basePrice} × ${nights} night${nights !== 1 ? 's' : ''}`, value: subtotal },
-            cleaningFee > 0 && { label: 'Cleaning fee', value: cleaningFee },
-            serviceFee > 0 && { label: 'Service fee', value: serviceFee },
-            { label: 'Taxes (12%)', value: taxes },
-          ].filter(Boolean).map((row, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 14, color: '#484848', textDecoration: 'underline', textDecorationColor: '#aaa', textUnderlineOffset: 3 }}>{row.label}</span>
-              <span style={{ fontSize: 14, color: '#222', fontWeight: 500 }}>${row.value.toLocaleString()}</span>
-            </div>
-          ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, borderTop: '1.5px solid #222', marginTop: 4 }}>
-            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, color: '#222' }}>Total before taxes</span>
-            <span style={{ fontFamily: "'Fraunces', serif", fontSize: 17, fontWeight: 700, color: '#222' }}>${total.toLocaleString()}</span>
+          <div>
+            <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:4 }}>Guests</p>
+            <p style={{ fontSize:14, color:T.text, fontWeight:500 }}>{guests} guest{guests!==1?'s':''}</p>
           </div>
-        </motion.div>
-      )}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ transform: showGuests ? 'rotate(180deg)' : 'rotate(0)', transition:'transform .2s', flexShrink:0 }}>
+            <path d="M1 3.5L6 8.5L11 3.5" stroke="#222" strokeWidth="1.5" strokeLinecap="round"/>
+          </svg>
+        </button>
+
+        {/* ── Guest counter dropdown ── */}
+        <AnimatePresence>
+          {showGuests && (
+            <motion.div
+              initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
+              transition={{ duration:.18 }}
+              style={{ position:'absolute', top:'100%', left:0, right:0, marginTop:4, background:'#fff', border:`1px solid ${T.border}`, borderRadius:T.radius.card, boxShadow:T.shadow.card, zIndex:200, padding:'16px 18px' }}
+            >
+              {[
+                { label:'Adults', sublabel:'Ages 13 or above', key:'adults', val:guests, set:setGuests, mn:1, mx:max },
+              ].map(row => (
+                <div key={row.key} style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <div>
+                    <p style={{ fontFamily:BF, fontWeight:600, fontSize:14, color:T.text }}>{row.label}</p>
+                    <p style={{ fontFamily:BF, fontSize:12, color:T.sub }}>{row.sublabel}</p>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                    <button onClick={()=>row.set(Math.max(row.mn, row.val-1))} disabled={row.val<=row.mn}
+                      style={{ width:32, height:32, borderRadius:'50%', border:`1.5px solid ${row.val<=row.mn?'#e5e7eb':'#888'}`, background:'none', color:row.val<=row.mn?'#e5e7eb':T.text, fontSize:20, fontWeight:300, cursor:row.val<=row.mn?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>−</button>
+                    <span style={{ fontFamily:BF, fontSize:15, fontWeight:600, color:T.text, minWidth:18, textAlign:'center' }}>{row.val}</span>
+                    <button onClick={()=>row.set(Math.min(row.mx, row.val+1))} disabled={row.val>=row.mx}
+                      style={{ width:32, height:32, borderRadius:'50%', border:`1.5px solid ${row.val>=row.mx?'#e5e7eb':'#888'}`, background:'none', color:row.val>=row.mx?'#e5e7eb':T.text, fontSize:20, fontWeight:300, cursor:row.val>=row.mx?'not-allowed':'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>+</button>
+                  </div>
+                </div>
+              ))}
+              <button onClick={()=>setShowGuests(false)}
+                style={{ marginTop:16, width:'100%', padding:'10px', background:T.text, color:'#fff', border:'none', borderRadius:10, fontFamily:BF, fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                Done
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* ── Calendar dropdown ── */}
+        <AnimatePresence>
+          {activeField && (
+            <motion.div
+              initial={{ opacity:0, y:-8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }}
+              transition={{ duration:.2 }}
+              style={{ position:'absolute', top:'100%', left: activeField==='checkout' ? 'auto' : 0, right: activeField==='checkout' ? 0 : 'auto', marginTop:4, zIndex:300, minWidth:580 }}
+            >
+              <div style={{ background:'#fff', border:`1px solid ${T.border}`, borderRadius:T.radius.card, boxShadow:'0 12px 48px rgba(0,0,0,.16), 0 4px 16px rgba(0,0,0,.08)', overflow:'hidden' }}>
+                {/* Field tabs */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:`1px solid ${T.borderLight}` }}>
+                  {[{id:'checkin',lbl:'CHECK-IN',val:fmt(checkIn)},{id:'checkout',lbl:'CHECK-OUT',val:fmt(checkOut)}].map(f=>(
+                    <button key={f.id} onClick={()=>setActiveField(f.id)}
+                      style={{ padding:'14px 20px', textAlign:'left', border:'none', borderBottom: activeField===f.id?`2px solid ${T.text}`:'2px solid transparent', background:'transparent', cursor:'pointer', transition:'border-color .15s' }}>
+                      <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:3 }}>{f.lbl}</p>
+                      <p style={{ fontFamily:BF, fontSize:15, fontWeight: f.val?600:400, color: f.val?T.text:'#aaa' }}>{f.val || 'Add date'}</p>
+                    </button>
+                  ))}
+                </div>
+                {/* Calendar */}
+                <div style={{ padding:'4px 0' }}>
+                  <AirbnbCalendar
+                    unavailableDates={unavailableDates}
+                    checkIn={checkIn}
+                    checkOut={checkOut}
+                    activeField={activeField}
+                    onDatesSelected={handleDates}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* ── Reserve button ── */}
+      <button onClick={onBook} disabled={!canBook}
+        style={{ width:'100%', padding:'15px', borderRadius:T.radius.input, border:'none', fontFamily:BF, fontSize:16, fontWeight:700, color:'#fff', cursor:canBook?'pointer':'not-allowed', background:canBook?`linear-gradient(135deg,${T.primary},${T.primaryDark})`:'#e5e7eb', boxShadow:canBook?T.shadow.button:'none', transition:'opacity .2s, transform .15s' }}
+        onMouseOver={e=>{ if(canBook){e.currentTarget.style.opacity='.9';e.currentTarget.style.transform='scale(1.01)';} }}
+        onMouseOut={e=>{e.currentTarget.style.opacity='1';e.currentTarget.style.transform='scale(1)';}}>
+        {bLoading ? 'Reserving…' : nights>0 ? `Reserve · $${total.toLocaleString()}` : 'Reserve'}
+      </button>
+      {nights > 0 && <p style={{ textAlign:'center', fontSize:13, color:T.sub, marginTop:10 }}>You won't be charged yet</p>}
+
+      {/* ── Price breakdown ── */}
+      <AnimatePresence>
+        {nights > 0 && (
+          <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
+            style={{ marginTop:20, paddingTop:20, borderTop:`1px solid ${T.borderLight}` }}>
+            {[
+              {l:`$${basePrice} × ${nights} night${nights!==1?'s':''}`, v:sub},
+              cleaningFee>0 && {l:'Cleaning fee', v:cleaningFee},
+              serviceFee>0  && {l:'Service fee',  v:serviceFee},
+              {l:'Taxes (12%)', v:taxes},
+            ].filter(Boolean).map((row,i)=>(
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', marginBottom:10 }}>
+                <span style={{ fontSize:14, color:'#484848', textDecoration:'underline', textDecorationColor:'#ccc', textUnderlineOffset:2 }}>{row.l}</span>
+                <span style={{ fontSize:14, color:T.text }}>${row.v.toLocaleString()}</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', justifyContent:'space-between', paddingTop:14, borderTop:`1.5px solid ${T.text}`, marginTop:4 }}>
+              <span style={{ fontFamily:BF, fontSize:15, fontWeight:700, color:T.text }}>Total before taxes</span>
+              <span style={{ fontFamily:HF, fontSize:17, fontWeight:700, color:T.text }}>${total.toLocaleString()}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-// ─── SKELETON ────────────────────────────────────────────────────────────────
-const Shimmer = ({ style }) => (
-  <div style={{ background: 'linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite', borderRadius: 8, ...style }} />
-);
-
-function ListingSkeleton() {
+/* ════════════════════════════════════════════════════════════════════
+   SKELETON
+════════════════════════════════════════════════════════════════════ */
+function Sk({ w='100%', h=16, r=8, mb=0 }) {
+  return <div style={{ width:w, height:h, borderRadius:r, background:'linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)', backgroundSize:'200% 100%', animation:'sk 1.6s infinite', marginBottom:mb }}/>;
+}
+function Skeleton() {
   return (
-    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 24px 0' }}>
-        <Shimmer style={{ height: 420, borderRadius: 16, width: '100%' }} />
-      </div>
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: 24 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 64 }}>
+    <div style={{ minHeight:'100vh', background:'#fff', fontFamily:BF }}>
+      <style>{`@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}`}</style>
+      <div style={{ maxWidth:1120, margin:'0 auto', padding:24 }}>
+        <Sk h={440} r={16} mb={32}/>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:64 }}>
           <div>
-            <Shimmer style={{ height: 36, width: '70%', marginBottom: 12 }} />
-            <Shimmer style={{ height: 18, width: '40%', marginBottom: 28 }} />
-            <Shimmer style={{ height: 1, marginBottom: 28 }} />
-            <Shimmer style={{ height: 80, borderRadius: 12, marginBottom: 28 }} />
-            <Shimmer style={{ height: 1, marginBottom: 28 }} />
-            <Shimmer style={{ height: 16, marginBottom: 10 }} />
-            <Shimmer style={{ height: 16, width: '90%', marginBottom: 10 }} />
-            <Shimmer style={{ height: 16, width: '75%' }} />
+            <Sk h={34} w="70%" r={6} mb={12}/><Sk h={18} w="45%" r={4} mb={28}/>
+            <Sk h={1} mb={28}/><Sk h={80} r={12} mb={28}/><Sk h={1} mb={28}/>
+            {[1,2,3].map(i=><Sk key={i} h={14} w={i===1?'100%':i===2?'85%':'70%'} r={4} mb={10}/>)}
           </div>
-          <div>
-            <Shimmer style={{ height: 360, borderRadius: 16 }} />
-          </div>
+          <Sk h={380} r={16}/>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+/* ════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+════════════════════════════════════════════════════════════════════ */
 export default function ListingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, token } = useAuth();
 
-  const [listing, setListing] = useState(null);
-  const [reviews, setReviews] = useState([]);
-  const [unavailableDates, setUnavailableDates] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [checkInDate, setCheckInDate] = useState(null);
-  const [checkOutDate, setCheckOutDate] = useState(null);
-  const [guests, setGuests] = useState(1);
-  const [bookingLoading, setBookingLoading] = useState(false);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [showMobileBooking, setShowMobileBooking] = useState(false);
+  const [listing,     setListing]     = useState(null);
+  const [reviews,     setReviews]     = useState([]);
+  const [blocked,     setBlocked]     = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState(null);
+  const [checkIn,     setCheckIn]     = useState(null);
+  const [checkOut,    setCheckOut]    = useState(null);
+  const [guests,      setGuests]      = useState(1);
+  const [bLoading,    setBLoading]    = useState(false);
+  const [wishlisted,  setWishlisted]  = useState(false);
 
   useEffect(() => {
+    loadFonts();
     setLoading(true);
     Promise.all([
-      fetch(`${API_BASE}/listings/${id}`).then(r => r.json()),
-      fetch(`${API_BASE}/reviews/listing/${id}`).then(r => r.json()).catch(() => ({ success: false })),
-      fetch(`${API_BASE}/listings/${id}/availability`).then(r => r.json()).catch(() => ({ success: false })),
-    ]).then(([listingRes, reviewsRes, availRes]) => {
-      if (listingRes.success) {
-        setListing(listingRes.data?.listing || listingRes.data);
-      } else {
-        setError('Listing not found');
-      }
-      if (reviewsRes.success) setReviews(reviewsRes.data?.reviews || []);
-      if (availRes.success) setUnavailableDates(availRes.data?.blockedDates || availRes.data?.unavailableDates || []);
-    }).catch(() => setError('Network error')).finally(() => setLoading(false));
+      fetch(`${API_BASE}/listings/${id}`).then(r=>r.json()),
+      fetch(`${API_BASE}/reviews/listing/${id}`).then(r=>r.json()).catch(()=>({success:false})),
+      fetch(`${API_BASE}/listings/${id}/availability`).then(r=>r.json()).catch(()=>({success:false})),
+    ]).then(([lr,rr,ar])=>{
+      if (lr.success) setListing(lr.data?.listing||lr.data); else setError('Listing not found');
+      if (rr.success) setReviews(rr.data?.reviews||[]);
+      if (ar.success) setBlocked(ar.data?.blockedDates||ar.data?.unavailableDates||[]);
+    }).catch(()=>setError('Network error')).finally(()=>setLoading(false));
   }, [id]);
-
-  const nights = useMemo(() => {
-    if (!checkInDate || !checkOutDate) return 0;
-    return Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
-  }, [checkInDate, checkOutDate]);
 
   const handleBook = useCallback(async () => {
     if (!token) { navigate('/login'); return; }
-    if (!checkInDate || !checkOutDate || nights === 0) return;
-    const pricing = listing.pricing || {};
-    const basePrice = pricing.basePrice || 0;
-    const cleaningFee = pricing.cleaningFee || 0;
-    const serviceFee = pricing.serviceFee || 0;
-    const subtotal = basePrice * nights;
-    const taxes = Math.round((subtotal + cleaningFee + serviceFee) * 0.12);
-    const total = subtotal + cleaningFee + serviceFee + taxes;
-    setBookingLoading(true);
+    if (!checkIn||!checkOut) return;
+    const {basePrice=0,cleaningFee=0,serviceFee=0} = listing.pricing||{};
+    const n = Math.ceil((checkOut-checkIn)/86400000);
+    const sub = basePrice*n;
+    const total = sub+cleaningFee+serviceFee+Math.round((sub+cleaningFee+serviceFee)*.12);
+    setBLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ listingId: id, checkIn: checkInDate.toISOString(), checkOut: checkOutDate.toISOString(), guests, totalPrice: total }),
-      });
+      const res = await fetch(`${API_BASE}/bookings`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({listingId:id,checkIn:checkIn.toISOString(),checkOut:checkOut.toISOString(),guests,totalPrice:total})});
       const d = await res.json();
-      if (d.success) {
-        navigate(`/payment/${d.data?.booking?._id || d.data?._id}`);
-      } else {
-        alert(d.message || 'Booking failed. Please try again.');
-      }
-    } catch { alert('Network error. Please try again.'); }
-    finally { setBookingLoading(false); }
-  }, [token, checkInDate, checkOutDate, nights, guests, listing, id, navigate]);
+      if (d.success) navigate(`/payment/${d.data?.booking?._id||d.data?._id}`);
+      else alert(d.message||'Booking failed.');
+    } catch { alert('Network error.'); }
+    finally { setBLoading(false); }
+  }, [token,checkIn,checkOut,guests,listing,id,navigate]);
 
-  function handleShare() {
-    const url = window.location.href;
-    if (navigator.share) navigator.share({ title: listing?.title, url });
-    else { navigator.clipboard.writeText(url); }
-  }
-
-  if (loading) return <><FontLink /><ListingSkeleton /></>;
-
-  if (error || !listing) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif" }}>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 56, marginBottom: 16 }}>🏠</p>
-          <p style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#222', marginBottom: 8 }}>Listing not found</p>
-          <p style={{ fontSize: 14, color: '#717171', marginBottom: 20 }}>{error}</p>
-          <Link to="/" style={{ fontSize: 14, fontWeight: 600, color: '#FF385C', textDecoration: 'underline' }}>Back to Home</Link>
-        </div>
+  if (loading) return <Skeleton/>;
+  if (error||!listing) return (
+    <div style={{ minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:BF }}>
+      <div style={{ textAlign:'center' }}>
+        <div style={{fontSize:56,marginBottom:16}}>🏠</div>
+        <p style={{ fontFamily:HF,fontSize:22,fontWeight:600,color:T.text,marginBottom:8 }}>Listing not found</p>
+        <Link to="/" style={{ fontSize:14,fontWeight:600,color:T.primary,textDecoration:'underline' }}>← Back to Home</Link>
       </div>
-    );
-  }
+    </div>
+  );
 
-  const images = (listing.images || []).map(i => i.url || i).filter(Boolean);
-  const location = listing.location || {};
-  const locationStr = [location.city, location.state, location.country].filter(Boolean).join(', ');
-  const hostData = listing.host || {};
-  const hostObj = {
-    name: [hostData.firstName, hostData.lastName].filter(Boolean).join(' ') || 'Host',
-    avatar: hostData.profileImage,
-    isSuperhost: hostData.isSuperhost,
-    responseRate: hostData.responseRate ? `${hostData.responseRate}%` : undefined,
-    bio: hostData.bio,
-    rating: hostData.averageRating,
-  };
+  /* derived */
+  const images  = (listing.images||[]).map(i=>i.url||i).filter(Boolean);
+  const loc     = listing.location||{};
+  const locStr  = [loc.city,loc.state,loc.country].filter(Boolean).join(', ');
+  const hd      = listing.host||{};
+  const hName   = [hd.firstName,hd.lastName].filter(Boolean).join(' ')||'Host';
+  const hostObj = { name:hName, avatar:hd.profileImage, isSuperhost:hd.isSuperhost, responseRate:hd.responseRate?`${hd.responseRate}%`:undefined, bio:hd.bio, rating:hd.averageRating };
+  const propType = listing.propertyType?.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())||'Property';
+  const nights  = checkIn&&checkOut ? Math.ceil((checkOut-checkIn)/86400000) : 0;
 
-  // Flatten amenities from nested object
-  const amenitiesList = listing.amenities && typeof listing.amenities === 'object' && !Array.isArray(listing.amenities)
-    ? [
-        listing.amenities.basics?.wifi && 'WiFi',
-        listing.amenities.basics?.kitchen && 'Kitchen',
-        listing.amenities.basics?.airConditioning && 'Air conditioning',
-        listing.amenities.basics?.heating && 'Heating',
-        listing.amenities.features?.pool && 'Pool',
-        listing.amenities.features?.gym && 'Gym',
-        listing.amenities.features?.tv && 'TV',
-        listing.amenities.features?.washer && 'Washer',
-        listing.amenities.features?.hotTub && 'Hot tub',
-        listing.amenities.features?.parking && 'Parking',
-        listing.amenities.outdoor?.garden && 'Garden',
-      ].filter(Boolean)
-    : (Array.isArray(listing.amenities) ? listing.amenities : []);
+  const amenities = listing.amenities && !Array.isArray(listing.amenities)
+    ? [listing.amenities.basics?.wifi&&'WiFi',listing.amenities.basics?.kitchen&&'Kitchen',listing.amenities.basics?.airConditioning&&'Air conditioning',listing.amenities.basics?.heating&&'Heating',listing.amenities.features?.pool&&'Pool',listing.amenities.features?.gym&&'Gym',listing.amenities.features?.tv&&'TV',listing.amenities.features?.washer&&'Washer',listing.amenities.features?.hotTub&&'Hot tub',listing.amenities.features?.parking&&'Parking',listing.amenities.outdoor?.garden&&'Garden'].filter(Boolean)
+    : (Array.isArray(listing.amenities)?listing.amenities:[]);
 
-  const divider = <div style={{ height: 1, background: '#ebebeb', margin: '0' }} />;
+  /* reusable section wrapper */
+  const S = ({children, last=false}) => (
+    <div style={{ padding:'32px 0', ...(last?{}:{borderBottom:`1px solid ${T.borderLight}`}) }}>{children}</div>
+  );
+  const Title = ({children}) => (
+    <h2 style={{ fontFamily:HF, fontSize:22, fontWeight:600, color:T.text, marginBottom:20, marginTop:0 }}>{children}</h2>
+  );
 
   return (
-    <div style={{ minHeight: '100vh', background: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
-      <FontLink />
+    <div style={{ minHeight:'100vh', background:'#fff', fontFamily:BF }}>
 
-      {/* ── Breadcrumb ── */}
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '16px 24px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Link to="/" style={{ fontSize: 13, color: '#717171', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: 2 }}>Home</Link>
-        <span style={{ color: '#ccc', fontSize: 12 }}>›</span>
-        {location.city && (
-          <>
-            <Link to={`/search?city=${location.city}`} style={{ fontSize: 13, color: '#717171', textDecoration: 'underline', textDecorationColor: '#ccc', textUnderlineOffset: 2 }}>{location.city}</Link>
-            <span style={{ color: '#ccc', fontSize: 12 }}>›</span>
-          </>
-        )}
-        <span style={{ fontSize: 13, color: '#222', fontWeight: 500 }}>{listing.title}</span>
+      {/* breadcrumb */}
+      <div style={{ maxWidth:1120, margin:'0 auto', padding:'16px 24px 0', display:'flex', alignItems:'center', gap:6 }}>
+        {[{to:'/',label:'Home'},{to:loc.city?`/search?city=${loc.city}`:null,label:loc.city},{to:null,label:listing.title}].filter(x=>x.label).map((c,i,a)=>(
+          <React.Fragment key={i}>
+            {i>0 && <span style={{color:'#ccc',fontSize:12}}>›</span>}
+            {c.to && i<a.length-1
+              ? <Link to={c.to} style={{fontSize:13,color:T.sub,textDecoration:'underline',textDecorationColor:'#ddd',textUnderlineOffset:2}}>{c.label}</Link>
+              : <span style={{fontSize:13,color:T.text,fontWeight:500}}>{c.label}</span>}
+          </React.Fragment>
+        ))}
       </div>
 
-      {/* ── Title + Actions row ── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ maxWidth: 1120, margin: '0 auto', padding: '12px 24px 16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}
-      >
-        <h1 style={{ fontFamily: "'Fraunces', serif", fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 700, color: '#222', lineHeight: 1.25, margin: 0, maxWidth: '75%' }}>
+      {/* title + actions */}
+      <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.35}}
+        style={{ maxWidth:1120, margin:'0 auto', padding:'13px 24px 18px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16 }}>
+        <h1 style={{ fontFamily:HF, fontSize:'clamp(22px,3vw,32px)', fontWeight:700, color:T.text, lineHeight:1.25, margin:0 }}>
           {listing.title}
         </h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-          <button
-            onClick={handleShare}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: '#222', textDecoration: 'underline', transition: 'background 0.15s' }}
-            onMouseOver={e => e.currentTarget.style.background = '#f7f7f7'}
-            onMouseOut={e => e.currentTarget.style.background = 'none'}
-          >
-            <FaShareAlt size={13} /> Share
-          </button>
-          <button
-            onClick={() => setIsWishlisted(w => !w)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: '#222', textDecoration: 'underline', transition: 'background 0.15s' }}
-            onMouseOver={e => e.currentTarget.style.background = '#f7f7f7'}
-            onMouseOut={e => e.currentTarget.style.background = 'none'}
-          >
-            <FaHeart size={13} style={{ color: isWishlisted ? '#FF385C' : '#222', transition: 'color 0.2s' }} />
-            {isWishlisted ? 'Saved' : 'Save'}
-          </button>
+        <div style={{display:'flex',gap:2,flexShrink:0}}>
+          {[
+            {icon:<FaShareAlt size={12}/>,label:'Share',fn:()=>navigator.clipboard?.writeText(window.location.href)},
+            {icon:<FaHeart size={12} style={{color:wishlisted?T.primary:T.text}}/>,label:wishlisted?'Saved':'Save',fn:()=>setWishlisted(v=>!v)},
+          ].map(b=>(
+            <button key={b.label} onClick={b.fn}
+              style={{ display:'flex',alignItems:'center',gap:6,padding:'8px 12px',borderRadius:8,border:'none',background:'none',cursor:'pointer',fontFamily:BF,fontSize:13,fontWeight:600,color:T.text,textDecoration:'underline',textDecorationColor:'#ccc',textUnderlineOffset:2 }}
+              onMouseOver={e=>e.currentTarget.style.background=T.bgSoft}
+              onMouseOut={e=>e.currentTarget.style.background='none'}>
+              {b.icon}{b.label}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      {/* ── Image grid ── */}
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px' }}>
-        <ImageGrid images={images} title={listing.title} />
+      {/* image grid */}
+      <div style={{ maxWidth:1120, margin:'0 auto', padding:'0 24px', position:'relative' }}>
+        <ImageGrid images={images} title={listing.title}/>
       </div>
 
-      {/* ── Main content ── */}
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '40px 24px 80px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', columnGap: 80, alignItems: 'start' }}>
+      {/* body */}
+      <div style={{ maxWidth:1120, margin:'0 auto', padding:'40px 24px 120px' }}>
+        <div className="listing-body-grid" style={{ display:'grid', columnGap:72, alignItems:'start' }}>
 
-          {/* ═══ LEFT COLUMN ═══════════════════════════════════════════ */}
-          <div>
+          {/* ── LEFT ── */}
+          <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:.4,delay:.08}}>
 
-            {/* Property type + host + quick stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              style={{ paddingBottom: 28, borderBottom: '1px solid #ebebeb' }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <S>
+              <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:16 }}>
                 <div>
-                  <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#222', marginBottom: 4 }}>
-                    {listing.propertyType
-                      ? listing.propertyType.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())
-                      : 'Property'
-                    } hosted by {hostObj.name}
+                  <h2 style={{ fontFamily:HF,fontSize:22,fontWeight:600,color:T.text,marginBottom:6,marginTop:0 }}>
+                    {propType} hosted by {hName}
                   </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                    {[
-                      listing.accommodates && `${listing.accommodates} guest${listing.accommodates > 1 ? 's' : ''}`,
-                      listing.bedrooms && `${listing.bedrooms} bedroom${listing.bedrooms > 1 ? 's' : ''}`,
-                      listing.beds && `${listing.beds} bed${listing.beds > 1 ? 's' : ''}`,
-                      listing.bathrooms && `${listing.bathrooms} bath${listing.bathrooms > 1 ? 's' : ''}`,
-                    ].filter(Boolean).map((stat, i, arr) => (
-                      <React.Fragment key={i}>
-                        <span style={{ fontSize: 15, color: '#717171' }}>{stat}</span>
-                        {i < arr.length - 1 && <span style={{ color: '#ccc', fontSize: 12 }}>·</span>}
-                      </React.Fragment>
+                  <div style={{ display:'flex',alignItems:'center',gap:6,flexWrap:'wrap' }}>
+                    {[listing.accommodates&&`${listing.accommodates} guest${listing.accommodates>1?'s':''}`,listing.bedrooms&&`${listing.bedrooms} bedroom${listing.bedrooms>1?'s':''}`,listing.beds&&`${listing.beds} bed${listing.beds>1?'s':''}`,listing.bathrooms&&`${listing.bathrooms} bath${listing.bathrooms>1?'s':''}`].filter(Boolean).map((s,i,a)=>(
+                      <React.Fragment key={i}><span style={{fontSize:15,color:T.sub}}>{s}</span>{i<a.length-1&&<span style={{color:'#ddd',fontSize:12}}>·</span>}</React.Fragment>
                     ))}
                   </div>
-                </div>
-                {/* Host avatar */}
-                <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: '2px solid #ebebeb', position: 'relative' }}>
-                  {hostData.profileImage
-                    ? <img src={hostData.profileImage} alt={hostObj.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    : (
-                      <div style={{ width: '100%', height: '100%', background: '#FF385C', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ color: '#fff', fontWeight: 700, fontSize: 20 }}>
-                          {hostObj.name[0]?.toUpperCase()}
-                        </span>
-                      </div>
-                    )
-                  }
-                  {hostData.isSuperhost && (
-                    <div style={{ position: 'absolute', bottom: -2, right: -2, width: 18, height: 18, background: '#FF385C', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #fff' }}>
-                      <span style={{ color: '#fff', fontSize: 9 }}>★</span>
+                  {listing.averageRating>0 && (
+                    <div style={{ display:'flex',alignItems:'center',gap:6,marginTop:8 }}>
+                      <FaStar style={{color:T.primary,fontSize:12}}/>
+                      <span style={{fontSize:14,fontWeight:600,color:T.text}}>{listing.averageRating.toFixed(1)}</span>
+                      <span style={{color:'#ddd'}}>·</span>
+                      <span style={{fontSize:14,color:T.sub,textDecoration:'underline',cursor:'pointer'}}>{listing.totalReviews||reviews.length} review{(listing.totalReviews||reviews.length)!==1?'s':''}</span>
+                      {locStr&&<><span style={{color:'#ddd'}}>·</span><span style={{fontSize:14,color:T.sub}}>{locStr}</span></>}
                     </div>
                   )}
                 </div>
+                {/* host avatar */}
+                <div style={{ width:52,height:52,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${T.borderLight}`,position:'relative' }}>
+                  {hd.profileImage ? <img src={hd.profileImage} alt={hName} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                  : <div style={{width:'100%',height:'100%',background:T.primary,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:'#fff',fontWeight:700,fontSize:19}}>{hName[0]?.toUpperCase()}</span></div>}
+                  {hd.isSuperhost&&<div style={{position:'absolute',bottom:-2,right:-2,width:17,height:17,background:T.primary,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',border:'2px solid #fff'}}><span style={{color:'#fff',fontSize:7}}>★</span></div>}
+                </div>
               </div>
-            </motion.div>
+            </S>
 
-            {/* Highlight badges */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              style={{ padding: '28px 0', borderBottom: '1px solid #ebebeb' }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                {hostData.isSuperhost && (
-                  <div style={{ display: 'flex', gap: 16 }}>
-                    <span style={{ fontSize: 26, flexShrink: 0 }}>🏅</span>
+            {/* highlights */}
+            <S>
+              <div style={{display:'flex',flexDirection:'column',gap:22}}>
+                {[
+                  hd.isSuperhost&&{e:'🏅',t:`${hName} is a Superhost`,b:'Superhosts are experienced, highly rated hosts committed to great stays.'},
+                  {e:'📍',t:'Great location',b:locStr||'Centrally located with easy access to local attractions.'},
+                  {e:'🔑',t:'Self check-in',b:'Check yourself in with the lockbox — no coordination needed.'},
+                  (hd.responseRate>=90)&&{e:'💬',t:'Fast responses',b:`${hd.responseRate}% response rate · typically within an hour.`},
+                ].filter(Boolean).map((h,i)=>(
+                  <div key={i} style={{display:'flex',gap:18}}>
+                    <span style={{fontSize:24,flexShrink:0,lineHeight:1}}>{h.e}</span>
                     <div>
-                      <p style={{ fontWeight: 600, fontSize: 15, color: '#222', marginBottom: 2 }}>{hostObj.name} is a Superhost</p>
-                      <p style={{ fontSize: 14, color: '#717171', lineHeight: 1.5 }}>Superhosts are experienced, highly rated hosts.</p>
+                      <p style={{fontFamily:BF,fontWeight:600,fontSize:15,color:T.text,marginBottom:3}}>{h.t}</p>
+                      <p style={{fontFamily:BF,fontSize:14,color:T.sub,lineHeight:1.55}}>{h.b}</p>
                     </div>
                   </div>
-                )}
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <span style={{ fontSize: 26, flexShrink: 0 }}>📍</span>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 15, color: '#222', marginBottom: 2 }}>Great location</p>
-                    <p style={{ fontSize: 14, color: '#717171', lineHeight: 1.5 }}>
-                      {locationStr || 'Centrally located with easy access to local attractions.'}
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 16 }}>
-                  <span style={{ fontSize: 26, flexShrink: 0 }}>🔑</span>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: 15, color: '#222', marginBottom: 2 }}>Self check-in</p>
-                    <p style={{ fontSize: 14, color: '#717171', lineHeight: 1.5 }}>Check yourself in with the lockbox.</p>
-                  </div>
-                </div>
-                {hostData.responseRate >= 90 && (
-                  <div style={{ display: 'flex', gap: 16 }}>
-                    <span style={{ fontSize: 26, flexShrink: 0 }}>💬</span>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: 15, color: '#222', marginBottom: 2 }}>Fast responses</p>
-                      <p style={{ fontSize: 14, color: '#717171', lineHeight: 1.5 }}>
-                        {hostObj.responseRate} response rate · typically responds within an hour.
-                      </p>
-                    </div>
-                  </div>
-                )}
+                ))}
               </div>
-            </motion.div>
+            </S>
 
-            {/* Description */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              style={{ padding: '28px 0', borderBottom: '1px solid #ebebeb' }}
-            >
-              <p style={{ fontSize: 16, lineHeight: 1.75, color: '#484848', whiteSpace: 'pre-line', margin: 0 }}>
-                {listing.description}
+            {/* description */}
+            <S><p style={{fontSize:16,lineHeight:1.8,color:'#484848',whiteSpace:'pre-line',margin:0}}>{listing.description}</p></S>
+
+            {/* amenities */}
+            {amenities.length>0 && <S><Title>What this place offers</Title><AmenitiesGrid amenities={amenities}/></S>}
+
+            {/* calendar */}
+            <S>
+              <Title>{nights>0 ? `${nights} night${nights!==1?'s':''} in ${loc.city||'this property'}` : 'Select check-in date'}</Title>
+              <p style={{fontSize:14,color:T.sub,marginBottom:20,marginTop:-12}}>
+                {checkIn&&checkOut ? `${checkIn.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} – ${checkOut.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}` : 'Add your travel dates for exact pricing'}
               </p>
-            </motion.div>
+              <AirbnbCalendar
+                unavailableDates={blocked}
+                checkIn={checkIn}
+                checkOut={checkOut}
+                activeField={checkIn && !checkOut ? 'checkout' : 'checkin'}
+                onDatesSelected={({checkIn:ci,checkOut:co})=>{ setCheckIn(ci); setCheckOut(co); }}
+              />
+            </S>
 
-            {/* Amenities */}
-            {amenitiesList.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.25 }}
-                style={{ padding: '28px 0', borderBottom: '1px solid #ebebeb' }}
-              >
-                <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#222', marginBottom: 20 }}>
-                  What this place offers
-                </h2>
-                <AmenitiesGrid amenities={amenitiesList} />
-              </motion.div>
-            )}
+            {/* meet host */}
+            <S><Title>Meet your host</Title><HostInfo host={hostObj}/></S>
 
-            {/* Calendar */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              style={{ padding: '28px 0', borderBottom: '1px solid #ebebeb' }}
-            >
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#222', marginBottom: 4 }}>
-                {nights > 0 ? `${nights} night${nights > 1 ? 's' : ''} in ${location.city || 'this property'}` : 'Select check-in date'}
-              </h2>
-              {checkInDate && checkOutDate ? (
-                <p style={{ fontSize: 14, color: '#717171', marginBottom: 20 }}>
-                  {checkInDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} – {checkOutDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </p>
-              ) : (
-                <p style={{ fontSize: 14, color: '#717171', marginBottom: 20 }}>Add your travel dates for exact pricing</p>
-              )}
-              <div style={{ background: '#fafafa', borderRadius: 14, padding: '20px', border: '1px solid #ebebeb' }}>
-                <BookingCalendar
-                  unavailableDates={unavailableDates}
-                  onDatesSelected={({ checkIn, checkOut }) => { setCheckInDate(checkIn); setCheckOutDate(checkOut); }}
-                />
-              </div>
-            </motion.div>
+            {/* reviews */}
+            <S last><ReviewsSection reviews={reviews} averageRating={listing.averageRating}/></S>
 
-            {/* Host section */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              style={{ padding: '28px 0', borderBottom: '1px solid #ebebeb' }}
-            >
-              <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: 22, fontWeight: 600, color: '#222', marginBottom: 20 }}>
-                Meet your host
-              </h2>
-              <HostInfo host={hostObj} />
-            </motion.div>
+          </motion.div>
 
-            {/* Reviews */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              style={{ padding: '28px 0' }}
-            >
-              <ReviewsSection reviews={reviews} averageRating={listing.averageRating} />
-            </motion.div>
-
-          </div>
-
-          {/* ═══ RIGHT COLUMN — Booking card ═══════════════════════════ */}
-          <div style={{ position: 'sticky', top: 100 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-              style={{
-                background: '#fff',
-                borderRadius: 16,
-                border: '1px solid #ddd',
-                padding: 28,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)',
-              }}
-            >
+          {/* ── RIGHT — sticky booking (hidden on mobile) ── */}
+          <div className="listing-booking-col" style={{ position:'sticky', top:96 }}>
+            <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:.18,duration:.4}}
+              style={{ background:'#fff', borderRadius:T.radius.card, border:`1px solid ${T.border}`, padding:28, boxShadow:T.shadow.card }}>
               <BookingWidget
-                listing={listing}
-                checkInDate={checkInDate}
-                checkOutDate={checkOutDate}
-                guests={guests}
-                setGuests={setGuests}
-                onBook={handleBook}
-                bookingLoading={bookingLoading}
+                listing={listing} checkIn={checkIn} checkOut={checkOut}
+                guests={guests} setGuests={setGuests}
+                onBook={handleBook} loading={bLoading}
+                onDatesSelected={({checkIn:ci,checkOut:co})=>{ setCheckIn(ci); setCheckOut(co); }}
+                unavailableDates={blocked}
               />
             </motion.div>
-
-            {/* Rating summary under card */}
-            {listing.averageRating > 0 && (
-              <div style={{ marginTop: 16, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8 }}>
-                <FaStar style={{ color: '#FF385C', fontSize: 14 }} />
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, color: '#222' }}>
-                  {listing.averageRating.toFixed(1)}
-                </span>
-                <span style={{ color: '#ccc' }}>·</span>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: '#717171' }}>
-                  {listing.totalReviews || reviews.length} review{(listing.totalReviews || reviews.length) !== 1 ? 's' : ''}
-                </span>
-              </div>
-            )}
-
-            {/* Report */}
-            <div style={{ marginTop: 20, textAlign: 'center' }}>
-              <button style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: '#717171', textDecoration: 'underline', textDecorationColor: '#ccc', background: 'none', border: 'none', cursor: 'pointer', textUnderlineOffset: 2 }}>
-                Report this listing
-              </button>
+            <div style={{marginTop:20,textAlign:'center'}}>
+              <button style={{fontFamily:BF,fontSize:13,color:T.sub,textDecoration:'underline',textDecorationColor:'#ddd',background:'none',border:'none',cursor:'pointer'}}>Report this listing</button>
             </div>
           </div>
+
         </div>
       </div>
 
-      {/* ── Mobile sticky booking bar ── */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #ebebeb', padding: '14px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 100, boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}
-        className="lg:hidden"
-      >
+      {/* mobile sticky bar */}
+      <div className="lg:hidden" style={{position:'fixed',bottom:0,left:0,right:0,background:'#fff',borderTop:`1px solid ${T.borderLight}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',zIndex:100,boxShadow:'0 -4px 20px rgba(0,0,0,.08)'}}>
         <div>
-          <span style={{ fontFamily: "'Fraunces', serif", fontSize: 18, fontWeight: 700, color: '#222' }}>
-            ${(listing.pricing?.basePrice || 0).toLocaleString()}
-          </span>
-          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: '#717171' }}> /night</span>
-          {listing.averageRating > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-              <FaStar style={{ color: '#FF385C', fontSize: 11 }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#222' }}>{listing.averageRating.toFixed(1)}</span>
-            </div>
-          )}
+          <span style={{fontFamily:HF,fontSize:18,fontWeight:700,color:T.text}}>${(listing.pricing?.basePrice||0).toLocaleString()}</span>
+          <span style={{fontFamily:BF,fontSize:13,color:T.sub}}> /night</span>
+          {listing.averageRating>0&&<div style={{display:'flex',alignItems:'center',gap:4,marginTop:2}}><FaStar style={{color:T.primary,fontSize:11}}/><span style={{fontSize:12,fontWeight:600,color:T.text}}>{listing.averageRating.toFixed(1)}</span></div>}
         </div>
-        <button
-          onClick={handleBook}
-          style={{ padding: '12px 28px', background: 'linear-gradient(135deg,#FF385C,#E31C5F)', color: '#fff', fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: 15, border: 'none', borderRadius: 10, cursor: 'pointer', boxShadow: '0 4px 14px rgba(255,56,92,0.35)' }}
-        >
-          Reserve
-        </button>
+        <button onClick={handleBook} style={{padding:'12px 28px',background:`linear-gradient(135deg,${T.primary},${T.primaryDark})`,color:'#fff',fontFamily:BF,fontWeight:700,fontSize:15,border:'none',borderRadius:10,cursor:'pointer',boxShadow:T.shadow.button}}>Reserve</button>
       </div>
+
     </div>
   );
 }

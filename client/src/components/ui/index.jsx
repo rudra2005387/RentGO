@@ -289,3 +289,17 @@ export default {
 	Modal,
 	Skeleton,
 };
+
+// ─── Re-export new UI components ──────────────────────────────────────────
+export { default as Container } from './Container';
+export { default as EmptyState } from './EmptyState';
+export { default as SectionCard } from './SectionCard';
+export {
+	SkeletonBox,
+	SkeletonText,
+	SkeletonCircle,
+	SkeletonPropertyCard,
+	SkeletonReviewCard,
+	SkeletonGallery,
+	SkeletonDashboardCards,
+} from './SkeletonLoaders';

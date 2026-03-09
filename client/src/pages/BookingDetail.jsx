@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -80,8 +81,49 @@ export default function BookingDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#FF385C]" />
+      <div className="min-h-screen bg-[#f8f7f5]" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <div className="max-w-3xl mx-auto px-6 py-8 animate-pulse">
+          <div className="h-4 w-36 skeleton rounded mb-6" />
+          <div className="flex items-start justify-between mb-8">
+            <div>
+              <div className="h-8 w-48 skeleton rounded mb-2" />
+              <div className="h-4 w-32 skeleton rounded" />
+            </div>
+            <div className="h-6 w-20 skeleton rounded-full" />
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <div className="flex gap-4">
+              <div className="w-28 h-28 skeleton rounded-xl flex-shrink-0" />
+              <div className="flex-1 space-y-3">
+                <div className="h-5 w-3/4 skeleton rounded" />
+                <div className="h-4 w-1/2 skeleton rounded" />
+                <div className="h-3 w-1/3 skeleton rounded" />
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <div className="h-5 w-32 skeleton rounded mb-4" />
+            <div className="grid grid-cols-2 gap-6">
+              {[1,2,3,4].map(i => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 w-16 skeleton rounded" />
+                  <div className="h-4 w-28 skeleton rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+            <div className="h-5 w-40 skeleton rounded mb-4" />
+            <div className="space-y-3">
+              {[1,2,3].map(i => (
+                <div key={i} className="flex justify-between">
+                  <div className="h-4 w-32 skeleton rounded" />
+                  <div className="h-4 w-16 skeleton rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -122,7 +164,8 @@ export default function BookingDetail() {
         </Link>
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-8">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}
+          className="flex items-start justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "Fraunces, serif" }}>
               Booking Details
@@ -130,10 +173,11 @@ export default function BookingDetail() {
             <p className="text-sm text-gray-500 mt-1">Reference #{ref}</p>
           </div>
           <Badge color={statusColor(booking.status)}>{booking.status}</Badge>
-        </div>
+        </motion.div>
 
         {/* Listing card */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.06 }}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-6">
           <div className="flex gap-4 p-6">
             <Link to={`/listing/${listing._id || booking.listing}`} className="w-28 h-28 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0 block">
               {img ? (
@@ -160,10 +204,11 @@ export default function BookingDetail() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Trip details */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.12 }}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <h2 className="font-bold text-gray-800 mb-4" style={{ fontFamily: "Fraunces, serif" }}>Trip Details</h2>
           <div className="grid grid-cols-2 gap-6">
             <div>
@@ -185,11 +230,11 @@ export default function BookingDetail() {
               <p className="text-sm font-semibold text-gray-900">{nights} night{nights > 1 ? 's' : ''}</p>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Price breakdown */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-          <h2 className="font-bold text-gray-800 mb-4" style={{ fontFamily: "Fraunces, serif" }}>Price Breakdown</h2>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.18 }}
+          className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
           <div className="space-y-3">
             {pricing.basePrice && (
               <div className="flex justify-between text-sm">
@@ -220,7 +265,7 @@ export default function BookingDetail() {
               <span className="text-gray-900">${(pricing.total || booking.totalPrice || 0).toLocaleString()}</span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Cancel booking */}
         {canCancel && (

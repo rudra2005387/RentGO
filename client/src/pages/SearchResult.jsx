@@ -5,6 +5,8 @@ import { FaSlidersH, FaTimes, FaMap, FaThLarge, FaStar, FaChevronLeft, FaChevron
 import { lazy, Suspense } from 'react';
 const MapView = lazy(() => import('../components/MapView'));
 import { useAuth } from '../hooks/useAuth';
+import EmptyState from '../components/ui/EmptyState';
+import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -597,26 +599,16 @@ const SearchResult = () => {
             <div className="flex-1 p-4 lg:p-6">
               {loading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                  {Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} />)}
+                  {Array.from({ length: 12 }).map((_, i) => <SkeletonPropertyCard key={i} />)}
                 </div>
               ) : listings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="w-16 h-16 rounded-full bg-[#F7F7F7] flex items-center justify-center mb-4">
-                    <span className="text-3xl">🏠</span>
-                  </div>
-                  <p className="text-lg font-semibold text-[#222222] mb-2">No properties found</p>
-                  <p className="text-[#717171] text-sm mb-6 max-w-sm text-center">
-                    We couldn't find properties matching your search. Try a different location or adjust your filters.
-                  </p>
-                  <div className="flex gap-3">
-                    <button onClick={clearFilters} className="px-5 py-2.5 text-sm font-semibold border border-[#222222] rounded-xl hover:bg-[#F7F7F7] transition-colors">
-                      Clear filters
-                    </button>
-                    <button onClick={() => navigate('/')} className="px-5 py-2.5 text-sm font-semibold bg-[#FF385C] text-white rounded-xl hover:bg-[#e0314f] transition-colors">
-                      Explore all homes
-                    </button>
-                  </div>
-                </div>
+                <EmptyState
+                  icon="🏠"
+                  title="No properties found"
+                  subtitle="We couldn't find properties matching your search. Try a different location or adjust your filters."
+                  actionLabel="Explore all homes"
+                  onAction={() => navigate('/')}
+                />
               ) : (
                 <motion.div
                   key={city + sortBy + filters.propertyTypes.join(',')}
