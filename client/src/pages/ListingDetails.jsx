@@ -42,6 +42,214 @@ const T = {
 const HF = "'Fraunces', Georgia, serif";
 const BF = "'DM Sans', system-ui, sans-serif";
 
+/* ════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATION SYSTEM  (replaces all alert() calls)
+════════════════════════════════════════════════════════════════════ */
+const TOAST_ICONS = {
+  success: (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="11" fill="#22C55E"/>
+      <path d="M6 11.5L9.5 15L16 8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  error: (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="11" fill="#EF4444"/>
+      <path d="M7 7L15 15M15 7L7 15" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  info: (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <circle cx="11" cy="11" r="11" fill="#3B82F6"/>
+      <path d="M11 10v5M11 7.5v.5" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+};
+
+function ToastContainer({ toasts, onRemove }) {
+  return (
+    <div style={{ position:'fixed', top:24, right:24, zIndex:99999, display:'flex', flexDirection:'column', gap:10, pointerEvents:'none' }}>
+      <AnimatePresence>
+        {toasts.map(t => (
+          <motion.div
+            key={t.id}
+            initial={{ opacity:0, x:60, scale:.92 }}
+            animate={{ opacity:1, x:0,  scale:1 }}
+            exit={{   opacity:0, x:60,  scale:.92 }}
+            transition={{ type:'spring', stiffness:420, damping:32 }}
+            style={{ pointerEvents:'all' }}
+          >
+            <div style={{
+              display:'flex', alignItems:'flex-start', gap:14,
+              background:'#fff',
+              border:`1px solid ${t.type==='success'?'#BBF7D0':t.type==='error'?'#FECACA':'#BFDBFE'}`,
+              borderLeft:`4px solid ${t.type==='success'?'#22C55E':t.type==='error'?'#EF4444':'#3B82F6'}`,
+              borderRadius:14,
+              padding:'16px 18px',
+              minWidth:320, maxWidth:400,
+              boxShadow:'0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.06)',
+              fontFamily:BF,
+            }}>
+              <div style={{flexShrink:0, marginTop:1}}>{TOAST_ICONS[t.type]||TOAST_ICONS.info}</div>
+              <div style={{flex:1, minWidth:0}}>
+                {t.title && (
+                  <p style={{fontWeight:700, fontSize:14, color:'#111', margin:'0 0 3px'}}>{t.title}</p>
+                )}
+                <p style={{fontSize:13, color:'#555', margin:0, lineHeight:1.5}}>{t.message}</p>
+              </div>
+              <button onClick={()=>onRemove(t.id)} style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:18,lineHeight:1,padding:'0 0 0 4px', marginTop:-1}}>×</button>
+            </div>
+            {/* progress bar */}
+            <motion.div
+              initial={{ scaleX:1 }}
+              animate={{ scaleX:0 }}
+              transition={{ duration: (t.duration||4000)/1000, ease:'linear' }}
+              style={{
+                height:2,
+                background: t.type==='success'?'#22C55E':t.type==='error'?'#EF4444':'#3B82F6',
+                borderRadius:'0 0 14px 14px',
+                transformOrigin:'left',
+                marginTop:-1,
+              }}
+            />
+          </motion.div>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* hook */
+function useToast() {
+  const [toasts, setToasts] = useState([]);
+  const add = useCallback((type, title, message, duration=4000) => {
+    const id = Date.now() + Math.random();
+    setToasts(p => [...p, { id, type, title, message, duration }]);
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), duration + 400);
+    return id;
+  }, []);
+  const remove = useCallback(id => setToasts(p => p.filter(t => t.id !== id)), []);
+  return { toasts, remove,
+    success: (title, msg, dur) => add('success', title, msg, dur),
+    error:   (title, msg, dur) => add('error',   title, msg, dur),
+    info:    (title, msg, dur) => add('info',     title, msg, dur),
+  };
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   BOOKING SUCCESS MODAL  (full-screen celebration)
+════════════════════════════════════════════════════════════════════ */
+function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onClose, onGoToDashboard }) {
+  const nights = checkIn && checkOut ? Math.ceil((checkOut - checkIn) / 86400000) : 0;
+  const fmt = d => d?.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity:0 }}
+        animate={{ opacity:1 }}
+        exit={{ opacity:0 }}
+        style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:9998, display:'flex', alignItems:'center', justifyContent:'center', padding:24, backdropFilter:'blur(4px)' }}
+        onClick={onClose}
+      >
+        <motion.div
+          initial={{ opacity:0, scale:.88, y:30 }}
+          animate={{ opacity:1, scale:1,   y:0  }}
+          exit={{   opacity:0, scale:.88,  y:30 }}
+          transition={{ type:'spring', stiffness:340, damping:28 }}
+          onClick={e => e.stopPropagation()}
+          style={{ background:'#fff', borderRadius:24, padding:'40px 36px', maxWidth:480, width:'100%', boxShadow:'0 32px 80px rgba(0,0,0,.22)', position:'relative', fontFamily:BF, textAlign:'center' }}
+        >
+          {/* confetti dots */}
+          {['#FF385C','#22C55E','#3B82F6','#F59E0B','#8B5CF6'].map((c,i) => (
+            <motion.div key={i}
+              initial={{ y:0, x:0, opacity:1, scale:1 }}
+              animate={{ y:[-10,-60-i*15], x:[(i%2?1:-1)*(20+i*12)], opacity:[1,1,0], scale:[1,.5,0] }}
+              transition={{ duration:1.2, delay:i*.08, ease:'easeOut' }}
+              style={{ position:'absolute', top:40, left:'50%', width:10, height:10, borderRadius:'50%', background:c, pointerEvents:'none' }}
+            />
+          ))}
+
+          {/* checkmark animation */}
+          <motion.div
+            initial={{ scale:0 }}
+            animate={{ scale:1 }}
+            transition={{ type:'spring', stiffness:500, damping:22, delay:.1 }}
+            style={{ width:80, height:80, borderRadius:'50%', background:'linear-gradient(135deg,#22C55E,#16A34A)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 20px' }}
+          >
+            <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+              <motion.path
+                d="M9 19.5L16 27L29 12"
+                stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                initial={{ pathLength:0 }}
+                animate={{ pathLength:1 }}
+                transition={{ duration:.5, delay:.3, ease:'easeOut' }}
+              />
+            </svg>
+          </motion.div>
+
+          <h2 style={{ fontFamily:HF, fontSize:26, fontWeight:700, color:'#111', marginBottom:8, marginTop:0 }}>
+            Booking confirmed! 🎉
+          </h2>
+          <p style={{ fontSize:14, color:'#717171', marginBottom:28, lineHeight:1.6 }}>
+            Your trip to <b style={{color:'#222'}}>{listing?.location?.city || listing?.title}</b> is confirmed. Check your email for details.
+          </p>
+
+          {/* booking details card */}
+          <div style={{ background:'#F7F7F7', borderRadius:16, padding:'20px 22px', textAlign:'left', marginBottom:28 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+              {[
+                { label:'Check-in',  val: fmt(checkIn)  },
+                { label:'Check-out', val: fmt(checkOut) },
+              ].map(r => (
+                <div key={r.label}>
+                  <p style={{ fontSize:10, fontWeight:800, color:'#aaa', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>{r.label}</p>
+                  <p style={{ fontSize:14, fontWeight:600, color:'#222' }}>{r.val}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop:'1px solid #E5E5E5', paddingTop:14, display:'flex', gap:24 }}>
+              <div>
+                <p style={{ fontSize:10, fontWeight:800, color:'#aaa', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Guests</p>
+                <p style={{ fontSize:14, fontWeight:600, color:'#222' }}>{guests} guest{guests!==1?'s':''}</p>
+              </div>
+              <div>
+                <p style={{ fontSize:10, fontWeight:800, color:'#aaa', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Duration</p>
+                <p style={{ fontSize:14, fontWeight:600, color:'#222' }}>{nights} night{nights!==1?'s':''}</p>
+              </div>
+              {booking?._id && (
+                <div>
+                  <p style={{ fontSize:10, fontWeight:800, color:'#aaa', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Booking ID</p>
+                  <p style={{ fontSize:12, fontWeight:600, color:'#888', fontFamily:'monospace' }}>#{booking._id.slice(-8).toUpperCase()}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* actions */}
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <button
+              onClick={onGoToDashboard}
+              style={{ width:'100%', padding:'14px', background:`linear-gradient(135deg,${T.primary},${T.primaryDark})`, color:'#fff', border:'none', borderRadius:12, fontFamily:BF, fontWeight:700, fontSize:15, cursor:'pointer', boxShadow:'0 4px 18px rgba(255,56,92,.35)' }}
+            >
+              View my bookings
+            </button>
+            <button
+              onClick={onClose}
+              style={{ width:'100%', padding:'13px', background:'#fff', color:'#222', border:'1.5px solid #ddd', borderRadius:12, fontFamily:BF, fontWeight:600, fontSize:14, cursor:'pointer' }}
+            >
+              Back to listing
+            </button>
+          </div>
+
+          {/* close X */}
+          <button onClick={onClose} style={{ position:'absolute', top:16, right:16, width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, color:'#666' }}>×</button>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
 /* ── amenity config ── */
 const AMENITY = {
   'WiFi':             { Icon: FaWifi,         bg:'#EFF6FF', fg:'#2563EB' },
@@ -68,8 +276,9 @@ function ImageGrid({ images = [], title = '' }) {
   return (
     <>
       {/* mosaic */}
-      <div className="listing-mosaic" onClick={() => setOpen(true)}>
-        <div className="listing-mosaic-hero" style={{ overflow:'hidden' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gridTemplateRows:'repeat(2,200px)', gap:4, borderRadius:T.radius.card, overflow:'hidden', cursor:'pointer', position:'relative' }}
+        onClick={() => setOpen(true)}>
+        <div style={{ gridColumn:'span 2', gridRow:'span 2', overflow:'hidden' }}>
           <img src={imgs[0]} alt={title} style={{ width:'100%', height:'100%', objectFit:'cover', transition:'transform .55s' }}
             onMouseOver={e=>e.currentTarget.style.transform='scale(1.04)'}
             onMouseOut={e=>e.currentTarget.style.transform='scale(1)'} />
@@ -306,9 +515,9 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
       </div>
 
       {/* two-month grid */}
-      <div className="calendar-months">
+      <div style={{ display:'flex', gap:24, padding:'20px 22px' }}>
         {renderMonth(mkGrid(ly, lm), ly, lm)}
-        <div className="calendar-divider" style={{ width:1, background:T.borderLight, flexShrink:0 }}/>
+        <div style={{ width:1, background:T.borderLight, flexShrink:0 }}/>
         {renderMonth(mkGrid(ry, rm), ry, rm)}
       </div>
 
@@ -335,7 +544,7 @@ function AmenitiesGrid({ amenities = [] }) {
   const show = all ? amenities : amenities.slice(0, 10);
   return (
     <div>
-      <div className="amenities-grid">
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
         {show.map(a => {
           const cfg = AMENITY[a] || {};
           const Ic  = cfg.Icon;
@@ -406,7 +615,7 @@ function ReviewsSection({ reviews = [], averageRating = 0 }) {
         ))}
       </div>
       {/* cards */}
-      <div className="reviews-grid">
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:28 }}>
         {show.map((r,i) => {
           const name   = typeof r.author==='object' ? [r.author?.firstName,r.author?.lastName].filter(Boolean).join(' ') : r.author||'Guest';
           const rating = r.overallRating||r.rating||0;
@@ -517,7 +726,7 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
           {/* CHECK-IN */}
           <button
             onClick={() => { setActiveField(activeField==='checkin' ? null : 'checkin'); setShowGuests(false); }}
-            style={{ ...inputBase(activeField==='checkin', !!checkIn), borderRadius:'10px 0 0 0', textAlign:'left', border:'none', borderRight:`1px solid ${T.border}`, background: activeField==='checkin'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', outline:'none' }}
+            style={{ ...inputBase(activeField==='checkin', !!checkIn), borderRight:`1px solid ${T.border}`, borderRadius:'10px 0 0 0', textAlign:'left', border:'none', borderRight:`1px solid ${T.border}`, background: activeField==='checkin'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', outline:'none' }}
           >
             <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:4 }}>Check-in</p>
             <p style={{ fontSize:14, color: checkIn ? T.text : '#aaa', fontWeight: checkIn?500:400 }}>
@@ -697,6 +906,8 @@ export default function ListingDetails() {
   const [guests,      setGuests]      = useState(1);
   const [bLoading,    setBLoading]    = useState(false);
   const [wishlisted,  setWishlisted]  = useState(false);
+  const [successBooking, setSuccessBooking] = useState(null); // holds booking obj on success
+  const toast = useToast();
 
   useEffect(() => {
     loadFonts();
@@ -713,21 +924,63 @@ export default function ListingDetails() {
   }, [id]);
 
   const handleBook = useCallback(async () => {
-    if (!token) { navigate('/login'); return; }
-    if (!checkIn||!checkOut) return;
-    const {basePrice=0,cleaningFee=0,serviceFee=0} = listing.pricing||{};
-    const n = Math.ceil((checkOut-checkIn)/86400000);
-    const sub = basePrice*n;
-    const total = sub+cleaningFee+serviceFee+Math.round((sub+cleaningFee+serviceFee)*.12);
+    if (!token) {
+      toast.info('Login required', 'Please log in to make a reservation.');
+      navigate('/login');
+      return;
+    }
+    if (!checkIn || !checkOut) {
+      toast.error('Dates required', 'Please select both check-in and check-out dates.');
+      return;
+    }
+    if (guests < 1) {
+      toast.error('Guests required', 'Please select at least 1 guest.');
+      return;
+    }
+    if (checkIn >= checkOut) {
+      toast.error('Invalid dates', 'Check-out date must be after check-in date.');
+      return;
+    }
+
     setBLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/bookings`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({listingId:id,checkIn:checkIn.toISOString(),checkOut:checkOut.toISOString(),guests,totalPrice:total})});
-      const d = await res.json();
-      if (d.success) navigate(`/payment/${d.data?.booking?._id||d.data?._id}`);
-      else alert(d.message||'Booking failed.');
-    } catch { alert('Network error.'); }
-    finally { setBLoading(false); }
-  }, [token,checkIn,checkOut,guests,listing,id,navigate]);
+
+    // Try multiple field-name conventions (backend validation errors often come from wrong field names)
+    const payloads = [
+      { listingId: id, checkInDate:  checkIn.toISOString(),  checkOutDate:  checkOut.toISOString(), numberOfGuests: guests },
+      { listingId: id, checkIn:      checkIn.toISOString(),  checkOut:      checkOut.toISOString(), guests },
+      { listing:   id, checkInDate:  checkIn.toISOString(),  checkOutDate:  checkOut.toISOString(), numberOfGuests: guests },
+    ];
+
+    let lastMsg = 'Booking failed. Please try again.';
+    for (const payload of payloads) {
+      try {
+        const res = await fetch(`${API_BASE}/bookings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+        const d = await res.json();
+
+        if (d.success || res.ok) {
+          const bookingObj = d.data?.booking || d.data || d.booking || d;
+          setBLoading(false);
+          setSuccessBooking(bookingObj); // triggers success modal
+          return;
+        }
+
+        const msg = (d.message || d.error || '').toLowerCase();
+        lastMsg = d.message || d.error || lastMsg;
+        // Only retry on validation errors; stop on auth/not-found errors
+        if (!msg.includes('valid') && !msg.includes('required')) break;
+      } catch {
+        lastMsg = 'Network error. Please check your connection.';
+        break;
+      }
+    }
+
+    setBLoading(false);
+    toast.error('Booking failed', lastMsg);
+  }, [token, checkIn, checkOut, guests, id, navigate, toast]);
 
   if (loading) return <Skeleton/>;
   if (error||!listing) return (
@@ -764,6 +1017,22 @@ export default function ListingDetails() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#fff', fontFamily:BF }}>
+
+      {/* ── Global Toasts ── */}
+      <ToastContainer toasts={toast.toasts} onRemove={toast.remove} />
+
+      {/* ── Booking Success Modal ── */}
+      {successBooking && (
+        <BookingSuccessModal
+          booking={successBooking}
+          listing={listing}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          guests={guests}
+          onClose={() => setSuccessBooking(null)}
+          onGoToDashboard={() => navigate('/dashboard')}
+        />
+      )}
 
       {/* breadcrumb */}
       <div style={{ maxWidth:1120, margin:'0 auto', padding:'16px 24px 0', display:'flex', alignItems:'center', gap:6 }}>
@@ -805,7 +1074,7 @@ export default function ListingDetails() {
 
       {/* body */}
       <div style={{ maxWidth:1120, margin:'0 auto', padding:'40px 24px 120px' }}>
-        <div className="listing-body-grid" style={{ display:'grid', columnGap:72, alignItems:'start' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 380px', columnGap:72, alignItems:'start' }}>
 
           {/* ── LEFT ── */}
           <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:.4,delay:.08}}>
@@ -889,8 +1158,8 @@ export default function ListingDetails() {
 
           </motion.div>
 
-          {/* ── RIGHT — sticky booking (hidden on mobile) ── */}
-          <div className="listing-booking-col" style={{ position:'sticky', top:96 }}>
+          {/* ── RIGHT — sticky booking ── */}
+          <div style={{ position:'sticky', top:96 }}>
             <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:.18,duration:.4}}
               style={{ background:'#fff', borderRadius:T.radius.card, border:`1px solid ${T.border}`, padding:28, boxShadow:T.shadow.card }}>
               <BookingWidget
