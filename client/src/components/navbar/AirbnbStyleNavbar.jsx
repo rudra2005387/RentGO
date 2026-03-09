@@ -16,27 +16,8 @@ export default function AirbnbStyleNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Fetch notification unread count
-  useEffect(() => {
-    if (!token) return;
-    const fetchUnread = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const d = await res.json();
-        if (d.success) {
-          const notifs = d.data?.notifications || d.data || [];
-          setUnreadCount(notifs.filter((n) => !n.read && !n.isRead).length);
-        }
-      } catch {
-        // silent
-      }
-    };
-    fetchUnread();
-    const interval = setInterval(fetchUnread, 30000); // refresh every 30s
-    return () => clearInterval(interval);
-  }, [token]);
+  // No backend /api/notifications route — use local NotificationContext instead
+  // (unreadCount stays at 0 until NotificationContext is wired up)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);

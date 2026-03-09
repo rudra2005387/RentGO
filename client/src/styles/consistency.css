@@ -47,7 +47,10 @@
 
 /* ============================================
    BASE STYLES - Ensure consistency
+   (Wrapped in @layer base so Tailwind utilities can override)
    ============================================ */
+
+@layer base {
 
 * {
 	@apply transition-colors duration-200;
@@ -184,6 +187,8 @@ small {
 	color: var(--black);
 }
 
+} /* end @layer base */
+
 /* ============================================
    FOCUS STATES - Accessibility
    ============================================ */
@@ -308,8 +313,10 @@ button {
 }
 
 /* ============================================
-   FORMS - Unified styling
+   FORMS - Unified styling (in @layer base)
    ============================================ */
+
+@layer base {
 
 input,
 textarea,
@@ -326,6 +333,8 @@ select:disabled {
 label {
 	@apply block text-sm font-medium text-gray-700 mb-2;
 }
+
+} /* end @layer base */
 
 /* ============================================
    BADGES & TAGS
@@ -474,6 +483,7 @@ label {
    RESPONSIVE CONSISTENCY
    ============================================ */
 
+@layer base {
 @media (max-width: 640px) {
 	.section {
 		@apply py-6 md:py-8;
@@ -487,6 +497,7 @@ label {
 		@apply text-xl;
 	}
 }
+} /* end @layer base */
 
 /* ============================================
    PRINT STYLES

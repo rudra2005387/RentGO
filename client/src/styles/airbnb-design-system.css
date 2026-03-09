@@ -58,8 +58,10 @@
 }
 
 /* ============================================
-   BASE TYPOGRAPHY
+   BASE TYPOGRAPHY (in @layer base so Tailwind utilities override)
    ============================================ */
+
+@layer base {
 
 /* Display / Hero (48-56px) */
 .text-hero {
@@ -160,6 +162,8 @@ p {
 .text-light {
 	color: var(--gray-light);
 }
+
+} /* end @layer base */
 
 /* ============================================
    HEADER / NAVIGATION

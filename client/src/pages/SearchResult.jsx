@@ -205,7 +205,7 @@ const PriceRangeSlider = ({ min, max, value, onChange }) => {
       </div>
       <div className="relative h-1.5 my-3">
         <div className="absolute inset-0 bg-[#EBEBEB] rounded-full" />
-        <div className="absolute top-0 h-1.5 bg-[#FF385C] rounded-full" style={{ inset-inline-start: `${leftPct}%`, inset-inline-end: `${100 - rightPct}%` }} />
+        <div className="absolute top-0 h-1.5 bg-[#FF385C] rounded-full" style={{ left: `${leftPct}%`, right: `${100 - rightPct}%` }} />
         <input
           type="range" min={min} max={max} step={10} value={localMin} onChange={handleMinChange}
           className="absolute inset-0 w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#FF385C] [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:shadow-md"
@@ -340,24 +340,24 @@ const INITIAL_FILTERS = {
   instantBook: false,
 };
 
-const fetchWithFallback = async (baseParams, cityQuery) => {
+const fetchWithFallback = async (baseParams, cityQuery, signal) => {
   const p1 = new URLSearchParams(baseParams);
   if (cityQuery?.trim()) {
     p1.set('city', cityQuery.trim());
     p1.set('search', cityQuery.trim());
   }
-  const r1 = await fetch(`${API_BASE}/listings?${p1}`);
+  const r1 = await fetch(`${API_BASE}/listings?${p1}`, { signal });
   const d1 = await r1.json();
   if (d1.success && (d1.data?.listings?.length || 0) > 0) return d1;
 
   const p2 = new URLSearchParams(baseParams);
   if (cityQuery?.trim()) p2.set('search', cityQuery.trim());
-  const r2 = await fetch(`${API_BASE}/listings?${p2}`);
+  const r2 = await fetch(`${API_BASE}/listings?${p2}`, { signal });
   const d2 = await r2.json();
   if (d2.success && (d2.data?.listings?.length || 0) > 0) return d2;
 
   const p3 = new URLSearchParams(baseParams);
-  const r3 = await fetch(`${API_BASE}/listings?${p3}`);
+  const r3 = await fetch(`${API_BASE}/listings?${p3}`, { signal });
   return await r3.json();
 };
 
@@ -384,7 +384,7 @@ const SearchResult = () => {
   const checkOutDate = searchParams.get('checkOutDate') || searchParams.get('checkOut') || '';
   const guestsParam = searchParams.get('guests') || '';
 
-  useEffect(() => { window.scrollTo({ inset-block-start: 0, behavior: 'smooth' }); }, [city]);
+  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, [city]);
 
   const fetchWishlist = useCallback(() => {
     if (!token || !userId) return;
@@ -400,6 +400,7 @@ const SearchResult = () => {
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchResults = async () => {
       setLoading(true);
       setNoExactMatch(false);
@@ -418,7 +419,7 @@ const SearchResult = () => {
         baseParams.set('sortBy', sortMap[sortBy] || 'newest');
         baseParams.set('limit', '100');
 
-        const d = await fetchWithFallback(baseParams, city);
+        const d = await fetchWithFallback(baseParams, city, controller.signal);
 
         if (d.success) {
           const resultList = d.data?.listings || [];
@@ -433,12 +434,13 @@ const SearchResult = () => {
           }
         }
       } catch (e) {
-        console.error(e);
+        if (e.name !== 'AbortError') console.error(e);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchResults();
+    return () => controller.abort();
   }, [city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
 
   const clearFilters = () => setFilters(INITIAL_FILTERS);
@@ -545,9 +547,9 @@ const SearchResult = () => {
       <AnimatePresence>
         {noExactMatch && !loading && (
           <motion.div
-            initial={{ opacity: 0, block-size: 0 }}
-            animate={{ opacity: 1, block-size: 'auto' }}
-            exit={{ opacity: 0, block-size: 0 }}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
             <div className="max-w-[2000px] mx-auto px-4 lg:px-6 pt-4">
@@ -564,7 +566,7 @@ const SearchResult = () => {
       </AnimatePresence>
 
       {/* ─── Main Split Layout (Airbnb-style) ───────────────────────── */}
-      <div className="max-w-[2000px] mx-auto flex" style={{ block-size: 'calc(100vh - 145px)' }}>
+      <div className="max-w-[2000px] mx-auto flex" style={{ height: 'calc(100vh - 145px)' }}>
         {/* inset-inline-start: Filters + Listings (scrollable) */}
         <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
           <div className="flex">
