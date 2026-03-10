@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FaUser, FaBars, FaTimes, FaGlobe, FaBell, FaComments } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../context/NotificationContext';
 import SearchBar from '../SearchBar/SearchBar';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -11,13 +12,12 @@ export default function AirbnbStyleNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, token, logout } = useAuth();
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [notifDropdownOpen, setNotifDropdownOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // No backend /api/notifications route — use local NotificationContext instead
-  // (unreadCount stays at 0 until NotificationContext is wired up)
+  const notifRef = useRef(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -31,10 +31,30 @@ export default function AirbnbStyleNavbar() {
       if (!e.target.closest('[data-dropdown]')) {
         setUserDropdownOpen(false);
       }
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifDropdownOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const ICON_MAP = { booking: '📅', payment: '💳', review: '⭐', message: '💬', system: '🔔', listing: '🏠', cancellation: '❌' };
+  const formatTime = (ts) => {
+    if (!ts) return '';
+    const now = new Date();
+    const d = new Date(ts);
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString();
+  };
+  const recentNotifications = notifications.slice(0, 6);
 
   const handleLogout = () => {
     logout();
@@ -93,19 +113,91 @@ export default function AirbnbStyleNavbar() {
               </Link>
             )}
 
-            {/* Notifications bell */}
+            {/* Notifications bell with dropdown */}
             {user && (
-              <Link
-                to="/notifications"
-                className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors relative"
-              >
-                <FaBell className="w-4 h-4 text-[#222222]" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF385C] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
+              <div className="relative hidden md:block" ref={notifRef}>
+                <button
+                  onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
+                  className="flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors relative"
+                >
+                  <FaBell className="w-4 h-4 text-[#222222]" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF385C] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notification dropdown */}
+                <AnimatePresence>
+                  {notifDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                      style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
+                    >
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                        <h3 className="text-base font-bold text-[#222222]">Notifications</h3>
+                        {unreadCount > 0 && (
+                          <button
+                            onClick={() => markAllAsRead()}
+                            className="text-xs font-semibold text-[#FF385C] hover:text-[#E31C5F] transition-colors"
+                          >
+                            Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Notification list */}
+                      <div className="max-h-[400px] overflow-y-auto">
+                        {recentNotifications.length === 0 ? (
+                          <div className="px-5 py-10 text-center">
+                            <p className="text-3xl mb-2">🔔</p>
+                            <p className="text-sm text-[#717171]">No notifications yet</p>
+                          </div>
+                        ) : (
+                          recentNotifications.map((n) => (
+                            <div
+                              key={n._id || n.id}
+                              onClick={() => {if (!n.isRead && !n.read) markAsRead(n._id || n.id);}}
+                              className={`flex items-start gap-3 px-5 py-3.5 border-b border-gray-50 hover:bg-[#F7F7F7] transition-colors cursor-pointer ${!n.isRead && !n.read ? 'bg-rose-50/30' : ''}`}
+                            >
+                              <span className="text-xl flex-shrink-0 mt-0.5">{ICON_MAP[n.type] || '🔔'}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm ${!n.isRead && !n.read ? 'font-semibold text-[#222222]' : 'text-[#484848]'}`}>
+                                  {n.title}
+                                </p>
+                                {n.message && (
+                                  <p className="text-xs text-[#717171] mt-0.5 line-clamp-1">{n.message}</p>
+                                )}
+                                <p className="text-[11px] text-[#B0B0B0] mt-1">{formatTime(n.createdAt || n.timestamp)}</p>
+                              </div>
+                              {!n.isRead && !n.read && (
+                                <span className="w-2 h-2 rounded-full bg-[#FF385C] flex-shrink-0 mt-2" />
+                              )}
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      {notifications.length > 0 && (
+                        <Link
+                          to="/notifications"
+                          onClick={() => setNotifDropdownOpen(false)}
+                          className="block px-5 py-3 text-center text-sm font-semibold text-[#FF385C] hover:bg-[#FFF5F5] border-t border-gray-100 transition-colors"
+                        >
+                          View all notifications
+                        </Link>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
 
             {/* User pill */}

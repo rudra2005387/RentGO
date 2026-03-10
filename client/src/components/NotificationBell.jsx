@@ -114,11 +114,11 @@
                             ) : (
                                 recentNotifications.map((notification) => (
                                     <div
-                                        key={notification.id}
+                                        key={notification._id || notification.id}
                                         className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors ${getNotificationColor(
-                                            notification.isRead
+                                            notification.isRead || notification.read
                                         )}`}
-                                        onClick={() => markAsRead(notification.id)}
+                                        onClick={() => markAsRead(notification._id || notification.id)}
                                     >
                                         <div className="flex gap-3">
                                             
@@ -135,19 +135,19 @@
                                                     {notification.message}
                                                 </p>
                                                 <p className="text-xs text-gray-400 mt-1">
-                                                    {formatTime(notification.timestamp)}
+                                                    {formatTime(notification.createdAt || notification.timestamp)}
                                                 </p>
                                             </div>
 
                                             {/* Actions */}
                                             <div className="flex-shrink-0 flex items-start">
-                                                {!notification.isRead && (
+                                                {!notification.isRead && !notification.read && (
                                                     <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 mr-2"></span>
                                                 )}
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        deleteNotification(notification.id);
+                                                        deleteNotification(notification._id || notification.id);
                                                     }}
                                                     className="text-gray-400 hover:text-red-500 transition-colors"
                                                 >

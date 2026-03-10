@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBell, FaCheck, FaCheckDouble } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import { useNotifications } from '../context/NotificationContext';
 
 const ICON_MAP = {
   booking: '📅',
@@ -44,7 +43,7 @@ function NotificationItem({ notification, onMarkRead }) {
       </div>
       {!isRead && (
         <button
-          onClick={() => onMarkRead(notification._id)}
+          onClick={() => onMarkRead(notification._id || notification.id)}
           className="opacity-0 group-hover:opacity-100 transition-opacity text-[#717171] hover:text-[#FF385C] p-1"
           title="Mark as read"
         >
@@ -61,62 +60,12 @@ function NotificationItem({ notification, onMarkRead }) {
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { token } = useAuth();
+  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications();
 
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all | unread
 
-  useEffect(() => {
-    if (!token) { navigate('/login'); return; }
+  if (!token) { navigate('/login'); return null; }
 
-    const fetchNotifications = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/notifications`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const d = await res.json();
-        if (d.success) {
-          setNotifications(d.data?.notifications || d.data || []);
-        }
-      } catch {
-        // silent
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchNotifications();
-  }, [token, navigate]);
-
-  const markRead = useCallback(
-    async (id) => {
-      try {
-        await fetch(`${API_BASE}/notifications/${id}/read`, {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setNotifications((prev) =>
-          prev.map((n) => (n._id === id ? { ...n, read: true, isRead: true } : n))
-        );
-      } catch {
-        // silent
-      }
-    },
-    [token]
-  );
-
-  const markAllRead = useCallback(async () => {
-    try {
-      await fetch(`${API_BASE}/notifications/read-all`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true, isRead: true })));
-    } catch {
-      // silent
-    }
-  }, [token]);
-
-  const unreadCount = notifications.filter((n) => !n.read && !n.isRead).length;
   const displayed = filter === 'unread' ? notifications.filter((n) => !n.read && !n.isRead) : notifications;
 
   return (
@@ -135,7 +84,7 @@ export default function NotificationsPage() {
           </div>
           {unreadCount > 0 && (
             <button
-              onClick={markAllRead}
+              onClick={markAllAsRead}
               className="flex items-center gap-1.5 text-sm font-medium text-[#717171] hover:text-[#222222] transition-colors"
             >
               <FaCheckDouble size={12} /> Mark all read
@@ -188,7 +137,7 @@ export default function NotificationsPage() {
             <AnimatePresence>
               <div className="divide-y divide-gray-100">
                 {displayed.map((n) => (
-                  <NotificationItem key={n._id} notification={n} onMarkRead={markRead} />
+                  <NotificationItem key={n._id || n.id} notification={n} onMarkRead={markAsRead} />
                 ))}
               </div>
             </AnimatePresence>

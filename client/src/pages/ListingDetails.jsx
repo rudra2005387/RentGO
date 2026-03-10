@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import HostInfo from '../components/HostInfo.jsx';
 import ReviewList from '../components/ReviewList.jsx';
 import { useAuth } from '../hooks/useAuth';
+import { useNotifications } from '../context/NotificationContext';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -849,6 +850,7 @@ export default function ListingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, token } = useAuth();
+  const { notifyBookingConfirmed } = useNotifications();
 
   const [listing,     setListing]     = useState(null);
   const [reviews,     setReviews]     = useState([]);
@@ -926,6 +928,7 @@ export default function ListingDetails() {
 
       if (d.success || res.ok) {
         const bookingObj = d.data?.booking || d.data || d.booking || d;
+        notifyBookingConfirmed(bookingObj, listing?.title, listing?.location?.city);
         setBLoading(false);
         setSuccessBooking(bookingObj);
         return;
@@ -950,7 +953,7 @@ export default function ListingDetails() {
       console.error('[Booking error]', err);
       toast.error('Booking failed', 'Network error. Please check your connection.');
     }
-  }, [token, checkIn, checkOut, guests, id, navigate, toast]);
+  }, [token, checkIn, checkOut, guests, id, navigate, toast, listing, notifyBookingConfirmed]);
 
   if (loading) return <Skeleton/>;
   if (error||!listing) return (

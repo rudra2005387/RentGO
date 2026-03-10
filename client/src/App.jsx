@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
@@ -49,6 +50,21 @@ function App() {
         <NotificationProvider>
           <ToastProvider>
             <Toast />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                style: {
+                  borderRadius: '16px',
+                  background: '#fff',
+                  color: '#222',
+                  padding: '0',
+                  boxShadow: '0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06)',
+                  border: '1px solid #f0f0f0',
+                  maxWidth: '380px',
+                },
+                duration: 4000,
+              }}
+            />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<MainLayout />}>

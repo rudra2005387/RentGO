@@ -3,5 +3,6 @@ module.exports = {
   Listing: require('./Listing'),
   Booking: require('./Booking'),
   Review: require('./Review'),
-  Payment: require('./Payment')
+  Payment: require('./Payment'),
+  Notification: require('./Notification')
 };

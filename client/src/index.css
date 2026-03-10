@@ -118,6 +118,28 @@ html {
   100% { background-position: 400px 0; }
 }
 
+/* ─── Toast progress bar animation ───────────────────────────────────────── */
+@keyframes shrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* ─── Toast enter/leave animation ────────────────────────────────────────── */
+.animate-enter {
+  animation: toast-enter 0.3s ease-out;
+}
+.animate-leave {
+  animation: toast-leave 0.3s ease-in forwards;
+}
+@keyframes toast-enter {
+  from { opacity: 0; transform: translateX(60px) scale(0.92); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toast-leave {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(60px) scale(0.92); }
+}
+
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 800px 100%;

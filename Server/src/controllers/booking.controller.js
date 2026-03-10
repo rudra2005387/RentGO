@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { Booking, Listing, User, Payment } = require('../models');
+const { Booking, Listing, User, Payment, Notification } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { calculateBookingPrice, calculateNights, isDateRangeAvailable, generateBookingReference, getPaginationInfo } = require('../utils/helpers');
 const { sendBookingConfirmation, sendReviewRequest, sendCancellationEmail } = require('../utils/email');
@@ -107,6 +107,34 @@ exports.createBooking = asyncHandler(async (req, res) => {
     totalAmount: pricing.total,
     bookingReference: bookingReference
   });
+
+  // Create notification for guest
+  const fmtDate = (d) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const notification = await Notification.create({
+    user: req.user.userId,
+    type: 'booking',
+    title: 'Booking Confirmed! 🎉',
+    message: `Your trip to ${listing.location?.address?.city || listing.title} is confirmed.`,
+    body: `${listing.title} · ${fmtDate(checkInDate)} → ${fmtDate(checkOutDate)} · ${nights} night${nights !== 1 ? 's' : ''} · Ref #${bookingReference}`,
+    bookingId: booking._id
+  });
+
+  // Create notification for host
+  await Notification.create({
+    user: listing.host,
+    type: 'booking',
+    title: 'New Booking Received',
+    message: `${booking.guest.firstName} ${booking.guest.lastName} booked ${listing.title}.`,
+    body: `${fmtDate(checkInDate)} → ${fmtDate(checkOutDate)} · ${nights} night${nights !== 1 ? 's' : ''} · ${numberOfGuests} guest${numberOfGuests !== 1 ? 's' : ''}`,
+    bookingId: booking._id
+  });
+
+  // Emit real-time notification via Socket.IO if available
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`user_${req.user.userId}`).emit('notification', notification);
+    io.to(`user_${listing.host}`).emit('notification', { type: 'booking', title: 'New Booking Received' });
+  }
 
   res.status(201).json({
     success: true,
