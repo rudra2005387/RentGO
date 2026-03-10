@@ -43,7 +43,7 @@ const HF = "'Fraunces', Georgia, serif";
 const BF = "'DM Sans', system-ui, sans-serif";
 
 /* ════════════════════════════════════════════════════════════════════
-   TOAST NOTIFICATION SYSTEM  (replaces all alert() calls)
+   TOAST NOTIFICATION SYSTEM
 ════════════════════════════════════════════════════════════════════ */
 const TOAST_ICONS = {
   success: (
@@ -99,7 +99,6 @@ function ToastContainer({ toasts, onRemove }) {
               </div>
               <button onClick={()=>onRemove(t.id)} style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'#aaa',fontSize:18,lineHeight:1,padding:'0 0 0 4px', marginTop:-1}}>×</button>
             </div>
-            {/* progress bar */}
             <motion.div
               initial={{ scaleX:1 }}
               animate={{ scaleX:0 }}
@@ -119,7 +118,6 @@ function ToastContainer({ toasts, onRemove }) {
   );
 }
 
-/* hook */
 function useToast() {
   const [toasts, setToasts] = useState([]);
   const add = useCallback((type, title, message, duration=4000) => {
@@ -137,7 +135,7 @@ function useToast() {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   BOOKING SUCCESS MODAL  (full-screen celebration)
+   BOOKING SUCCESS MODAL
 ════════════════════════════════════════════════════════════════════ */
 function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onClose, onGoToDashboard }) {
   const nights = checkIn && checkOut ? Math.ceil((checkOut - checkIn) / 86400000) : 0;
@@ -160,7 +158,6 @@ function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onCl
           onClick={e => e.stopPropagation()}
           style={{ background:'#fff', borderRadius:24, padding:'40px 36px', maxWidth:480, width:'100%', boxShadow:'0 32px 80px rgba(0,0,0,.22)', position:'relative', fontFamily:BF, textAlign:'center' }}
         >
-          {/* confetti dots */}
           {['#FF385C','#22C55E','#3B82F6','#F59E0B','#8B5CF6'].map((c,i) => (
             <motion.div key={i}
               initial={{ y:0, x:0, opacity:1, scale:1 }}
@@ -170,7 +167,6 @@ function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onCl
             />
           ))}
 
-          {/* checkmark animation */}
           <motion.div
             initial={{ scale:0 }}
             animate={{ scale:1 }}
@@ -195,7 +191,6 @@ function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onCl
             Your trip to <b style={{color:'#222'}}>{listing?.location?.city || listing?.title}</b> is confirmed. Check your email for details.
           </p>
 
-          {/* booking details card */}
           <div style={{ background:'#F7F7F7', borderRadius:16, padding:'20px 22px', textAlign:'left', marginBottom:28 }}>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
               {[
@@ -226,7 +221,6 @@ function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onCl
             </div>
           </div>
 
-          {/* actions */}
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             <button
               onClick={onGoToDashboard}
@@ -242,7 +236,6 @@ function BookingSuccessModal({ booking, listing, checkIn, checkOut, guests, onCl
             </button>
           </div>
 
-          {/* close X */}
           <button onClick={onClose} style={{ position:'absolute', top:16, right:16, width:36, height:36, borderRadius:'50%', background:'#f5f5f5', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, color:'#666' }}>×</button>
         </motion.div>
       </motion.div>
@@ -275,7 +268,6 @@ function ImageGrid({ images = [], title = '' }) {
 
   return (
     <>
-      {/* mosaic */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gridTemplateRows:'repeat(2,200px)', gap:4, borderRadius:T.radius.card, overflow:'hidden', cursor:'pointer', position:'relative' }}
         onClick={() => setOpen(true)}>
         <div style={{ gridColumn:'span 2', gridRow:'span 2', overflow:'hidden' }}>
@@ -290,7 +282,6 @@ function ImageGrid({ images = [], title = '' }) {
               onMouseOut={e=>e.currentTarget.style.transform='scale(1)'} />}
           </div>
         ))}
-        {/* show all pill */}
         <button onClick={e=>{e.stopPropagation();setOpen(true);}}
           style={{ position:'absolute', bottom:16, right:16, display:'flex', alignItems:'center', gap:7, background:'#fff', border:`1.5px solid ${T.text}`, borderRadius:T.radius.input, padding:'9px 16px', fontFamily:BF, fontSize:13, fontWeight:700, color:T.text, cursor:'pointer', boxShadow:'0 2px 8px rgba(0,0,0,.12)', zIndex:2 }}>
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style={{flexShrink:0}}>
@@ -303,7 +294,6 @@ function ImageGrid({ images = [], title = '' }) {
         </button>
       </div>
 
-      {/* lightbox */}
       <AnimatePresence>
         {open && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:.2}}
@@ -337,20 +327,12 @@ function ImageGrid({ images = [], title = '' }) {
 
 /* ════════════════════════════════════════════════════════════════════
    AIRBNB-STYLE CALENDAR
-   Props:
-     unavailableDates – array of date strings/objects to block
-     checkIn / checkOut – controlled values from parent
-     activeField – 'checkin' | 'checkout' | null  (which field is focused)
-     onDatesSelected({ checkIn, checkOut }) – callback
 ════════════════════════════════════════════════════════════════════ */
 function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField, onDatesSelected }) {
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const [view,    setView]    = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [hovered, setHovered] = useState(null);
 
-  // Derived: which click are we on?
-  // If activeField===checkin OR no checkIn yet OR both filled → next click = checkIn
-  // If activeField===checkout AND checkIn exists → next click = checkOut
   const pickingEnd = activeField === 'checkout' && !!checkIn;
 
   const blocked = useMemo(() => {
@@ -380,21 +362,16 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
     if (!d || isOff(d)) return;
 
     if (!pickingEnd) {
-      // Selecting check-in: reset checkout if new checkin is after current checkout
       const newCheckOut = checkOut && d >= checkOut ? null : checkOut;
       onDatesSelected?.({ checkIn: d, checkOut: newCheckOut });
     } else {
-      // Selecting check-out
       if (d <= checkIn) {
-        // clicked before check-in → swap to new check-in
         onDatesSelected?.({ checkIn: d, checkOut: null });
         return;
       }
-      // verify no blocked date in range
       let c = new Date(checkIn); c.setDate(c.getDate()+1);
       while (c < d) {
         if (blocked.has(c.getTime())) {
-          // blocked date in range → treat as new check-in
           onDatesSelected?.({ checkIn: d, checkOut: null });
           return;
         }
@@ -416,13 +393,11 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
     const inRange  = st && rangeEnd && d > checkIn && d.getTime() < rangeEnd;
     const off      = isOff(d);
 
-    // Row-spanning background (the band connecting start→end)
     let bandBg = 'transparent';
     if (inRange) bandBg = '#F7F7F7';
     if (isS && rangeEnd) bandBg = 'linear-gradient(to right, transparent 50%, #F7F7F7 50%)';
     if (isE)             bandBg = 'linear-gradient(to right, #F7F7F7 50%, transparent 50%)';
 
-    // Circle on selected day
     const dotFilled = isS || isE;
     const isToday   = t === today.getTime();
 
@@ -435,13 +410,11 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
         <p style={{ fontFamily:BF, fontWeight:700, fontSize:13, color:T.text, textAlign:'center', marginBottom:14 }}>
           {MONTHS[m]} {y}
         </p>
-        {/* Day labels */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', marginBottom:4 }}>
           {DAYS.map(d => (
             <div key={d} style={{ fontFamily:BF, fontSize:11, fontWeight:600, color:T.sub, textAlign:'center', padding:'3px 0' }}>{d}</div>
           ))}
         </div>
-        {/* Date cells */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
           {grid.map((d, i) => {
             const { bandBg, dotFilled, off, isToday } = getCellStyle(d);
@@ -495,7 +468,6 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
 
   return (
     <div style={{ border:`1px solid ${T.border}`, borderRadius:T.radius.card, overflow:'hidden', background:'#fff' }}>
-      {/* top nav */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'15px 22px', borderBottom:`1px solid ${T.borderLight}` }}>
         <button onClick={() => setView(new Date(ly, lm-1, 1))}
           style={{ width:32, height:32, borderRadius:'50%', border:`1px solid ${T.border}`, background:'#fff', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', color:T.text, transition:'border-color .15s' }}
@@ -514,14 +486,12 @@ function AirbnbCalendar({ unavailableDates = [], checkIn, checkOut, activeField,
         </button>
       </div>
 
-      {/* two-month grid */}
       <div style={{ display:'flex', gap:24, padding:'20px 22px' }}>
         {renderMonth(mkGrid(ly, lm), ly, lm)}
         <div style={{ width:1, background:T.borderLight, flexShrink:0 }}/>
         {renderMonth(mkGrid(ry, rm), ry, rm)}
       </div>
 
-      {/* footer status */}
       <div style={{ borderTop:`1px solid ${T.borderLight}`, padding:'13px 22px', display:'flex', alignItems:'center', justifyContent:'space-between', minHeight:48 }}>
         <span style={{ fontFamily:BF, fontSize:13 }}>{statusMsg}</span>
         {(checkIn || checkOut) && (
@@ -601,7 +571,6 @@ function ReviewsSection({ reviews = [], averageRating = 0 }) {
         <span style={{ color:T.border }}>·</span>
         <span style={{ fontFamily:BF, fontSize:15, color:T.sub, textDecoration:'underline', cursor:'pointer' }}>{reviews.length} review{reviews.length!==1?'s':''}</span>
       </div>
-      {/* bars */}
       <div style={{ marginBottom:32, maxWidth:260 }}>
         {[5,4,3,2,1].map(s=>(
           <div key={s} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
@@ -614,7 +583,6 @@ function ReviewsSection({ reviews = [], averageRating = 0 }) {
           </div>
         ))}
       </div>
-      {/* cards */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:28 }}>
         {show.map((r,i) => {
           const name   = typeof r.author==='object' ? [r.author?.firstName,r.author?.lastName].filter(Boolean).join(' ') : r.author||'Guest';
@@ -655,7 +623,7 @@ function ReviewsSection({ reviews = [], averageRating = 0 }) {
 }
 
 /* ════════════════════════════════════════════════════════════════════
-   BOOKING WIDGET  — professional date pickers + inline dropdown calendar
+   BOOKING WIDGET
 ════════════════════════════════════════════════════════════════════ */
 function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, loading: bLoading, onDatesSelected, unavailableDates }) {
   const { basePrice=0, cleaningFee=0, serviceFee=0 } = listing.pricing || {};
@@ -667,11 +635,10 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
   const canBook  = checkIn && checkOut && nights > 0 && !bLoading;
   const fmt      = d => d ? d.toLocaleDateString('en-US', { month:'short', day:'numeric' }) : null;
 
-  const [activeField, setActiveField]   = useState(null);   // 'checkin' | 'checkout' | null
+  const [activeField, setActiveField]   = useState(null);
   const [showGuests,  setShowGuests]    = useState(false);
   const dropRef = useRef(null);
 
-  // Close dropdown on outside click
   useEffect(() => {
     function handler(e) {
       if (dropRef.current && !dropRef.current.contains(e.target)) {
@@ -683,7 +650,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Auto-advance: when check-in selected, open checkout
   function handleDates({ checkIn: ci, checkOut: co }) {
     onDatesSelected({ checkIn: ci, checkOut: co });
     if (ci && !co) setActiveField('checkout');
@@ -704,7 +670,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
 
   return (
     <div style={{ fontFamily:BF }} ref={dropRef}>
-      {/* ── price ── */}
       <div style={{ marginBottom:20 }}>
         <span style={{ fontFamily:HF, fontSize:26, fontWeight:700, color:T.text }}>${basePrice.toLocaleString()}</span>
         <span style={{ fontSize:15, color:T.sub }}> /night</span>
@@ -719,21 +684,17 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
         )}
       </div>
 
-      {/* ── date + guest fields ── */}
       <div style={{ border:`1.5px solid ${activeField ? T.text : T.border}`, borderRadius:T.radius.input, overflow:'visible', marginBottom:12, transition:'border-color .2s', position:'relative' }}>
-        {/* Check-in / Check-out row */}
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:`1px solid ${T.border}` }}>
-          {/* CHECK-IN */}
           <button
             onClick={() => { setActiveField(activeField==='checkin' ? null : 'checkin'); setShowGuests(false); }}
-            style={{ ...inputBase(activeField==='checkin', !!checkIn), borderRight:`1px solid ${T.border}`, borderRadius:'10px 0 0 0', textAlign:'left', border:'none', borderRight:`1px solid ${T.border}`, background: activeField==='checkin'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', outline:'none' }}
+            style={{ textAlign:'left', border:'none', borderRight:`1px solid ${T.border}`, background: activeField==='checkin'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', borderRadius:'10px 0 0 0', outline:'none' }}
           >
             <p style={{ fontSize:9, fontWeight:800, color:T.text, textTransform:'uppercase', letterSpacing:'.09em', marginBottom:4 }}>Check-in</p>
             <p style={{ fontSize:14, color: checkIn ? T.text : '#aaa', fontWeight: checkIn?500:400 }}>
               {fmt(checkIn) || 'Add date'}
             </p>
           </button>
-          {/* CHECK-OUT */}
           <button
             onClick={() => { setActiveField(activeField==='checkout' ? null : 'checkout'); setShowGuests(false); }}
             style={{ textAlign:'left', border:'none', background: activeField==='checkout'?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', borderRadius:'0 10px 0 0', outline:'none' }}
@@ -745,7 +706,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
           </button>
         </div>
 
-        {/* GUESTS row */}
         <button
           onClick={() => { setShowGuests(v => !v); setActiveField(null); }}
           style={{ width:'100%', textAlign:'left', border:'none', background: showGuests?'#fafafa':'transparent', cursor:'pointer', padding:'13px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', borderRadius:'0 0 10px 10px', outline:'none' }}
@@ -759,7 +719,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
           </svg>
         </button>
 
-        {/* ── Guest counter dropdown ── */}
         <AnimatePresence>
           {showGuests && (
             <motion.div
@@ -792,7 +751,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
           )}
         </AnimatePresence>
 
-        {/* ── Calendar dropdown ── */}
         <AnimatePresence>
           {activeField && (
             <motion.div
@@ -801,7 +759,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
               style={{ position:'absolute', top:'100%', left: activeField==='checkout' ? 'auto' : 0, right: activeField==='checkout' ? 0 : 'auto', marginTop:4, zIndex:300, minWidth:580 }}
             >
               <div style={{ background:'#fff', border:`1px solid ${T.border}`, borderRadius:T.radius.card, boxShadow:'0 12px 48px rgba(0,0,0,.16), 0 4px 16px rgba(0,0,0,.08)', overflow:'hidden' }}>
-                {/* Field tabs */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:`1px solid ${T.borderLight}` }}>
                   {[{id:'checkin',lbl:'CHECK-IN',val:fmt(checkIn)},{id:'checkout',lbl:'CHECK-OUT',val:fmt(checkOut)}].map(f=>(
                     <button key={f.id} onClick={()=>setActiveField(f.id)}
@@ -811,7 +768,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
                     </button>
                   ))}
                 </div>
-                {/* Calendar */}
                 <div style={{ padding:'4px 0' }}>
                   <AirbnbCalendar
                     unavailableDates={unavailableDates}
@@ -827,7 +783,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
         </AnimatePresence>
       </div>
 
-      {/* ── Reserve button ── */}
       <button onClick={onBook} disabled={!canBook}
         style={{ width:'100%', padding:'15px', borderRadius:T.radius.input, border:'none', fontFamily:BF, fontSize:16, fontWeight:700, color:'#fff', cursor:canBook?'pointer':'not-allowed', background:canBook?`linear-gradient(135deg,${T.primary},${T.primaryDark})`:'#e5e7eb', boxShadow:canBook?T.shadow.button:'none', transition:'opacity .2s, transform .15s' }}
         onMouseOver={e=>{ if(canBook){e.currentTarget.style.opacity='.9';e.currentTarget.style.transform='scale(1.01)';} }}
@@ -836,7 +791,6 @@ function BookingWidget({ listing, checkIn, checkOut, guests, setGuests, onBook, 
       </button>
       {nights > 0 && <p style={{ textAlign:'center', fontSize:13, color:T.sub, marginTop:10 }}>You won't be charged yet</p>}
 
-      {/* ── Price breakdown ── */}
       <AnimatePresence>
         {nights > 0 && (
           <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}}
@@ -906,7 +860,7 @@ export default function ListingDetails() {
   const [guests,      setGuests]      = useState(1);
   const [bLoading,    setBLoading]    = useState(false);
   const [wishlisted,  setWishlisted]  = useState(false);
-  const [successBooking, setSuccessBooking] = useState(null); // holds booking obj on success
+  const [successBooking, setSuccessBooking] = useState(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -923,6 +877,7 @@ export default function ListingDetails() {
     }).catch(()=>setError('Network error')).finally(()=>setLoading(false));
   }, [id]);
 
+  /* ── FIXED: handleBook with robust field names + detailed error surfacing ── */
   const handleBook = useCallback(async () => {
     if (!token) {
       toast.info('Login required', 'Please log in to make a reservation.');
@@ -944,42 +899,57 @@ export default function ListingDetails() {
 
     setBLoading(true);
 
-    // Try multiple field-name conventions (backend validation errors often come from wrong field names)
-    const payloads = [
-      { listingId: id, checkInDate:  checkIn.toISOString(),  checkOutDate:  checkOut.toISOString(), numberOfGuests: guests },
-      { listingId: id, checkIn:      checkIn.toISOString(),  checkOut:      checkOut.toISOString(), guests },
-      { listing:   id, checkInDate:  checkIn.toISOString(),  checkOutDate:  checkOut.toISOString(), numberOfGuests: guests },
-    ];
+    try {
+      // Send all common field-name variants so the backend validator finds what it needs
+      const payload = {
+        listing: id,
+        listingId: id,
+        checkIn: checkIn.toISOString(),
+        checkOut: checkOut.toISOString(),
+        checkInDate: checkIn.toISOString(),
+        checkOutDate: checkOut.toISOString(),
+        guests,
+        numberOfGuests: guests,
+        guestCount: guests,
+      };
 
-    let lastMsg = 'Booking failed. Please try again.';
-    for (const payload of payloads) {
-      try {
-        const res = await fetch(`${API_BASE}/bookings`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
-        });
-        const d = await res.json();
+      const res = await fetch(`${API_BASE}/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
 
-        if (d.success || res.ok) {
-          const bookingObj = d.data?.booking || d.data || d.booking || d;
-          setBLoading(false);
-          setSuccessBooking(bookingObj); // triggers success modal
-          return;
-        }
+      const d = await res.json();
 
-        const msg = (d.message || d.error || '').toLowerCase();
-        lastMsg = d.message || d.error || lastMsg;
-        // Only retry on validation errors; stop on auth/not-found errors
-        if (!msg.includes('valid') && !msg.includes('required')) break;
-      } catch {
-        lastMsg = 'Network error. Please check your connection.';
-        break;
+      // Log full server response for debugging
+      console.log('[Booking response]', res.status, JSON.stringify(d));
+
+      if (d.success || res.ok) {
+        const bookingObj = d.data?.booking || d.data || d.booking || d;
+        setBLoading(false);
+        setSuccessBooking(bookingObj);
+        return;
       }
-    }
 
-    setBLoading(false);
-    toast.error('Booking failed', lastMsg);
+      setBLoading(false);
+
+      // Surface the most specific error message available
+      const errMsg =
+        d.message ||
+        d.error ||
+        (Array.isArray(d.errors)
+          ? d.errors.map(e => e.msg || e.message || e.path || JSON.stringify(e)).join(', ')
+          : typeof d.errors === 'object' && d.errors !== null
+          ? Object.values(d.errors).map(e => (typeof e === 'string' ? e : e?.message || JSON.stringify(e))).join(', ')
+          : null) ||
+        'Please try again.';
+
+      toast.error('Booking failed', errMsg);
+    } catch (err) {
+      setBLoading(false);
+      console.error('[Booking error]', err);
+      toast.error('Booking failed', 'Network error. Please check your connection.');
+    }
   }, [token, checkIn, checkOut, guests, id, navigate, toast]);
 
   if (loading) return <Skeleton/>;
@@ -993,7 +963,6 @@ export default function ListingDetails() {
     </div>
   );
 
-  /* derived */
   const images  = (listing.images||[]).map(i=>i.url||i).filter(Boolean);
   const loc     = listing.location||{};
   const locStr  = [loc.city,loc.state,loc.country].filter(Boolean).join(', ');
@@ -1007,7 +976,6 @@ export default function ListingDetails() {
     ? [listing.amenities.basics?.wifi&&'WiFi',listing.amenities.basics?.kitchen&&'Kitchen',listing.amenities.basics?.airConditioning&&'Air conditioning',listing.amenities.basics?.heating&&'Heating',listing.amenities.features?.pool&&'Pool',listing.amenities.features?.gym&&'Gym',listing.amenities.features?.tv&&'TV',listing.amenities.features?.washer&&'Washer',listing.amenities.features?.hotTub&&'Hot tub',listing.amenities.features?.parking&&'Parking',listing.amenities.outdoor?.garden&&'Garden'].filter(Boolean)
     : (Array.isArray(listing.amenities)?listing.amenities:[]);
 
-  /* reusable section wrapper */
   const S = ({children, last=false}) => (
     <div style={{ padding:'32px 0', ...(last?{}:{borderBottom:`1px solid ${T.borderLight}`}) }}>{children}</div>
   );
@@ -1018,10 +986,8 @@ export default function ListingDetails() {
   return (
     <div style={{ minHeight:'100vh', background:'#fff', fontFamily:BF }}>
 
-      {/* ── Global Toasts ── */}
       <ToastContainer toasts={toast.toasts} onRemove={toast.remove} />
 
-      {/* ── Booking Success Modal ── */}
       {successBooking && (
         <BookingSuccessModal
           booking={successBooking}
@@ -1034,7 +1000,6 @@ export default function ListingDetails() {
         />
       )}
 
-      {/* breadcrumb */}
       <div style={{ maxWidth:1120, margin:'0 auto', padding:'16px 24px 0', display:'flex', alignItems:'center', gap:6 }}>
         {[{to:'/',label:'Home'},{to:loc.city?`/search?city=${loc.city}`:null,label:loc.city},{to:null,label:listing.title}].filter(x=>x.label).map((c,i,a)=>(
           <React.Fragment key={i}>
@@ -1046,7 +1011,6 @@ export default function ListingDetails() {
         ))}
       </div>
 
-      {/* title + actions */}
       <motion.div initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.35}}
         style={{ maxWidth:1120, margin:'0 auto', padding:'13px 24px 18px', display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:16 }}>
         <h1 style={{ fontFamily:HF, fontSize:'clamp(22px,3vw,32px)', fontWeight:700, color:T.text, lineHeight:1.25, margin:0 }}>
@@ -1067,16 +1031,13 @@ export default function ListingDetails() {
         </div>
       </motion.div>
 
-      {/* image grid */}
       <div style={{ maxWidth:1120, margin:'0 auto', padding:'0 24px', position:'relative' }}>
         <ImageGrid images={images} title={listing.title}/>
       </div>
 
-      {/* body */}
       <div style={{ maxWidth:1120, margin:'0 auto', padding:'40px 24px 120px' }}>
         <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1fr) 380px', columnGap:72, alignItems:'start' }}>
 
-          {/* ── LEFT ── */}
           <motion.div initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{duration:.4,delay:.08}}>
 
             <S>
@@ -1100,7 +1061,6 @@ export default function ListingDetails() {
                     </div>
                   )}
                 </div>
-                {/* host avatar */}
                 <div style={{ width:52,height:52,borderRadius:'50%',overflow:'hidden',flexShrink:0,border:`2px solid ${T.borderLight}`,position:'relative' }}>
                   {hd.profileImage ? <img src={hd.profileImage} alt={hName} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
                   : <div style={{width:'100%',height:'100%',background:T.primary,display:'flex',alignItems:'center',justifyContent:'center'}}><span style={{color:'#fff',fontWeight:700,fontSize:19}}>{hName[0]?.toUpperCase()}</span></div>}
@@ -1109,7 +1069,6 @@ export default function ListingDetails() {
               </div>
             </S>
 
-            {/* highlights */}
             <S>
               <div style={{display:'flex',flexDirection:'column',gap:22}}>
                 {[
@@ -1129,13 +1088,10 @@ export default function ListingDetails() {
               </div>
             </S>
 
-            {/* description */}
             <S><p style={{fontSize:16,lineHeight:1.8,color:'#484848',whiteSpace:'pre-line',margin:0}}>{listing.description}</p></S>
 
-            {/* amenities */}
             {amenities.length>0 && <S><Title>What this place offers</Title><AmenitiesGrid amenities={amenities}/></S>}
 
-            {/* calendar */}
             <S>
               <Title>{nights>0 ? `${nights} night${nights!==1?'s':''} in ${loc.city||'this property'}` : 'Select check-in date'}</Title>
               <p style={{fontSize:14,color:T.sub,marginBottom:20,marginTop:-12}}>
@@ -1150,15 +1106,12 @@ export default function ListingDetails() {
               />
             </S>
 
-            {/* meet host */}
             <S><Title>Meet your host</Title><HostInfo host={hostObj}/></S>
 
-            {/* reviews */}
             <S last><ReviewsSection reviews={reviews} averageRating={listing.averageRating}/></S>
 
           </motion.div>
 
-          {/* ── RIGHT — sticky booking ── */}
           <div style={{ position:'sticky', top:96 }}>
             <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:.18,duration:.4}}
               style={{ background:'#fff', borderRadius:T.radius.card, border:`1px solid ${T.border}`, padding:28, boxShadow:T.shadow.card }}>
@@ -1178,7 +1131,6 @@ export default function ListingDetails() {
         </div>
       </div>
 
-      {/* mobile sticky bar */}
       <div className="lg:hidden" style={{position:'fixed',bottom:0,left:0,right:0,background:'#fff',borderTop:`1px solid ${T.borderLight}`,padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',zIndex:100,boxShadow:'0 -4px 20px rgba(0,0,0,.08)'}}>
         <div>
           <span style={{fontFamily:HF,fontSize:18,fontWeight:700,color:T.text}}>${(listing.pricing?.basePrice||0).toLocaleString()}</span>

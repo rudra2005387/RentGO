@@ -2,201 +2,286 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import ReviewForm from "../components/ReviewForm";
+import { motion, AnimatePresence } from "framer-motion";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-// ─── API helpers ────────────────────────────────────────────────────────────
 const authFetch = (path, token) =>
   fetch(`${API_BASE}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   }).then((r) => r.json());
 
-// ─── Tiny UI primitives ─────────────────────────────────────────────────────
-const Badge = ({ children, color = "gray" }) => {
-  const colors = {
-    green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
-    yellow: "bg-amber-50 text-amber-700 ring-amber-200",
-    red: "bg-rose-50 text-rose-700 ring-rose-200",
-    blue: "bg-sky-50 text-sky-700 ring-sky-200",
-    gray: "bg-gray-100 text-gray-600 ring-gray-200",
-  };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ${colors[color]}`}>
-      {children}
-    </span>
-  );
-};
+/* ── Design tokens ── */
+const P = "#FF385C";
+const PD = "#E31C5F";
 
-const statusColor = (s) => {
-  if (!s) return "gray";
-  const m = { confirmed: "green", pending: "yellow", cancelled: "red", completed: "blue" };
-  return m[s.toLowerCase()] || "gray";
-};
+/* ── Fonts ── */
+let _fonts = false;
+function loadFonts() {
+  if (_fonts || typeof document === "undefined") return;
+  _fonts = true;
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href =
+    "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=DM+Sans:wght@300;400;500;600;700&display=swap";
+  document.head.appendChild(l);
+}
 
-const Avatar = ({ name, image, size = "md" }) => {
-  const sz = { sm: "w-8 h-8 text-xs", md: "w-10 h-10 text-sm", lg: "w-14 h-14 text-lg" };
-  const initials = name ? name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "?";
+const HF = "'Fraunces', Georgia, serif";
+const BF = "'DM Sans', system-ui, sans-serif";
+
+/* ── Status helpers ── */
+const STATUS_CFG = {
+  confirmed: { bg: "#DCFCE7", fg: "#15803D", dot: "#22C55E", label: "Confirmed" },
+  pending:   { bg: "#FEF9C3", fg: "#A16207", dot: "#EAB308", label: "Pending" },
+  cancelled: { bg: "#FFE4E6", fg: "#BE123C", dot: "#F43F5E", label: "Cancelled" },
+  completed: { bg: "#DBEAFE", fg: "#1D4ED8", dot: "#3B82F6", label: "Completed" },
+};
+const getStatus = (s) => STATUS_CFG[s?.toLowerCase()] || { bg: "#F3F4F6", fg: "#6B7280", dot: "#9CA3AF", label: s || "Unknown" };
+
+/* ── Skeleton pulse ── */
+const Shimmer = ({ w = "100%", h = 16, r = 8, style = {} }) => (
+  <div
+    style={{
+      width: w, height: h, borderRadius: r,
+      background: "linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)",
+      backgroundSize: "200% 100%",
+      animation: "shimmer 1.6s infinite",
+      ...style,
+    }}
+  />
+);
+
+/* ── Avatar ── */
+const Avatar = ({ name = "", image, size = 40 }) => {
+  const initials = name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
   return image ? (
-    <img src={image} alt={name} className={`${sz[size]} rounded-full object-cover ring-2 ring-white`} />
+    <img
+      src={image} alt={name}
+      style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", border: "2.5px solid #fff", boxShadow: "0 0 0 1px #e5e7eb" }}
+    />
   ) : (
-    <div className={`${sz[size]} rounded-full bg-gradient-to-br from-rose-400 to-pink-600 flex items-center justify-center text-white font-bold ring-2 ring-white`}>
+    <div style={{
+      width: size, height: size, borderRadius: "50%",
+      background: `linear-gradient(135deg, ${P}, ${PD})`,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#fff", fontFamily: BF, fontWeight: 700,
+      fontSize: size * 0.35, border: "2.5px solid #fff", boxShadow: "0 0 0 1px #e5e7eb",
+      flexShrink: 0,
+    }}>
       {initials}
     </div>
   );
 };
 
-const Skeleton = ({ className }) => (
-  <div className={`animate-pulse bg-gray-100 rounded-lg ${className}`} />
+/* ── Stat Card ── */
+const StatCard = ({ label, value, sub, emoji, gradient, delay = 0 }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+    style={{
+      background: "#fff",
+      borderRadius: 20,
+      padding: "20px 22px",
+      border: "1px solid #F0F0F0",
+      boxShadow: "0 2px 12px rgba(0,0,0,.06)",
+      position: "relative",
+      overflow: "hidden",
+      fontFamily: BF,
+    }}
+  >
+    <div style={{
+      position: "absolute", top: -20, right: -20,
+      width: 80, height: 80, borderRadius: "50%",
+      background: gradient, opacity: 0.12,
+    }} />
+    <div style={{
+      width: 44, height: 44, borderRadius: 14,
+      background: gradient, display: "flex",
+      alignItems: "center", justifyContent: "center",
+      fontSize: 20, marginBottom: 14, boxShadow: "0 4px 12px rgba(0,0,0,.12)",
+    }}>
+      {emoji}
+    </div>
+    <p style={{ fontSize: 26, fontWeight: 700, color: "#111", fontFamily: HF, lineHeight: 1 }}>{value ?? "—"}</p>
+    <p style={{ fontSize: 13, color: "#888", marginTop: 4, fontWeight: 500 }}>{label}</p>
+    {sub && <p style={{ fontSize: 11, color: "#bbb", marginTop: 3 }}>{sub}</p>}
+  </motion.div>
 );
 
-// ─── Stat Card ───────────────────────────────────────────────────────────────
-const StatCard = ({ label, value, sub, icon, accent }) => (
-  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-start gap-4 hover:shadow-md transition-shadow">
-    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl flex-shrink-0 ${accent}`}>
-      {icon}
-    </div>
-    <div className="min-w-0">
-      <p className="text-2xl font-bold text-gray-900 leading-tight">{value ?? "—"}</p>
-      <p className="text-sm font-medium text-gray-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  </div>
-);
+/* ── Status Badge ── */
+const StatusBadge = ({ status }) => {
+  const cfg = getStatus(status);
+  return (
+    <span style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      background: cfg.bg, color: cfg.fg,
+      fontSize: 11, fontWeight: 700, fontFamily: BF,
+      padding: "4px 10px", borderRadius: 99,
+      textTransform: "capitalize", letterSpacing: ".02em",
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.dot }} />
+      {cfg.label}
+    </span>
+  );
+};
 
-// ─── Booking Row ─────────────────────────────────────────────────────────────
-const BookingRow = ({ booking }) => {
+/* ── Booking Card ── */
+const BookingCard = ({ booking, delay = 0 }) => {
   const listing = booking.listing || {};
   const img = listing.images?.[0]?.url;
-  const title = listing.title || "Listing";
+  const title = listing.title || "Property";
   const city = listing.location?.city || "";
   const checkIn = booking.checkInDate ? new Date(booking.checkInDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
   const checkOut = booking.checkOutDate ? new Date(booking.checkOutDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
   const total = booking.pricing?.total;
   const ref = booking.bookingReference || booking._id?.slice(-8).toUpperCase();
+  const nights = booking.pricing?.nights ||
+    (booking.checkInDate && booking.checkOutDate
+      ? Math.ceil((new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / 86400000)
+      : null);
 
   return (
-    <Link to={`/booking/${booking._id}`} className="flex items-center gap-4 p-4 rounded-xl hover:bg-gray-50 transition-colors group">
-      <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-        {img ? (
-          <img src={img} alt={title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-rose-100 to-pink-200 flex items-center justify-center text-2xl">🏠</div>
-        )}
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate">{title}</p>
-        <p className="text-sm text-gray-500">{city}</p>
-        <p className="text-xs text-gray-400 mt-0.5">{checkIn} → {checkOut}</p>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <Badge color={statusColor(booking.status)}>{booking.status}</Badge>
-        {total && <p className="text-sm font-semibold text-gray-700 mt-1">${total.toLocaleString()}</p>}
-        <p className="text-xs text-gray-400">#{ref}</p>
-      </div>
-    </Link>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.35 }}
+    >
+      <Link
+        to={`/booking/${booking._id}`}
+        style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", textDecoration: "none", transition: "background .15s", borderRadius: 0 }}
+        onMouseOver={e => e.currentTarget.style.background = "#FAFAFA"}
+        onMouseOut={e => e.currentTarget.style.background = "transparent"}
+      >
+        {/* Thumbnail */}
+        <div style={{ width: 60, height: 60, borderRadius: 14, overflow: "hidden", flexShrink: 0, background: "#F3F4F6" }}>
+          {img
+            ? <img src={img} alt={title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#FFE4E6,#FEF9C3)", fontSize: 24 }}>🏠</div>
+          }
+        </div>
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <p style={{ fontFamily: BF, fontWeight: 600, fontSize: 14, color: "#111", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
+          <p style={{ fontFamily: BF, fontSize: 12, color: "#888" }}>{city}</p>
+          <p style={{ fontFamily: BF, fontSize: 11, color: "#bbb", marginTop: 2 }}>
+            {checkIn} → {checkOut}{nights ? ` · ${nights} night${nights > 1 ? "s" : ""}` : ""}
+          </p>
+        </div>
+        {/* Right */}
+        <div style={{ textAlign: "right", flexShrink: 0 }}>
+          <StatusBadge status={booking.status} />
+          {total && <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: "#111", marginTop: 6 }}>${Number(total).toLocaleString()}</p>}
+          <p style={{ fontFamily: BF, fontSize: 10, color: "#ccc", marginTop: 2 }}>#{ref}</p>
+        </div>
+      </Link>
+    </motion.div>
   );
 };
 
-// ─── Wishlist Card ────────────────────────────────────────────────────────────
+/* ── Wishlist Card ── */
 const WishlistCard = ({ item }) => {
   const img = item.images?.[0]?.url;
-  const city = item.location?.city || "";
   const price = item.pricing?.basePrice;
   return (
-    <Link to={`/listing/${item._id}`} className="group flex-shrink-0 w-44">
-      <div className="w-44 h-32 rounded-xl overflow-hidden bg-gray-100 mb-2">
-        {img ? (
-          <img src={img} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-rose-100 to-orange-100 flex items-center justify-center text-3xl">🏡</div>
-        )}
+    <Link to={`/listing/${item._id}`} style={{ textDecoration: "none", flexShrink: 0 }}>
+      <div style={{ width: 160 }}>
+        <div style={{ width: 160, height: 120, borderRadius: 14, overflow: "hidden", background: "#F3F4F6", marginBottom: 8 }}>
+          {img
+            ? <img src={img} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .35s" }}
+                onMouseOver={e => e.currentTarget.style.transform = "scale(1.06)"}
+                onMouseOut={e => e.currentTarget.style.transform = "scale(1)"} />
+            : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg,#FFE4E6,#FDE8D8)", fontSize: 30 }}>🏡</div>
+          }
+        </div>
+        <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
+        <p style={{ fontFamily: BF, fontSize: 11, color: "#888" }}>{item.location?.city}</p>
+        {price && <p style={{ fontFamily: BF, fontSize: 12, fontWeight: 700, color: P, marginTop: 2 }}>${price}<span style={{ fontWeight: 400, color: "#aaa" }}>/night</span></p>}
       </div>
-      <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
-      <p className="text-xs text-gray-500">{city}</p>
-      {price && <p className="text-xs font-semibold text-rose-500 mt-0.5">${price}/night</p>}
     </Link>
   );
 };
 
-// ─── Review Card ──────────────────────────────────────────────────────────────
-const ReviewCard = ({ review }) => {
+/* ── Review Card ── */
+const ReviewCard = ({ review, i }) => {
   const author = review.author || {};
   const name = [author.firstName, author.lastName].filter(Boolean).join(" ") || "Guest";
-  const date = review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "";
+  const date = review.createdAt ? new Date(review.createdAt).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "";
+  const rating = review.overallRating || review.rating || 0;
   return (
-    <div className="bg-gray-50 rounded-xl p-4">
-      <div className="flex items-center gap-3 mb-2">
-        <Avatar name={name} image={author.profileImage} size="sm" />
-        <div>
-          <p className="text-sm font-semibold text-gray-800">{name}</p>
-          <p className="text-xs text-gray-400">{date}</p>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      style={{ background: "#FAFAFA", borderRadius: 16, padding: 18, border: "1px solid #F0F0F0" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+        <Avatar name={name} image={author.profileImage} size={36} />
+        <div style={{ flex: 1 }}>
+          <p style={{ fontFamily: BF, fontWeight: 600, fontSize: 13, color: "#111" }}>{name}</p>
+          <p style={{ fontFamily: BF, fontSize: 11, color: "#bbb" }}>{date}</p>
         </div>
-        <div className="ml-auto flex gap-0.5">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <span key={i} className={`text-sm ${i < review.overallRating ? "text-amber-400" : "text-gray-200"}`}>★</span>
+        <div style={{ display: "flex", gap: 2 }}>
+          {Array.from({ length: 5 }).map((_, j) => (
+            <span key={j} style={{ fontSize: 12, color: j < rating ? "#F59E0B" : "#E5E7EB" }}>★</span>
           ))}
         </div>
       </div>
-      {review.comment && <p className="text-sm text-gray-600 line-clamp-3">{review.comment}</p>}
-    </div>
+      {review.comment && (
+        <p style={{ fontFamily: BF, fontSize: 13, color: "#555", lineHeight: 1.6, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+          {review.comment}
+        </p>
+      )}
+    </motion.div>
   );
 };
 
-// ─── TABS ─────────────────────────────────────────────────────────────────────
+/* ── Section wrapper ── */
+const Section = ({ title, action, actionLabel, emoji, children, style = {} }) => (
+  <div style={{ background: "#fff", borderRadius: 24, border: "1px solid #F0F0F0", boxShadow: "0 2px 16px rgba(0,0,0,.05)", overflow: "hidden", ...style }}>
+    {(title || action) && (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px 16px", borderBottom: "1px solid #F7F7F7" }}>
+        <h2 style={{ fontFamily: HF, fontSize: 17, fontWeight: 600, color: "#111", display: "flex", alignItems: "center", gap: 8 }}>
+          {emoji && <span>{emoji}</span>}{title}
+        </h2>
+        {action && (
+          <button onClick={action} style={{ fontFamily: BF, fontSize: 12, fontWeight: 700, color: P, background: "none", border: "none", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}>
+            {actionLabel}
+          </button>
+        )}
+      </div>
+    )}
+    {children}
+  </div>
+);
+
 const TABS = ["Overview", "My Bookings", "Saved / Wishlist", "Reviews", "Quick Actions"];
 
-// ─── MAIN DASHBOARD ──────────────────────────────────────────────────────────
+/* ════════ MAIN ════════ */
 export default function Dashboard() {
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("Overview");
-
-  // Data state
   const [bookings, setBookings] = useState([]);
   const [wishlist, setWishlist] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [stats, setStats] = useState(null);
   const [profile, setProfile] = useState(null);
   const [reviewBookingId, setReviewBookingId] = useState(null);
-
-  // Loading / error
   const [loading, setLoading] = useState({ bookings: true, wishlist: true, reviews: true, stats: true, profile: true });
   const setLoaded = (key) => setLoading((p) => ({ ...p, [key]: false }));
-
   const userId = user?._id || user?.id;
+
+  useEffect(() => { loadFonts(); }, []);
 
   const fetchAll = useCallback(async () => {
     if (!token || !userId) return;
-
-    // Profile
-    authFetch(`/users/${userId}`, token)
-      .then((d) => { if (d.success) setProfile(d.data?.user); })
-      .catch(() => {})
-      .finally(() => setLoaded("profile"));
-
-    // Stats
-    authFetch(`/users/${userId}/stats`, token)
-      .then((d) => { if (d.success) setStats(d.data?.stats); })
-      .catch(() => {})
-      .finally(() => setLoaded("stats"));
-
-    // Bookings
-    authFetch(`/bookings?role=guest&limit=20`, token)
-      .then((d) => { if (d.success) setBookings(d.data?.bookings || []); })
-      .catch(() => {})
-      .finally(() => setLoaded("bookings"));
-
-    // Wishlist
-    authFetch(`/users/${userId}/wishlist?limit=12`, token)
-      .then((d) => { if (d.success) setWishlist(d.data?.wishlist || []); })
-      .catch(() => {})
-      .finally(() => setLoaded("wishlist"));
-
-    // Reviews (reviews about the user)
-    authFetch(`/users/${userId}/reviews?limit=10`, token)
-      .then((d) => { if (d.success) setReviews(d.data?.reviews || []); })
-      .catch(() => {})
-      .finally(() => setLoaded("reviews"));
+    authFetch(`/users/${userId}`, token).then((d) => { if (d.success) setProfile(d.data?.user); }).catch(() => {}).finally(() => setLoaded("profile"));
+    authFetch(`/users/${userId}/stats`, token).then((d) => { if (d.success) setStats(d.data?.stats); }).catch(() => {}).finally(() => setLoaded("stats"));
+    authFetch(`/bookings?role=guest&limit=20`, token).then((d) => { if (d.success) setBookings(d.data?.bookings || []); }).catch(() => {}).finally(() => setLoaded("bookings"));
+    authFetch(`/users/${userId}/wishlist?limit=12`, token).then((d) => { if (d.success) setWishlist(d.data?.wishlist || []); }).catch(() => {}).finally(() => setLoaded("wishlist"));
+    authFetch(`/users/${userId}/reviews?limit=10`, token).then((d) => { if (d.success) setReviews(d.data?.reviews || []); }).catch(() => {}).finally(() => setLoaded("reviews"));
   }, [token, userId]);
 
   useEffect(() => {
@@ -208,376 +293,386 @@ export default function Dashboard() {
   const pastBookings = bookings.filter((b) => ["completed", "cancelled"].includes(b.status?.toLowerCase()));
   const displayName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email : "User";
   const isHost = user?.role === "host";
+  const totalSpent = bookings.filter((b) => b.status?.toLowerCase() === "completed").reduce((acc, b) => acc + (b.pricing?.total || 0), 0);
 
-  // ── Booking stats summary
-  const totalSpent = bookings
-    .filter((b) => b.status?.toLowerCase() === "completed")
-    .reduce((acc, b) => acc + (b.pricing?.total || 0), 0);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="min-h-screen bg-gray-soft">
+    <div style={{ minHeight: "100vh", background: "#F8F7F5", fontFamily: BF }}>
+      <style>{`
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { display: none; }
+      `}</style>
 
-      {/* ── Top nav */}
-      <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-navbar">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold" style={{ fontFamily: "Fraunces, serif", color: "#FF385C" }}>
-            RentGo
-          </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
-            <Link to="/" className="hover:text-gray-900 transition-colors">Home</Link>
-            <Link to="/search" className="hover:text-gray-900 transition-colors">Explore</Link>
-            {isHost && <Link to="/create-listing" className="hover:text-gray-900 transition-colors">My Listings</Link>}
+      {/* ── Navbar ── */}
+      <header style={{
+        position: "sticky", top: 0, zIndex: 50,
+        background: "rgba(255,255,255,.92)", backdropFilter: "blur(12px)",
+        borderBottom: "1px solid #F0F0F0",
+        boxShadow: "0 1px 0 rgba(0,0,0,.04)",
+      }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Link to="/" style={{ fontFamily: HF, fontSize: 22, fontWeight: 700, color: P, textDecoration: "none" }}>RentGo</Link>
+          <nav style={{ display: "flex", alignItems: "center", gap: 24 }}>
+            <Link to="/" style={{ fontFamily: BF, fontSize: 13, fontWeight: 500, color: "#666", textDecoration: "none" }}>Home</Link>
+            <Link to="/search" style={{ fontFamily: BF, fontSize: 13, fontWeight: 500, color: "#666", textDecoration: "none" }}>Explore</Link>
+            {isHost && <Link to="/create-listing" style={{ fontFamily: BF, fontSize: 13, fontWeight: 500, color: "#666", textDecoration: "none" }}>My Listings</Link>}
           </nav>
-          <div className="flex items-center gap-3">
-            <Avatar name={displayName} image={profile?.profileImage} size="md" />
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-gray-800 leading-tight">{displayName}</p>
-              <p className="text-xs text-gray-400">{user?.email}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <Avatar name={displayName} image={profile?.profileImage} size={38} />
+            <div>
+              <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 600, color: "#111", lineHeight: 1.2 }}>{user?.firstName || displayName}</p>
+              <p style={{ fontFamily: BF, fontSize: 11, color: "#bbb" }}>{user?.email}</p>
             </div>
             <button
               onClick={() => { logout(); navigate("/login"); }}
-              className="ml-2 text-xs text-gray-400 hover:text-rose-500 transition-colors border border-gray-200 rounded-lg px-3 py-1.5 hover:border-rose-200"
+              style={{ marginLeft: 8, fontFamily: BF, fontSize: 12, fontWeight: 600, color: "#888", background: "none", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 12px", cursor: "pointer", transition: "all .15s" }}
+              onMouseOver={e => { e.currentTarget.style.color = P; e.currentTarget.style.borderColor = P; }}
+              onMouseOut={e => { e.currentTarget.style.color = "#888"; e.currentTarget.style.borderColor = "#E5E7EB"; }}
             >
-              Logout
+              Log out
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-8">
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px 80px" }}>
 
-        {/* ── Hero greeting */}
-        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        {/* ── Hero ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+          style={{ marginBottom: 32, display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16 }}
+        >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900" style={{ fontFamily: "Fraunces, serif" }}>
+            <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 600, color: "#aaa", textTransform: "uppercase", letterSpacing: ".1em", marginBottom: 6 }}>
+              {greeting} ☀️
+            </p>
+            <h1 style={{ fontFamily: HF, fontSize: "clamp(28px,4vw,40px)", fontWeight: 700, color: "#111", lineHeight: 1.15 }}>
               Welcome back, {user?.firstName || "there"} 👋
             </h1>
-            <p className="text-gray-500 mt-1 text-sm">
-              Here's what's happening with your account
+            <p style={{ fontFamily: BF, fontSize: 14, color: "#888", marginTop: 6 }}>
+              Here's everything happening with your account
             </p>
           </div>
           {isHost && (
             <Link
               to="/create-listing"
-              className="inline-flex items-center gap-2 bg-[#FF385C] text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-rose-600 transition-colors shadow-sm"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: `linear-gradient(135deg, ${P}, ${PD})`,
+                color: "#fff", fontFamily: BF, fontWeight: 700, fontSize: 13,
+                padding: "12px 20px", borderRadius: 99, textDecoration: "none",
+                boxShadow: "0 4px 16px rgba(255,56,92,.3)", flexShrink: 0,
+                whiteSpace: "nowrap",
+              }}
             >
               + New Listing
             </Link>
           )}
-        </div>
+        </motion.div>
 
-        {/* ── Tab bar */}
-        <div className="flex gap-1 bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 mb-8 overflow-x-auto scrollbar-hide">
+        {/* ── Tab Bar ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1, duration: 0.35 }}
+          style={{
+            display: "flex", gap: 4, background: "#fff",
+            borderRadius: 18, padding: 6,
+            border: "1px solid #F0F0F0",
+            boxShadow: "0 2px 12px rgba(0,0,0,.05)",
+            marginBottom: 28,
+            overflowX: "auto",
+          }}
+        >
           {TABS.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 ${
-                activeTab === tab
-                  ? "bg-[#FF385C] text-white shadow-sm"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              }`}
+              style={{
+                flexShrink: 0,
+                padding: "9px 18px",
+                borderRadius: 12,
+                border: "none",
+                fontFamily: BF,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all .2s",
+                background: activeTab === tab ? `linear-gradient(135deg, ${P}, ${PD})` : "transparent",
+                color: activeTab === tab ? "#fff" : "#888",
+                boxShadow: activeTab === tab ? "0 4px 12px rgba(255,56,92,.25)" : "none",
+              }}
             >
               {tab}
             </button>
           ))}
-        </div>
+        </motion.div>
 
-        {/* ═══════════════════ OVERVIEW TAB ═══════════════════ */}
-        {activeTab === "Overview" && (
-          <div className="space-y-8">
-            {/* Stat cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {loading.bookings ? (
-                Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)
-              ) : (
-                <>
-                  <StatCard label="Upcoming Trips" value={upcomingBookings.length} icon="✈️" accent="bg-sky-50" sub="Active bookings" />
-                  <StatCard label="Past Trips" value={pastBookings.length} icon="🏁" accent="bg-emerald-50" sub="Completed stays" />
-                  <StatCard label="Saved Places" value={wishlist.length} icon="❤️" accent="bg-rose-50" sub="In wishlist" />
-                  <StatCard label="Total Spent" value={`$${totalSpent.toLocaleString()}`} icon="💳" accent="bg-violet-50" sub="All time" />
-                </>
-              )}
-            </div>
-
-            {/* Host stats (if host) */}
-            {isHost && stats && (
-              <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                <h2 className="font-bold text-gray-800 mb-4 text-base" style={{ fontFamily: "Fraunces, serif" }}>
-                  Host Dashboard
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{stats.totalListings ?? 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">Total Listings</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{stats.completedBookings ?? 0}</p>
-                    <p className="text-xs text-gray-500 mt-1">Completed Bookings</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">${(stats.totalEarnings ?? 0).toLocaleString()}</p>
-                    <p className="text-xs text-gray-500 mt-1">Total Earnings</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-gray-900">{stats.averageRating?.toFixed(1) ?? "—"} ⭐</p>
-                    <p className="text-xs text-gray-500 mt-1">Avg Rating</p>
-                  </div>
-                </div>
-                {stats.superhost && (
-                  <div className="mt-4 flex items-center gap-2 bg-amber-50 rounded-xl px-4 py-2 w-fit">
-                    <span className="text-lg">🏅</span>
-                    <span className="text-sm font-semibold text-amber-700">Superhost · {stats.responseRate}% response rate</span>
-                  </div>
+        {/* ═══ OVERVIEW ═══ */}
+        <AnimatePresence mode="wait">
+          {activeTab === "Overview" && (
+            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+                {loading.bookings ? (
+                  [0,1,2,3].map(i => <Shimmer key={i} h={110} r={20} />)
+                ) : (
+                  <>
+                    <StatCard label="Upcoming Trips" value={upcomingBookings.length} emoji="✈️" gradient="linear-gradient(135deg,#BAE6FD,#60A5FA)" sub="Active bookings" delay={0} />
+                    <StatCard label="Past Trips" value={pastBookings.length} emoji="🏁" gradient="linear-gradient(135deg,#BBF7D0,#34D399)" sub="Completed stays" delay={0.06} />
+                    <StatCard label="Saved Places" value={wishlist.length} emoji="❤️" gradient={`linear-gradient(135deg,#FECDD3,${P})`} sub="In wishlist" delay={0.12} />
+                    <StatCard label="Total Spent" value={`$${totalSpent.toLocaleString()}`} emoji="💳" gradient="linear-gradient(135deg,#DDD6FE,#8B5CF6)" sub="All time" delay={0.18} />
+                  </>
                 )}
               </div>
-            )}
 
-            {/* Recent bookings preview */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
-                <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Recent Bookings</h2>
-                <button onClick={() => setActiveTab("My Bookings")} className="text-xs text-rose-500 font-semibold hover:underline">
-                  View all →
-                </button>
-              </div>
-              {loading.bookings ? (
-                <div className="p-4 space-y-3">
-                  {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}
-                </div>
-              ) : bookings.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-4xl mb-3">🧳</p>
-                  <p className="text-gray-500 font-medium">No bookings yet</p>
-                  <Link to="/search" className="mt-3 inline-block text-sm text-rose-500 font-semibold hover:underline">
-                    Explore homes →
-                  </Link>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {bookings.slice(0, 4).map((b) => <BookingRow key={b._id} booking={b} />)}
-                </div>
-              )}
-            </div>
-
-            {/* Wishlist preview */}
-            {wishlist.length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
-                  <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Saved Places</h2>
-                  <button onClick={() => setActiveTab("Saved / Wishlist")} className="text-xs text-rose-500 font-semibold hover:underline">
-                    View all →
-                  </button>
-                </div>
-                <div className="flex gap-4 overflow-x-auto px-6 py-4 scrollbar-hide">
-                  {wishlist.slice(0, 6).map((item) => <WishlistCard key={item._id} item={item} />)}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ═══════════════════ MY BOOKINGS TAB ═══════════════════ */}
-        {activeTab === "My Bookings" && (
-          <div className="space-y-6">
-            {/* Upcoming */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-                <span className="text-lg">✈️</span>
-                <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>
-                  Upcoming Bookings
-                </h2>
-                <Badge color="blue">{upcomingBookings.length}</Badge>
-              </div>
-              {loading.bookings ? (
-                <div className="p-4 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-              ) : upcomingBookings.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-4xl mb-3">🗓️</p>
-                  <p className="text-gray-500">No upcoming bookings</p>
-                  <Link to="/search" className="mt-2 inline-block text-sm text-rose-500 font-semibold hover:underline">Find your next stay →</Link>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {upcomingBookings.map((b) => <BookingRow key={b._id} booking={b} />)}
-                </div>
-              )}
-            </div>
-
-            {/* Past */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-                <span className="text-lg">🏁</span>
-                <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>
-                  Past & Cancelled
-                </h2>
-                <Badge color="gray">{pastBookings.length}</Badge>
-              </div>
-              {loading.bookings ? (
-                <div className="p-4 space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-              ) : pastBookings.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-4xl mb-3">📭</p>
-                  <p className="text-gray-500">No past bookings</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-50">
-                  {pastBookings.map((b) => <BookingRow key={b._id} booking={b} />)}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ═══════════════════ WISHLIST TAB ═══════════════════ */}
-        {activeTab === "Saved / Wishlist" && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-              <span className="text-lg">❤️</span>
-              <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Saved Places</h2>
-              <Badge color="red">{wishlist.length}</Badge>
-            </div>
-            {loading.wishlist ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-6">
-                {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
-              </div>
-            ) : wishlist.length === 0 ? (
-              <div className="text-center py-16">
-                <p className="text-5xl mb-4">🤍</p>
-                <p className="text-gray-500 font-medium">No saved places yet</p>
-                <Link to="/search" className="mt-3 inline-block text-sm text-rose-500 font-semibold hover:underline">
-                  Explore and save homes →
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5 p-6">
-                {wishlist.map((item) => (
-                  <Link key={item._id} to={`/listing/${item._id}`} className="group">
-                    <div className="aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-2">
-                      {item.images?.[0]?.url ? (
-                        <img src={item.images[0].url} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-rose-100 to-orange-100 flex items-center justify-center text-4xl">🏡</div>
-                      )}
-                    </div>
-                    <p className="text-sm font-semibold text-gray-800 truncate">{item.title}</p>
-                    <p className="text-xs text-gray-500">{item.location?.city}</p>
-                    {item.pricing?.basePrice && (
-                      <p className="text-xs font-bold text-rose-500 mt-0.5">${item.pricing.basePrice}/night</p>
+              {/* Host stats */}
+              {isHost && stats && (
+                <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+                  style={{ background: "linear-gradient(135deg,#111827,#1F2937)", borderRadius: 24, padding: "24px 28px", marginBottom: 24, border: "1px solid #374151" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                    <h2 style={{ fontFamily: HF, fontSize: 18, fontWeight: 600, color: "#fff" }}>Host Dashboard</h2>
+                    {stats.superhost && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(245,158,11,.15)", color: "#FCD34D", fontSize: 12, fontWeight: 700, padding: "6px 14px", borderRadius: 99, border: "1px solid rgba(245,158,11,.25)" }}>
+                        🏅 Superhost
+                      </span>
                     )}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}>
+                    {[
+                      { label: "Listings", val: stats.totalListings ?? 0 },
+                      { label: "Bookings", val: stats.completedBookings ?? 0 },
+                      { label: "Earnings", val: `$${(stats.totalEarnings ?? 0).toLocaleString()}` },
+                      { label: "Avg Rating", val: `${stats.averageRating?.toFixed(1) ?? "—"} ⭐` },
+                    ].map((s, i) => (
+                      <div key={i} style={{ textAlign: "center" }}>
+                        <p style={{ fontFamily: HF, fontSize: 28, fontWeight: 700, color: "#fff" }}>{s.val}</p>
+                        <p style={{ fontFamily: BF, fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
-        {/* ═══════════════════ REVIEWS TAB ═══════════════════ */}
-        {activeTab === "Reviews" && (
-          <div className="space-y-6">
-            {/* Leave a review prompt for completed bookings */}
-            {pastBookings.filter((b) => b.status?.toLowerCase() === "completed").length > 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-                  <span className="text-lg">✍️</span>
-                  <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Leave a Review</h2>
-                </div>
-                <div className="p-6 space-y-3">
-                  {pastBookings
-                    .filter((b) => b.status?.toLowerCase() === "completed")
-                    .slice(0, 5)
-                    .map((b) => (
-                      <div key={b._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                        <div className="flex items-center gap-3 min-w-0">
+              {/* Recent Bookings */}
+              <Section title="Recent Bookings" emoji="📋" action={() => setActiveTab("My Bookings")} actionLabel="View all →" style={{ marginBottom: 20 }}>
+                {loading.bookings ? (
+                  <div style={{ padding: 20 }}>
+                    {[0,1,2].map(i => <Shimmer key={i} h={72} r={12} style={{ marginBottom: 10 }} />)}
+                  </div>
+                ) : bookings.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                    <p style={{ fontSize: 40, marginBottom: 12 }}>🧳</p>
+                    <p style={{ fontFamily: BF, fontWeight: 600, color: "#555", marginBottom: 4 }}>No bookings yet</p>
+                    <Link to="/search" style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: P, textDecoration: "underline" }}>Explore homes →</Link>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: "1px solid #F7F7F7" }}>
+                    {bookings.slice(0, 4).map((b, i) => (
+                      <div key={b._id} style={{ borderBottom: i < Math.min(3, bookings.length - 1) ? "1px solid #F7F7F7" : "none" }}>
+                        <BookingCard booking={b} delay={i * 0.05} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              {/* Wishlist preview */}
+              {wishlist.length > 0 && (
+                <Section title="Saved Places" emoji="❤️" action={() => setActiveTab("Saved / Wishlist")} actionLabel="View all →">
+                  <div style={{ display: "flex", gap: 16, overflowX: "auto", padding: "16px 20px 20px" }}>
+                    {wishlist.slice(0, 8).map((item) => <WishlistCard key={item._id} item={item} />)}
+                  </div>
+                </Section>
+              )}
+            </motion.div>
+          )}
+
+          {/* ═══ MY BOOKINGS ═══ */}
+          {activeTab === "My Bookings" && (
+            <motion.div key="bookings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              <Section title="Upcoming Trips" emoji="✈️">
+                {loading.bookings ? (
+                  <div style={{ padding: 20 }}>{[0,1,2].map(i => <Shimmer key={i} h={72} r={12} style={{ marginBottom: 10 }} />)}</div>
+                ) : upcomingBookings.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                    <p style={{ fontSize: 40, marginBottom: 12 }}>🗓️</p>
+                    <p style={{ fontFamily: BF, fontWeight: 600, color: "#555", marginBottom: 4 }}>No upcoming trips</p>
+                    <Link to="/search" style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: P, textDecoration: "underline" }}>Find your next stay →</Link>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: "1px solid #F7F7F7" }}>
+                    {upcomingBookings.map((b, i) => (
+                      <div key={b._id} style={{ borderBottom: i < upcomingBookings.length - 1 ? "1px solid #F7F7F7" : "none" }}>
+                        <BookingCard booking={b} delay={i * 0.05} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+
+              <Section title="Past & Cancelled" emoji="🏁">
+                {loading.bookings ? (
+                  <div style={{ padding: 20 }}>{[0,1].map(i => <Shimmer key={i} h={72} r={12} style={{ marginBottom: 10 }} />)}</div>
+                ) : pastBookings.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "48px 20px" }}>
+                    <p style={{ fontSize: 40, marginBottom: 12 }}>📭</p>
+                    <p style={{ fontFamily: BF, fontWeight: 600, color: "#555" }}>No past bookings</p>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: "1px solid #F7F7F7" }}>
+                    {pastBookings.map((b, i) => (
+                      <div key={b._id} style={{ borderBottom: i < pastBookings.length - 1 ? "1px solid #F7F7F7" : "none" }}>
+                        <BookingCard booking={b} delay={i * 0.05} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            </motion.div>
+          )}
+
+          {/* ═══ WISHLIST ═══ */}
+          {activeTab === "Saved / Wishlist" && (
+            <motion.div key="wishlist" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              <Section title="Saved Places" emoji="❤️">
+                {loading.wishlist ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, padding: 20 }}>
+                    {[0,1,2,3,4,5,6,7].map(i => <Shimmer key={i} h={160} r={14} />)}
+                  </div>
+                ) : wishlist.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "64px 20px" }}>
+                    <p style={{ fontSize: 48, marginBottom: 16 }}>🤍</p>
+                    <p style={{ fontFamily: BF, fontWeight: 600, color: "#555", marginBottom: 4 }}>No saved places yet</p>
+                    <Link to="/search" style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: P, textDecoration: "underline" }}>Explore and save homes →</Link>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 20, padding: 20 }}>
+                    {wishlist.map((item) => (
+                      <Link key={item._id} to={`/listing/${item._id}`} style={{ textDecoration: "none" }}>
+                        <div>
+                          <div style={{ borderRadius: 16, overflow: "hidden", background: "#F3F4F6", aspectRatio: "1", marginBottom: 10 }}>
+                            {item.images?.[0]?.url
+                              ? <img src={item.images[0].url} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform .35s" }}
+                                  onMouseOver={e => e.currentTarget.style.transform = "scale(1.05)"}
+                                  onMouseOut={e => e.currentTarget.style.transform = "scale(1)"} />
+                              : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 40 }}>🏡</div>
+                            }
+                          </div>
+                          <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.title}</p>
+                          <p style={{ fontFamily: BF, fontSize: 12, color: "#888" }}>{item.location?.city}</p>
+                          {item.pricing?.basePrice && <p style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: P, marginTop: 2 }}>${item.pricing.basePrice}<span style={{ fontWeight: 400, color: "#aaa", fontSize: 11 }}>/night</span></p>}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            </motion.div>
+          )}
+
+          {/* ═══ REVIEWS ═══ */}
+          {activeTab === "Reviews" && (
+            <motion.div key="reviews" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}
+              style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {pastBookings.filter((b) => b.status?.toLowerCase() === "completed").length > 0 && (
+                <Section title="Leave a Review" emoji="✍️">
+                  <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {pastBookings.filter((b) => b.status?.toLowerCase() === "completed").slice(0, 5).map((b) => (
+                      <div key={b._id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "#FAFAFA", borderRadius: 14, border: "1px solid #F0F0F0" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
                           {b.listing?.images?.[0]?.url && (
-                            <img src={b.listing.images[0].url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                            <img src={b.listing.images[0].url} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
                           )}
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-800 truncate">{b.listing?.title || "Listing"}</p>
-                            <p className="text-xs text-gray-500">{b.listing?.location?.city || ""}</p>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontFamily: BF, fontWeight: 600, fontSize: 13, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{b.listing?.title || "Listing"}</p>
+                            <p style={{ fontFamily: BF, fontSize: 11, color: "#888" }}>{b.listing?.location?.city}</p>
                           </div>
                         </div>
                         <button
                           onClick={() => setReviewBookingId(b._id)}
-                          className="flex-shrink-0 text-sm font-semibold text-[#FF385C] border border-[#FF385C] px-4 py-1.5 rounded-lg hover:bg-rose-50 transition-colors"
+                          style={{ flexShrink: 0, fontFamily: BF, fontSize: 12, fontWeight: 700, color: P, border: `1.5px solid ${P}`, background: "none", padding: "8px 16px", borderRadius: 10, cursor: "pointer", transition: "background .15s" }}
+                          onMouseOver={e => e.currentTarget.style.background = "#FFF1F2"}
+                          onMouseOut={e => e.currentTarget.style.background = "none"}
                         >
                           Write Review
                         </button>
                       </div>
                     ))}
-                </div>
-              </div>
-            )}
-
-            {/* Reviews about you */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-50 flex items-center gap-2">
-                <span className="text-lg">⭐</span>
-                <h2 className="font-bold text-gray-800" style={{ fontFamily: "Fraunces, serif" }}>Reviews About You</h2>
-                <Badge color="yellow">{reviews.length}</Badge>
-              </div>
-              {loading.reviews ? (
-                <div className="grid sm:grid-cols-2 gap-4 p-6">
-                  {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
-                </div>
-              ) : reviews.length === 0 ? (
-                <div className="text-center py-16">
-                  <p className="text-5xl mb-4">💬</p>
-                  <p className="text-gray-500 font-medium">No reviews yet</p>
-                  <p className="text-xs text-gray-400 mt-1">Reviews appear here after completed stays</p>
-                </div>
-              ) : (
-                <div className="grid sm:grid-cols-2 gap-4 p-6">
-                  {reviews.map((r) => <ReviewCard key={r._id} review={r} />)}
-                </div>
+                  </div>
+                </Section>
               )}
-            </div>
 
-            {/* ReviewForm modal */}
-            {reviewBookingId && (
-              <ReviewForm
-                bookingId={reviewBookingId}
-                token={token}
-                onClose={() => setReviewBookingId(null)}
-                onSubmitted={() => fetchAll()}
-              />
-            )}
-          </div>
-        )}
+              <Section title="Reviews About You" emoji="⭐">
+                {loading.reviews ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 20 }}>
+                    {[0,1,2,3].map(i => <Shimmer key={i} h={110} r={14} />)}
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "64px 20px" }}>
+                    <p style={{ fontSize: 48, marginBottom: 16 }}>💬</p>
+                    <p style={{ fontFamily: BF, fontWeight: 600, color: "#555" }}>No reviews yet</p>
+                    <p style={{ fontFamily: BF, fontSize: 12, color: "#aaa", marginTop: 4 }}>Reviews appear here after completed stays</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 20 }}>
+                    {reviews.map((r, i) => <ReviewCard key={r._id || i} review={r} i={i} />)}
+                  </div>
+                )}
+              </Section>
 
-        {/* ═══════════════════ QUICK ACTIONS TAB ═══════════════════ */}
-        {activeTab === "Quick Actions" && (
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { icon: "🔍", label: "Explore Homes", desc: "Find your next getaway", to: "/search", color: "from-sky-50 to-blue-50 border-sky-100" },
-              { icon: "👤", label: "Edit Profile", desc: "Update your info & photo", to: "/profile", color: "from-violet-50 to-purple-50 border-violet-100" },
-              { icon: "🔒", label: "Change Password", desc: "Keep your account secure", to: "/profile?tab=security", color: "from-amber-50 to-yellow-50 border-amber-100" },
-              { icon: "📋", label: "All Bookings", desc: "View your full booking history", to: null, action: () => setActiveTab("My Bookings"), color: "from-emerald-50 to-green-50 border-emerald-100" },
-              ...(isHost
-                ? [
-                    { icon: "🏠", label: "Create Listing", desc: "List a new property", to: "/create-listing", color: "from-rose-50 to-pink-50 border-rose-100" },
-                    { icon: "📊", label: "Hosting Dashboard", desc: "Manage your listings", to: "/hosting", color: "from-orange-50 to-amber-50 border-orange-100" },
-                  ]
-                : [
-                    { icon: "🏡", label: "Become a Host", desc: "Earn by listing your space", to: "/become-host", color: "from-rose-50 to-pink-50 border-rose-100" },
-                  ]),
-            ].map((action, i) => {
-              const inner = (
-                <div className={`bg-gradient-to-br ${action.color} border rounded-2xl p-5 hover:shadow-md transition-all duration-200 cursor-pointer group h-full`}>
-                  <span className="text-3xl">{action.icon}</span>
-                  <p className="font-bold text-gray-800 mt-3 group-hover:text-rose-600 transition-colors">{action.label}</p>
-                  <p className="text-sm text-gray-500 mt-1">{action.desc}</p>
-                </div>
-              );
-              return action.to ? (
-                <Link key={i} to={action.to}>{inner}</Link>
-              ) : (
-                <div key={i} onClick={action.action}>{inner}</div>
-              );
-            })}
-          </div>
-        )}
+              {reviewBookingId && (
+                <ReviewForm bookingId={reviewBookingId} token={token} onClose={() => setReviewBookingId(null)} onSubmitted={() => fetchAll()} />
+              )}
+            </motion.div>
+          )}
 
+          {/* ═══ QUICK ACTIONS ═══ */}
+          {activeTab === "Quick Actions" && (
+            <motion.div key="actions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+                {[
+                  { emoji: "🔍", label: "Explore Homes", desc: "Find your next getaway", to: "/search", gradient: "linear-gradient(135deg,#EFF6FF,#DBEAFE)", border: "#BFDBFE", hover: "#2563EB" },
+                  { emoji: "👤", label: "Edit Profile", desc: "Update your info & photo", to: "/profile", gradient: "linear-gradient(135deg,#F5F3FF,#EDE9FE)", border: "#DDD6FE", hover: "#7C3AED" },
+                  { emoji: "🔒", label: "Change Password", desc: "Keep your account secure", to: "/profile?tab=security", gradient: "linear-gradient(135deg,#FFFBEB,#FEF3C7)", border: "#FDE68A", hover: "#D97706" },
+                  { emoji: "📋", label: "All Bookings", desc: "View your full history", action: () => setActiveTab("My Bookings"), gradient: "linear-gradient(135deg,#ECFDF5,#D1FAE5)", border: "#A7F3D0", hover: "#059669" },
+                  ...(isHost
+                    ? [
+                        { emoji: "🏠", label: "Create Listing", desc: "List a new property", to: "/create-listing", gradient: `linear-gradient(135deg,#FFF1F2,#FFE4E6)`, border: "#FECDD3", hover: P },
+                        { emoji: "📊", label: "Host Dashboard", desc: "Manage your listings", to: "/hosting", gradient: "linear-gradient(135deg,#FFF7ED,#FFEDD5)", border: "#FED7AA", hover: "#EA580C" },
+                      ]
+                    : [
+                        { emoji: "🏡", label: "Become a Host", desc: "Earn by listing your space", to: "/become-host", gradient: `linear-gradient(135deg,#FFF1F2,#FFE4E6)`, border: "#FECDD3", hover: P },
+                      ]
+                  ),
+                ].map((action, i) => {
+                  const inner = (
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                      style={{ background: action.gradient, border: `1px solid ${action.border}`, borderRadius: 20, padding: "22px 20px", cursor: "pointer", transition: "all .2s", height: "100%" }}
+                      onMouseOver={e => { e.currentTarget.style.boxShadow = "0 8px 24px rgba(0,0,0,.1)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+                      onMouseOut={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "translateY(0)"; }}
+                    >
+                      <span style={{ fontSize: 32 }}>{action.emoji}</span>
+                      <p style={{ fontFamily: BF, fontWeight: 700, fontSize: 15, color: "#111", marginTop: 14, marginBottom: 4 }}>{action.label}</p>
+                      <p style={{ fontFamily: BF, fontSize: 12, color: "#888" }}>{action.desc}</p>
+                    </motion.div>
+                  );
+                  return action.to
+                    ? <Link key={i} to={action.to} style={{ textDecoration: "none" }}>{inner}</Link>
+                    : <div key={i} onClick={action.action}>{inner}</div>;
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
     </div>
   );
