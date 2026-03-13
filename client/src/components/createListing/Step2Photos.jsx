@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 export default function Step2Photos({ data, onChange }) {
 	const [draggedIndex, setDraggedIndex] = useState(null);
 
-	const handleFileChange = (e) => {
-		const files = Array.from(e.target.files);
-		files.forEach(file => {
+	const pushFiles = useCallback((files) => {
+		files.forEach((file) => {
 			const reader = new FileReader();
 			reader.onload = (event) => {
 				const newPhotos = [...(data.photos || []), event.target.result];
@@ -13,7 +13,13 @@ export default function Step2Photos({ data, onChange }) {
 			};
 			reader.readAsDataURL(file);
 		});
-	};
+	}, [data, onChange]);
+
+	const { getRootProps, getInputProps, isDragActive } = useDropzone({
+		onDrop: pushFiles,
+		accept: { 'image/*': [] },
+		multiple: true,
+	});
 
 	const removePhoto = (index) => {
 		const newPhotos = data.photos.filter((_, i) => i !== index);
@@ -27,9 +33,7 @@ export default function Step2Photos({ data, onChange }) {
 		onChange({ ...data, photos: newPhotos });
 	};
 
-	const handleDragStart = (index) => {
-		setDraggedIndex(index);
-	};
+	const handleDragStart = (index) => setDraggedIndex(index);
 
 	const handleDragOver = (e, index) => {
 		e.preventDefault();
@@ -46,20 +50,16 @@ export default function Step2Photos({ data, onChange }) {
 				<p className="text-gray-600">First photo will be your listing cover. You can reorder by dragging.</p>
 			</div>
 
-			<div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors">
-				<input
-					type="file"
-					multiple
-					accept="image/*"
-					onChange={handleFileChange}
-					className="hidden"
-					id="photo-upload"
-				/>
-				<label htmlFor="photo-upload" className="cursor-pointer">
-					<div className="text-4xl mb-2">📸</div>
-					<p className="font-medium text-gray-700">Click to upload photos</p>
-					<p className="text-sm text-gray-500 mt-1">or drag and drop</p>
-				</label>
+			<div
+				{...getRootProps()}
+				className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+					isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-500'
+				}`}
+			>
+				<input {...getInputProps()} />
+				<div className="text-4xl mb-2">📸</div>
+				<p className="font-medium text-gray-700">Drag & drop images here</p>
+				<p className="text-sm text-gray-500 mt-1">or click to select files</p>
 			</div>
 
 			{data.photos && data.photos.length > 0 && (

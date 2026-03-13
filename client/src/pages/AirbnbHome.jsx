@@ -205,6 +205,7 @@ export default function AirbnbHome() {
   const [featuredListings, setFeaturedListings] = useState([]);
   const [trendingListings, setTrendingListings] = useState([]);
   const [nearbyListings, setNearbyListings] = useState([]);
+  const [recentlyViewed, setRecentlyViewed] = useState([]);
 
   const [loadingAll, setLoadingAll] = useState(true);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
@@ -261,6 +262,15 @@ export default function AirbnbHome() {
   }, [token, userId]);
 
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
+
+  useEffect(() => {
+    try {
+      const recent = JSON.parse(localStorage.getItem('rg_recently_viewed') || '[]');
+      setRecentlyViewed(recent);
+    } catch {
+      setRecentlyViewed([]);
+    }
+  }, []);
 
   // ── Fetch paginated listings when category or page changes
   const fetchListings = useCallback(async (cat, pageNum, reset = false) => {
@@ -395,6 +405,19 @@ export default function AirbnbHome() {
             title="Trending this week"
             listings={trendingListings}
             loading={loadingTrending}
+            token={token}
+            userId={userId}
+            wishlistedIds={wishlistedIds}
+            onWishlistChange={fetchWishlist}
+          />
+        )}
+
+        {/* Recently viewed homes */}
+        {activeCategory === '' && recentlyViewed.length > 0 && (
+          <ListingSection
+            title="Recently viewed homes"
+            listings={recentlyViewed}
+            loading={false}
             token={token}
             userId={userId}
             wishlistedIds={wishlistedIds}

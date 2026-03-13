@@ -879,6 +879,27 @@ export default function ListingDetails() {
     }).catch(()=>setError('Network error')).finally(()=>setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (!listing?._id) return;
+    try {
+      const key = 'rg_recently_viewed';
+      const existing = JSON.parse(localStorage.getItem(key) || '[]');
+      const compact = {
+        _id: listing._id,
+        title: listing.title,
+        location: listing.location,
+        pricing: listing.pricing,
+        images: listing.images,
+        averageRating: listing.averageRating,
+        viewedAt: new Date().toISOString()
+      };
+      const updated = [compact, ...existing.filter((x) => x._id !== listing._id)].slice(0, 12);
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch {
+      // Ignore local storage failures.
+    }
+  }, [listing]);
+
   /* ── FIXED: handleBook with robust field names + detailed error surfacing ── */
   const handleBook = useCallback(async () => {
     if (!token) {

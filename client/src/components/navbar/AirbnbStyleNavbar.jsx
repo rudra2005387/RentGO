@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaUser, FaBars, FaTimes, FaGlobe, FaBell, FaComments } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../context/NotificationContext';
+import { useTheme } from '../../context/ThemeContext';
 import SearchBar from '../SearchBar/SearchBar';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -12,6 +13,7 @@ export default function AirbnbStyleNavbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, token, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
@@ -101,6 +103,15 @@ export default function AirbnbStyleNavbar() {
 
             <button className="hidden md:flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors">
               <FaGlobe className="w-4 h-4 text-[#222222]" />
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className="hidden md:flex h-10 items-center gap-2 px-3 rounded-full hover:bg-[#F7F7F7] transition-colors text-sm font-semibold text-[#222222]"
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
+              <span className="hidden lg:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
             </button>
 
             {/* Messages */}

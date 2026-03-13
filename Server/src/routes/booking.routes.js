@@ -24,6 +24,9 @@ router.get('/', verifyToken, bookingController.getBookings);
 // Get booking statistics
 router.get('/stats', verifyToken, bookingController.getBookingStats);
 
+// Get completed bookings pending guest review
+router.get('/review-pending', verifyToken, bookingController.getPendingReviews);
+
 // Get single booking details
 router.get('/:id', verifyToken, bookingController.getBookingDetails);
 

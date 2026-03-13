@@ -23,6 +23,9 @@ router.get('/featured', cache(300), listingController.getFeaturedListings);
 // Get nearby listings (geolocation) — must be before /:id
 router.get('/nearby', cache(120), listingController.getNearbyListings);
 
+// Smart location suggestions (must be before /:id)
+router.get('/suggestions', cache(60), listingController.getLocationSuggestions);
+
 // Get single listing details
 router.get('/:id', cache(180), listingController.getListingDetails);
 

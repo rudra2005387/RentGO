@@ -1,45 +1,47 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 export default function LocationAutocomplete({ value, onChange, placeholder = "Enter location" }) {
 	const [suggestions, setSuggestions] = useState([]);
 	const [showSuggestions, setShowSuggestions] = useState(false);
+	const [loading, setLoading] = useState(false);
 	const inputRef = useRef(null);
-
-	// Mock Google Places API - can be replaced with real API
-	const mockPlaces = [
-		'New York, NY',
-		'Los Angeles, CA',
-		'Chicago, IL',
-		'Houston, TX',
-		'Phoenix, AZ',
-		'Philadelphia, PA',
-		'San Antonio, TX',
-		'San Diego, CA',
-		'Dallas, TX',
-		'San Jose, CA',
-		'Miami, FL',
-		'Austin, TX',
-		'Denver, CO',
-		'Boston, MA',
-		'Seattle, WA',
-		'Las Vegas, NV'
-	];
 
 	const handleInputChange = (e) => {
 		const inputValue = e.target.value;
 		onChange(inputValue);
 
-		if (inputValue.length > 0) {
-			const filtered = mockPlaces.filter(place =>
-				place.toLowerCase().includes(inputValue.toLowerCase())
-			);
-			setSuggestions(filtered);
-			setShowSuggestions(true);
-		} else {
+		if (inputValue.length < 2) {
 			setSuggestions([]);
 			setShowSuggestions(false);
+			return;
 		}
+
+		setShowSuggestions(true);
 	};
+
+	useEffect(() => {
+		const query = value?.trim();
+		if (!query || query.length < 2) return;
+
+		const t = setTimeout(async () => {
+			setLoading(true);
+			try {
+				const res = await fetch(`${API_BASE}/listings/suggestions?q=${encodeURIComponent(query)}&limit=7`);
+				const data = await res.json();
+				if (data.success) {
+					setSuggestions(data.data?.suggestions || []);
+				}
+			} catch {
+				setSuggestions([]);
+			} finally {
+				setLoading(false);
+			}
+		}, 300);
+
+		return () => clearTimeout(t);
+	}, [value]);
 
 	const handleSelectSuggestion = (place) => {
 		onChange(place);
@@ -71,8 +73,14 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "E
 				className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
 			/>
 
-			{showSuggestions && suggestions.length > 0 && (
+			{showSuggestions && (
 				<div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+					{loading && (
+						<div className="px-4 py-2 text-sm text-gray-500">Searching...</div>
+					)}
+					{!loading && suggestions.length === 0 && (
+						<div className="px-4 py-2 text-sm text-gray-500">No suggestions</div>
+					)}
 					{suggestions.map((place, idx) => (
 						<button
 							key={idx}

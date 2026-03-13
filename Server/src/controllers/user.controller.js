@@ -320,20 +320,108 @@ exports.getUserStats = asyncHandler(async (req, res) => {
   if (user.role === 'host') {
     // Host stats
     const hostListings = await Listing.countDocuments({ host: id });
-    const hostBookings = await Booking.countDocuments({
-      host: id,
-      status: 'completed'
-    });
+    const hostBookings = await Booking.countDocuments({ host: id });
+    const completedBookings = await Booking.countDocuments({ host: id, status: 'completed' });
+    const upcomingGuestsAgg = await Booking.aggregate([
+      {
+        $match: {
+          host: user._id,
+          status: { $in: ['pending', 'confirmed'] },
+          checkInDate: { $gte: new Date() }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalGuests: { $sum: '$numberOfGuests' }
+        }
+      }
+    ]);
+
+    const currentMonthStart = new Date();
+    currentMonthStart.setDate(1);
+    currentMonthStart.setHours(0, 0, 0, 0);
+
     const totalEarnings = await Booking.aggregate([
       { $match: { host: user._id, status: 'completed' } },
       { $group: { _id: null, total: { $sum: '$pricing.total' } } }
     ]);
 
+    const monthlyEarnings = await Booking.aggregate([
+      {
+        $match: {
+          host: user._id,
+          status: 'completed',
+          checkOutDate: { $gte: currentMonthStart }
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$pricing.total' } } }
+    ]);
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+
+    const monthlyRevenueSeriesRaw = await Booking.aggregate([
+      {
+        $match: {
+          host: user._id,
+          status: 'completed',
+          checkOutDate: { $gte: sixMonthsAgo }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            y: { $year: '$checkOutDate' },
+            m: { $month: '$checkOutDate' }
+          },
+          total: { $sum: '$pricing.total' }
+        }
+      },
+      { $sort: { '_id.y': 1, '_id.m': 1 } }
+    ]);
+
+    const monthlyRevenueSeries = monthlyRevenueSeriesRaw.map((x) => ({
+      month: `${x._id.y}-${String(x._id.m).padStart(2, '0')}`,
+      revenue: Math.round(x.total)
+    }));
+
+    // Occupancy approximation: booked nights / total available nights over last 30 days.
+    const occupancyWindowDays = 30;
+    const bookingNightsAgg = await Booking.aggregate([
+      {
+        $match: {
+          host: user._id,
+          status: { $in: ['confirmed', 'completed'] },
+          checkOutDate: { $gte: new Date(Date.now() - occupancyWindowDays * 24 * 60 * 60 * 1000) }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          nights: { $sum: '$numberOfNights' }
+        }
+      }
+    ]);
+
+    const totalNightsCapacity = Math.max(hostListings * occupancyWindowDays, 1);
+    const occupancyRate = Math.min(
+      100,
+      Math.round(((bookingNightsAgg[0]?.nights || 0) / totalNightsCapacity) * 100)
+    );
+
     stats = {
       ...stats,
       totalListings: hostListings,
-      completedBookings: hostBookings,
+      totalBookings: hostBookings,
+      completedBookings,
       totalEarnings: totalEarnings[0]?.total || 0,
+      monthlyEarnings: monthlyEarnings[0]?.total || 0,
+      upcomingGuests: upcomingGuestsAgg[0]?.totalGuests || 0,
+      occupancyRate,
+      monthlyRevenueSeries,
       superhost: user.hostInfo?.superhost || false,
       responseRate: user.hostInfo?.responseRate || 0
     };

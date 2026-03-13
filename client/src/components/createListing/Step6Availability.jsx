@@ -20,8 +20,10 @@ export default function Step6Availability({ data, onChange }) {
 
 	const blockedDates = data.blockedDates || [];
 	const minStayNights = data.minStayNights || 1;
+	const specialPrice = data.specialPrice || '';
+	const seasonLabel = data.seasonLabel || '';
 
-	const dateString = (d) => `${year}-${month + 1}-${d}`;
+	const dateString = (d) => `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
 	const toggleBlockedDate = (day) => {
 		const dateStr = dateString(day);
@@ -112,6 +114,34 @@ export default function Step6Availability({ data, onChange }) {
 			</div>
 
 			<div className="space-y-4">
+				<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Special Price Per Night (optional)
+						</label>
+						<input
+							type="number"
+							min="0"
+							value={specialPrice}
+							onChange={(e) => onChange({ ...data, specialPrice: e.target.value })}
+							placeholder="e.g. 149"
+							className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						/>
+					</div>
+					<div>
+						<label className="block text-sm font-medium text-gray-700 mb-2">
+							Season Label (optional)
+						</label>
+						<input
+							type="text"
+							value={seasonLabel}
+							onChange={(e) => onChange({ ...data, seasonLabel: e.target.value })}
+							placeholder="e.g. Peak Season"
+							className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+						/>
+					</div>
+				</div>
+
 				<div>
 					<label className="block text-sm font-medium text-gray-700 mb-2">
 						Minimum Stay (nights)

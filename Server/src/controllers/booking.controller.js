@@ -120,7 +120,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
   });
 
   // Create notification for host
-  await Notification.create({
+  const hostNotification = await Notification.create({
     user: listing.host,
     type: 'booking',
     title: 'New Booking Received',
@@ -133,7 +133,7 @@ exports.createBooking = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   if (io) {
     io.to(`user_${req.user.userId}`).emit('notification', notification);
-    io.to(`user_${listing.host}`).emit('notification', { type: 'booking', title: 'New Booking Received' });
+    io.to(`user_${listing.host}`).emit('notification', hostNotification);
   }
 
   res.status(201).json({
@@ -311,26 +311,13 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
     throw new APIError('Cannot cancel this booking', 400);
   }
 
-  // Check cancellation policy and calculate refund
-  const cancellationPolicy = (await Listing.findById(booking.listing)).bookingRules.cancellationPolicy;
-  let refundPercentage = 0;
-
+  // Airbnb-style cancellation rule requested by product:
+  // - Free cancellation before 48 hours from check-in
+  // - Partial refund after that window (50%)
   const checkInDate = new Date(booking.checkInDate);
-  const daysUntilCheckIn = Math.ceil((checkInDate - new Date()) / (1000 * 60 * 60 * 24));
-
-  if (cancellationPolicy === 'flexible') {
-    refundPercentage = daysUntilCheckIn >= 1 ? 100 : 0;
-  } else if (cancellationPolicy === 'moderate') {
-    if (daysUntilCheckIn >= 7) refundPercentage = 100;
-    else if (daysUntilCheckIn >= 3) refundPercentage = 50;
-    else refundPercentage = 0;
-  } else if (cancellationPolicy === 'strict') {
-    if (daysUntilCheckIn >= 30) refundPercentage = 100;
-    else if (daysUntilCheckIn >= 14) refundPercentage = 50;
-    else refundPercentage = 0;
-  } else if (cancellationPolicy === 'super_strict') {
-    refundPercentage = 0;
-  }
+  const msUntilCheckIn = checkInDate.getTime() - Date.now();
+  const hoursUntilCheckIn = msUntilCheckIn / (1000 * 60 * 60);
+  const refundPercentage = hoursUntilCheckIn >= 48 ? 100 : 50;
 
   const refundAmount = (booking.pricing.total * refundPercentage) / 100;
 
@@ -352,6 +339,31 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
     refundAmount: refundAmount
   });
 
+  // Create and emit cancellation notifications in real-time
+  const guestNotification = await Notification.create({
+    user: booking.guest._id,
+    type: 'cancellation',
+    title: 'Booking Cancelled',
+    message: `Your booking for ${booking.listing.title} has been cancelled.`,
+    body: `Refund: $${refundAmount.toFixed(2)} (${refundPercentage}%)`,
+    bookingId: booking._id
+  });
+
+  const hostNotification = await Notification.create({
+    user: booking.host,
+    type: 'cancellation',
+    title: 'Guest Cancelled Booking',
+    message: `${booking.guest.firstName} cancelled ${booking.listing.title}.`,
+    body: `Refund issued: $${refundAmount.toFixed(2)}`,
+    bookingId: booking._id
+  });
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`user_${booking.guest._id}`).emit('notification', guestNotification);
+    io.to(`user_${booking.host}`).emit('notification', hostNotification);
+  }
+
   res.status(200).json({
     success: true,
     message: 'Booking cancelled successfully',
@@ -360,8 +372,30 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
       refund: {
         amount: refundAmount,
         percentage: refundPercentage,
-        policy: cancellationPolicy
+        policy: '48-hour'
       }
+    }
+  });
+});
+
+/**
+ * Get completed bookings that are pending a guest review
+ * GET /api/bookings/review-pending
+ */
+exports.getPendingReviews = asyncHandler(async (req, res) => {
+  const bookings = await Booking.find({
+    guest: req.user.userId,
+    status: 'completed',
+    $or: [{ guestReview: { $exists: false } }, { guestReview: null }]
+  })
+    .populate('listing', 'title images location.city')
+    .sort({ checkOutDate: -1 })
+    .limit(20);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      bookings
     }
   });
 });

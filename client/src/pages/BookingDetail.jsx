@@ -351,7 +351,7 @@ export default function BookingDetail() {
               <span style={{ fontSize: 28, flexShrink: 0 }}>🚫</span>
               <div style={{ flex: 1 }}>
                 <p style={{ fontFamily: HF, fontSize: 17, fontWeight: 600, color: '#111', marginBottom: 4 }}>Need to cancel?</p>
-                <p style={{ fontFamily: BF, fontSize: 13, color: '#888', marginBottom: 14 }}>Free cancellation up to 7 days before check-in.</p>
+                <p style={{ fontFamily: BF, fontSize: 13, color: '#888', marginBottom: 14 }}>Free cancellation up to 48 hours before check-in. After that, 50% refund applies.</p>
                 <button
                   onClick={() => setShowCancelModal(true)}
                   style={{ fontFamily: BF, fontSize: 13, fontWeight: 700, color: '#BE123C', border: '1.5px solid #FECDD3', background: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', transition: 'all .15s' }}

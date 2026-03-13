@@ -57,6 +57,25 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root.theme-light {
+  --app-bg: #ffffff;
+  --app-surface: #ffffff;
+  --app-soft: #f8f7f5;
+  --app-text: #222222;
+  --app-sub: #717171;
+  --app-border: #dddddd;
+}
+
+:root.theme-dark {
+  color-scheme: dark;
+  --app-bg: #0f1115;
+  --app-surface: #181c24;
+  --app-soft: #202632;
+  --app-text: #f5f7fb;
+  --app-sub: #b6c0d4;
+  --app-border: #2a3242;
+}
+
 /* ─── Typography utility classes ─────────────────────────────────────────── */
 .font-heading {
   font-family: 'Fraunces', Georgia, serif;
@@ -74,6 +93,42 @@
 html, body {
   width: 100%;
   height: 100%;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+#root {
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.theme-dark .bg-white,
+.theme-dark [style*='background: #fff'],
+.theme-dark [style*='background:#fff'],
+.theme-dark [style*='background: rgb(255, 255, 255)'] {
+  background-color: var(--app-surface) !important;
+}
+
+.theme-dark .text-\[\#222222\],
+.theme-dark .text-gray-900,
+.theme-dark .text-gray-800,
+.theme-dark .text-gray-700,
+.theme-dark .text-black {
+  color: var(--app-text) !important;
+}
+
+.theme-dark .text-\[\#717171\],
+.theme-dark .text-gray-600,
+.theme-dark .text-gray-500,
+.theme-dark .text-gray-400 {
+  color: var(--app-sub) !important;
+}
+
+.theme-dark .border,
+.theme-dark .border-gray-100,
+.theme-dark .border-gray-200,
+.theme-dark .border-gray-300 {
+  border-color: var(--app-border) !important;
 }
 
 a {

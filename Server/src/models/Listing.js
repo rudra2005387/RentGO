@@ -165,7 +165,9 @@ const listingSchema = new mongoose.Schema(
     availability: [{
       startDate: Date,
       endDate: Date,
-      available: Boolean
+      available: Boolean,
+      specialPrice: Number,
+      seasonLabel: String
     }],
     minimumStay: {
       type: Number,

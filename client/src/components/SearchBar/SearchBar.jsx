@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 export default function SearchBar() {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
@@ -9,6 +11,9 @@ export default function SearchBar() {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState(1);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const barRef = useRef(null);
 
   // Close on outside click
@@ -35,6 +40,37 @@ export default function SearchBar() {
   };
 
   const today = new Date().toISOString().split('T')[0];
+
+  useEffect(() => {
+    const query = city.trim();
+    if (query.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      setSuggestLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/listings/suggestions?q=${encodeURIComponent(query)}&limit=6`);
+        const data = await res.json();
+        if (data.success) {
+          setSuggestions(data.data?.suggestions || []);
+          setShowSuggestions(true);
+        }
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSuggestLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [city]);
+
+  const selectSuggestion = (value) => {
+    setCity(value);
+    setShowSuggestions(false);
+  };
 
   // ─── Compact pill (collapsed) ──────────────────────────────────────────
   if (!expanded) {
@@ -76,17 +112,34 @@ export default function SearchBar() {
             className="hidden md:flex bg-white rounded-full border border-[#DDDDDD] shadow-lg items-center"
           >
             {/* Where */}
-            <div className="flex-1 px-6 py-3 rounded-full hover:bg-[#EBEBEB] transition-colors">
+            <div className="relative flex-1 px-6 py-3 rounded-full hover:bg-[#EBEBEB] transition-colors">
               <label className="block text-xs font-bold text-[#222222]">Where</label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onFocus={() => setShowSuggestions(true)}
                 placeholder="Search destinations"
                 className="w-full text-sm text-[#222222] placeholder-[#717171] bg-transparent outline-none"
                 autoFocus
               />
+              {showSuggestions && city.trim().length >= 2 && (
+                <div className="absolute mt-2 w-[280px] max-h-64 overflow-auto rounded-2xl border border-[#DDDDDD] bg-white shadow-xl z-[60]">
+                  {suggestLoading && <p className="px-4 py-3 text-sm text-[#717171]">Searching...</p>}
+                  {!suggestLoading && suggestions.length === 0 && <p className="px-4 py-3 text-sm text-[#717171]">No suggestions</p>}
+                  {!suggestLoading && suggestions.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => selectSuggestion(item)}
+                      className="w-full text-left px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7]"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <span className="w-px h-8 bg-[#DDDDDD]" />
@@ -170,10 +223,27 @@ export default function SearchBar() {
               value={city}
               onChange={(e) => setCity(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(true)}
               placeholder="Search destinations"
               className="w-full border border-[#DDDDDD] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#222222]"
               autoFocus
             />
+            {showSuggestions && city.trim().length >= 2 && (
+              <div className="mt-2 max-h-48 overflow-auto rounded-xl border border-[#DDDDDD] bg-white">
+                {suggestLoading && <p className="px-3 py-2 text-sm text-[#717171]">Searching...</p>}
+                {!suggestLoading && suggestions.length === 0 && <p className="px-3 py-2 text-sm text-[#717171]">No suggestions</p>}
+                {!suggestLoading && suggestions.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => selectSuggestion(item)}
+                    className="w-full text-left px-3 py-2 text-sm text-[#222222] hover:bg-[#F7F7F7]"
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

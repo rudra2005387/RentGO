@@ -269,6 +269,7 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [profile, setProfile] = useState(null);
   const [reviewBookingId, setReviewBookingId] = useState(null);
+  const [pendingReviewPrompt, setPendingReviewPrompt] = useState(null);
   const [loading, setLoading] = useState({ bookings: true, wishlist: true, reviews: true, stats: true, profile: true });
   const setLoaded = (key) => setLoading((p) => ({ ...p, [key]: false }));
   const userId = user?._id || user?.id;
@@ -291,12 +292,21 @@ export default function Dashboard() {
 
   const upcomingBookings = bookings.filter((b) => ["confirmed", "pending"].includes(b.status?.toLowerCase()));
   const pastBookings = bookings.filter((b) => ["completed", "cancelled"].includes(b.status?.toLowerCase()));
+  const pendingGuestReviews = bookings.filter((b) => b.status?.toLowerCase() === 'completed' && !b.guestReview);
   const displayName = user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email : "User";
   const isHost = user?.role === "host";
   const totalSpent = bookings.filter((b) => b.status?.toLowerCase() === "completed").reduce((acc, b) => acc + (b.pricing?.total || 0), 0);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  useEffect(() => {
+    if (!pendingGuestReviews.length) return;
+    const first = pendingGuestReviews[0];
+    const storageKey = `rg_review_prompted_${first._id}`;
+    if (localStorage.getItem(storageKey)) return;
+    setPendingReviewPrompt(first);
+  }, [pendingGuestReviews]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8F7F5", fontFamily: BF }}>
@@ -415,6 +425,72 @@ export default function Dashboard() {
 
         {/* ═══ OVERVIEW ═══ */}
         <AnimatePresence mode="wait">
+          {pendingReviewPrompt && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              style={{
+                background: 'linear-gradient(135deg,#FFF1F2,#FFE4E6)',
+                border: '1px solid #FECDD3',
+                borderRadius: 16,
+                padding: '14px 16px',
+                marginBottom: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div>
+                <p style={{ fontFamily: BF, fontWeight: 700, fontSize: 14, color: '#111' }}>Rate your stay</p>
+                <p style={{ fontFamily: BF, fontSize: 12, color: '#555' }}>
+                  {pendingReviewPrompt.listing?.title || 'Your stay'} is completed. Share ratings for cleanliness, communication, location, and value.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`rg_review_prompted_${pendingReviewPrompt._id}`, '1');
+                    setPendingReviewPrompt(null);
+                  }}
+                  style={{
+                    border: '1px solid #ddd',
+                    background: '#fff',
+                    borderRadius: 10,
+                    padding: '8px 10px',
+                    fontFamily: BF,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Later
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`rg_review_prompted_${pendingReviewPrompt._id}`, '1');
+                    setReviewBookingId(pendingReviewPrompt._id);
+                    setPendingReviewPrompt(null);
+                  }}
+                  style={{
+                    border: 'none',
+                    background: '#FF385C',
+                    color: '#fff',
+                    borderRadius: 10,
+                    padding: '8px 12px',
+                    fontFamily: BF,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Review now
+                </button>
+              </div>
+            </motion.div>
+          )}
+
           {activeTab === "Overview" && (
             <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>

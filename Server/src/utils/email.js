@@ -14,22 +14,26 @@ const transporter = nodemailer.createTransport({
  */
 exports.sendBookingConfirmation = async (userEmail, userName, bookingDetails) => {
   try {
+    const checkInFmt = new Date(bookingDetails.checkInDate).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+    const checkOutFmt = new Date(bookingDetails.checkOutDate).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    });
+
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: userEmail,
-      subject: 'Booking Confirmation - RentGo',
+      subject: 'Booking Confirmed',
       html: `
         <h2>Booking Confirmed!</h2>
         <p>Hi ${userName},</p>
-        <p>Your booking has been confirmed. Here are the details:</p>
-        <ul>
-          <li><strong>Property:</strong> ${bookingDetails.propertyTitle}</li>
-          <li><strong>Check-in:</strong> ${bookingDetails.checkInDate}</li>
-          <li><strong>Check-out:</strong> ${bookingDetails.checkOutDate}</li>
-          <li><strong>Total Amount:</strong> ${bookingDetails.totalAmount}</li>
-          <li><strong>Booking Reference:</strong> ${bookingDetails.bookingReference}</li>
-        </ul>
-        <p>Thank you for using RentGo!</p>
+        <p>Your stay at <strong>${bookingDetails.propertyTitle}</strong><br/>${checkInFmt} -> ${checkOutFmt} has been confirmed.</p>
+        <p><strong>Total:</strong> $${bookingDetails.totalAmount}</p>
+        <p><strong>Booking Reference:</strong> ${bookingDetails.bookingReference}</p>
+        <p>Thank you for choosing RentGo.</p>
       `
     };
 

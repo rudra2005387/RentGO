@@ -81,6 +81,7 @@ exports.getListings = asyncHandler(async (req, res) => {
     checkOutDate,
     amenities,
     rating,
+    minRating,
     sortBy = 'newest'
   } = req.query;
 
@@ -105,7 +106,16 @@ exports.getListings = asyncHandler(async (req, res) => {
 
   // Filter by property type
   if (propertyType) {
-    query.propertyType = propertyType;
+    const propertyTypes = String(propertyType)
+      .split(',')
+      .map((type) => type.trim())
+      .filter(Boolean);
+
+    if (propertyTypes.length === 1) {
+      query.propertyType = propertyTypes[0];
+    } else if (propertyTypes.length > 1) {
+      query.propertyType = { $in: propertyTypes };
+    }
   }
 
   // Filter by price range
@@ -143,8 +153,9 @@ exports.getListings = asyncHandler(async (req, res) => {
   }
 
   // Filter by minimum rating
-  if (rating) {
-    query.averageRating = { $gte: parseFloat(rating) };
+  const minRatingValue = minRating ?? rating;
+  if (minRatingValue) {
+    query.averageRating = { $gte: parseFloat(minRatingValue) };
   }
 
   // Combine $and conditions if any
@@ -186,6 +197,78 @@ exports.getListings = asyncHandler(async (req, res) => {
         dates: { checkIn: checkInDate, checkOut: checkOutDate },
         rating
       }
+    }
+  });
+});
+
+/**
+ * Get smart location suggestions
+ * GET /api/listings/suggestions?q=kolk
+ */
+exports.getLocationSuggestions = asyncHandler(async (req, res) => {
+  const q = (req.query.q || '').trim();
+  const limit = Math.min(parseInt(req.query.limit || '8', 10), 12);
+
+  if (!q || q.length < 2) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        suggestions: []
+      }
+    });
+  }
+
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(escaped, 'i');
+
+  const pipeline = [
+    {
+      $match: {
+        status: 'published',
+        isActive: true,
+        $or: [
+          { 'location.city': regex },
+          { 'location.address': regex }
+        ]
+      }
+    },
+    {
+      $project: {
+        city: '$location.city',
+        address: '$location.address'
+      }
+    },
+    {
+      $facet: {
+        cities: [
+          { $match: { city: { $ne: null, $ne: '' } } },
+          { $group: { _id: '$city' } },
+          { $project: { _id: 0, label: '$_id' } },
+          { $limit: limit }
+        ],
+        addresses: [
+          { $match: { address: { $ne: null, $ne: '' } } },
+          { $group: { _id: '$address' } },
+          { $project: { _id: 0, label: '$_id' } },
+          { $limit: limit }
+        ]
+      }
+    }
+  ];
+
+  const [result] = await Listing.aggregate(pipeline);
+  const merged = [
+    ...(result?.cities || []),
+    ...(result?.addresses || [])
+  ]
+    .map((item) => item.label)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .slice(0, limit);
+
+  res.status(200).json({
+    success: true,
+    data: {
+      suggestions: merged
     }
   });
 });
@@ -460,7 +543,12 @@ exports.getAvailability = asyncHandler(async (req, res) => {
   // Get unavailable dates from listing
   const unavailableDates = listing.availability
     .filter(a => !a.available)
-    .map(a => ({ checkInDate: a.startDate, checkOutDate: a.endDate }));
+    .map(a => ({
+      checkInDate: a.startDate,
+      checkOutDate: a.endDate,
+      specialPrice: a.specialPrice,
+      seasonLabel: a.seasonLabel
+    }));
 
   const bookedDates = bookings.map(b => ({
     checkInDate: b.checkInDate,
@@ -492,7 +580,7 @@ exports.getAvailability = asyncHandler(async (req, res) => {
  */
 exports.setAvailability = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { startDate, endDate, available } = req.body;
+  const { startDate, endDate, available, specialPrice, seasonLabel } = req.body;
 
   if (!startDate || !endDate) {
     throw new APIError('Start and end dates are required', 400);
@@ -511,7 +599,9 @@ exports.setAvailability = asyncHandler(async (req, res) => {
   listing.availability.push({
     startDate: new Date(startDate),
     endDate: new Date(endDate),
-    available: available !== false
+    available: available !== false,
+    specialPrice: specialPrice != null ? Number(specialPrice) : undefined,
+    seasonLabel: seasonLabel || undefined
   });
 
   await listing.save();

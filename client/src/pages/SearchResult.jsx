@@ -9,6 +9,7 @@ import EmptyState from '../components/ui/EmptyState';
 import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const PAGE_LIMIT = 12;
 
 const authFetch = (path, token) =>
   fetch(`${API_BASE}${path}`, {
@@ -370,7 +371,11 @@ const SearchResult = () => {
   const userId = user?._id || user?.id;
 
   const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [totalResults, setTotalResults] = useState(0);
   const [sortBy, setSortBy] = useState('newest');
   const [showFilters, setShowFilters] = useState(false);
@@ -380,6 +385,10 @@ const SearchResult = () => {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [wishlistedIds, setWishlistedIds] = useState(new Set());
   const [noExactMatch, setNoExactMatch] = useState(false);
+  const loaderRef = useRef(null);
+  const observerRef = useRef(null);
+  const listContainerRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   const city = searchParams.get('city') || searchParams.get('search') || searchParams.get('location') || searchParams.get('query') || '';
   const checkInDate = searchParams.get('checkInDate') || searchParams.get('checkIn') || '';
@@ -401,11 +410,28 @@ const SearchResult = () => {
 
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
+  // Reset pagination whenever query params or filters change.
+  useEffect(() => {
+    setListings([]);
+    setTotalResults(0);
+    setPage(1);
+    setHasMore(true);
+    setNoExactMatch(false);
+    setInitialLoading(true);
+  }, [city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
+
   useEffect(() => {
     const controller = new AbortController();
+
     const fetchResults = async () => {
+      if (isFetchingRef.current) return;
+      if (!hasMore && page > 1) return;
+
+      const isFirstPage = page === 1;
+      isFetchingRef.current = true;
       setLoading(true);
-      setNoExactMatch(false);
+      setLoadingMore(!isFirstPage);
+
       try {
         const baseParams = new URLSearchParams();
         if (checkInDate) baseParams.set('checkInDate', checkInDate);
@@ -417,33 +443,81 @@ const SearchResult = () => {
         if (filters.amenities.length > 0) baseParams.set('amenities', filters.amenities.join(','));
         if (filters.minRating > 3) baseParams.set('minRating', filters.minRating);
         if (filters.instantBook) baseParams.set('instantBook', 'true');
-        const sortMap = { 'price-low': 'price_asc', 'price-high': 'price_desc', 'rating': 'rating', 'newest': 'newest' };
+
+        const sortMap = {
+          'price-low': 'price_low',
+          'price-high': 'price_high',
+          'rating': 'rating',
+          'newest': 'newest'
+        };
         baseParams.set('sortBy', sortMap[sortBy] || 'newest');
-        baseParams.set('limit', '100');
+        baseParams.set('page', String(page));
+        baseParams.set('limit', String(PAGE_LIMIT));
 
         const d = await fetchWithFallback(baseParams, city, controller.signal);
 
         if (d.success) {
           const resultList = d.data?.listings || [];
-          setListings(resultList);
-          setTotalResults(d.data?.pagination?.total || resultList.length);
+          const pagination = d.data?.pagination;
 
-          if (city && resultList.length > 0) {
-            const exactMatch = resultList.some(
-              (l) => l.location?.city?.toLowerCase() === city.toLowerCase()
-            );
-            if (!exactMatch) setNoExactMatch(true);
+          setListings((prev) => (isFirstPage ? resultList : [...prev, ...resultList]));
+          setTotalResults((prev) => pagination?.total ?? (isFirstPage ? resultList.length : prev));
+
+          const canLoadMore = pagination?.hasNextPage ?? resultList.length === PAGE_LIMIT;
+          setHasMore(canLoadMore && resultList.length > 0);
+
+          if (isFirstPage) {
+            if (city && resultList.length > 0) {
+              const exactMatch = resultList.some(
+                (l) => l.location?.city?.toLowerCase() === city.toLowerCase()
+              );
+              setNoExactMatch(!exactMatch);
+            } else {
+              setNoExactMatch(false);
+            }
           }
+        } else {
+          setHasMore(false);
         }
       } catch (e) {
-        if (e.name !== 'AbortError') console.error(e);
+        if (e.name !== 'AbortError') {
+          console.error(e);
+          setHasMore(false);
+        }
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setLoadingMore(false);
+          setInitialLoading(false);
+          isFetchingRef.current = false;
+        }
       }
     };
+
     fetchResults();
     return () => controller.abort();
-  }, [city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
+  }, [page, city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
+
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+    if (!loaderRef.current || !hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loading && !isFetchingRef.current && hasMore) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      {
+        root: listContainerRef.current,
+        rootMargin: '220px 0px',
+        threshold: 0.1,
+      }
+    );
+
+    observerRef.current.observe(loaderRef.current);
+    return () => observerRef.current?.disconnect();
+  }, [hasMore, loading]);
 
   const clearFilters = () => setFilters(INITIAL_FILTERS);
 
@@ -475,7 +549,7 @@ const SearchResult = () => {
                 {city ? `Stays in ${city}` : 'All properties'}
               </h1>
               <p className="text-sm text-[#717171]">
-                {loading ? (
+                {initialLoading ? (
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-3 h-3 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
                     Searching...
@@ -570,7 +644,7 @@ const SearchResult = () => {
       {/* ─── Main Split Layout (Airbnb-style) ───────────────────────── */}
       <div className="max-w-[2000px] mx-auto flex" style={{ height: 'calc(100vh - 145px)' }}>
         {/* inset-inline-start: Filters + Listings (scrollable) */}
-        <div className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
+        <div ref={listContainerRef} className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
           <div className="flex">
             {/* Filters sidebar (desktop) */}
             <AnimatePresence>
@@ -597,7 +671,7 @@ const SearchResult = () => {
 
             {/* Listings grid */}
             <div className="flex-1 p-4 lg:p-6">
-              {loading ? (
+              {initialLoading ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                   {Array.from({ length: 12 }).map((_, i) => <SkeletonPropertyCard key={i} />)}
                 </div>
@@ -634,6 +708,22 @@ const SearchResult = () => {
                     </motion.div>
                   ))}
                 </motion.div>
+              )}
+
+              {loadingMore && listings.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
+                  {Array.from({ length: 4 }).map((_, i) => <SkeletonPropertyCard key={`infinite-sk-${i}`} />)}
+                </div>
+              )}
+
+              <div ref={loaderRef} className="h-10 flex items-center justify-center mt-6">
+                {loadingMore && <p className="text-sm text-[#717171]">Loading more homes...</p>}
+              </div>
+
+              {!hasMore && listings.length > 0 && (
+                <p className="text-center text-[#717171] py-6 text-sm">
+                  You've reached the end
+                </p>
               )}
             </div>
           </div>

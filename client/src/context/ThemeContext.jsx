@@ -16,6 +16,10 @@ export const ThemeProvider = ({ children }) => {
 		try {
 			localStorage.setItem('rentgo_theme', theme);
 		} catch (e) {}
+		if (typeof document !== 'undefined') {
+			document.documentElement.classList.remove('theme-light', 'theme-dark');
+			document.documentElement.classList.add(theme === 'dark' ? 'theme-dark' : 'theme-light');
+		}
 	}, [theme]);
 
 	const toggleTheme = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'));
