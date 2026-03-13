@@ -120,9 +120,9 @@ export default function AirbnbStyleNavbar() {
                   onClick={() => setNotifDropdownOpen(!notifDropdownOpen)}
                   className="flex w-10 h-10 items-center justify-center rounded-full hover:bg-[#F7F7F7] transition-colors relative"
                 >
-                  <FaBell className="w-4 h-4 text-[#222222]" />
+                  <FaBell className="w-[18px] h-[18px] text-[#222222]" />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF385C] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 animate-pulse">
+                    <span className="absolute -top-2 -right-2 min-w-[20px] h-5 bg-[#FF385C] text-white text-[11px] font-semibold rounded-full flex items-center justify-center px-1 shadow-md ring-2 ring-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                   )}
@@ -217,11 +217,15 @@ export default function AirbnbStyleNavbar() {
                 </div>
               </button>
 
+              <AnimatePresence>
+              {userDropdownOpen && (
               <motion.div
-                initial={{ opacity: 0, y: -6 }}
-                animate={{ opacity: userDropdownOpen ? 1 : 0, y: userDropdownOpen ? 0 : -6 }}
-                transition={{ duration: 0.15 }}
-                className={`absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-dropdown border border-gray-divider overflow-hidden ${userDropdownOpen ? 'block' : 'hidden'}`}
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="absolute right-0 mt-3 w-60 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden z-50"
+                style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}
               >
                 {/* User info header */}
                 <div className="px-4 py-3 border-b border-[#EBEBEB]">
@@ -239,67 +243,81 @@ export default function AirbnbStyleNavbar() {
 
                 {user ? (
                   <>
-                    <Link
-                      to="/dashboard"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      to="/profile"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      Profile
-                    </Link>
-                    <Link
-                      to="/dashboard?tab=bookings"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      My Bookings
-                    </Link>
-                    <Link
-                      to="/messages"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      Messages
-                    </Link>
-                    <Link
-                      to="/notifications"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
-                    >
-                      Notifications{unreadCount > 0 && ` (${unreadCount})`}
-                    </Link>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      Log out
-                    </button>
+                    <div className="py-1">
+                      <Link
+                        to="/dashboard"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        to="/profile"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        to="/dashboard?tab=bookings"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        My Bookings
+                      </Link>
+                      <Link
+                        to="/messages"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Messages
+                      </Link>
+                      <Link
+                        to="/notifications"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="flex items-center justify-between px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        <span>Notifications</span>
+                        {unreadCount > 0 && (
+                          <span className="bg-red-50 text-[#FF385C] text-xs font-semibold px-2 py-0.5 rounded-full">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </div>
+                    <div className="border-t border-[#EBEBEB] my-1" />
+                    <div className="py-1">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Log out
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <Link
-                      to="/login"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm font-semibold text-[#222222] hover:bg-[#F7F7F7] transition-colors"
-                    >
-                      Log in
-                    </Link>
-                    <Link
-                      to="/register"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors border-b border-[#EBEBEB]"
-                    >
-                      Sign up
-                    </Link>
+                    <div className="py-1">
+                      <Link
+                        to="/login"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm font-semibold text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Log in
+                      </Link>
+                      <Link
+                        to="/register"
+                        onClick={() => setUserDropdownOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-[#222222] hover:bg-[#F7F7F7] transition-colors"
+                      >
+                        Sign up
+                      </Link>
+                    </div>
                   </>
                 )}
               </motion.div>
+              )}
+              </AnimatePresence>
             </div>
 
             {/* Mobile hamburger */}
@@ -347,8 +365,13 @@ export default function AirbnbStyleNavbar() {
               <>
                 <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Dashboard</Link>
                 <Link to="/messages" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Messages</Link>
-                <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">
-                  Notifications{unreadCount > 0 && ` (${unreadCount})`}
+                <Link to="/notifications" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-between px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">
+                  <span>Notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="bg-red-50 text-[#FF385C] text-xs font-semibold px-2 py-0.5 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
                 <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Profile</Link>
                 <button onClick={() => { handleLogout(); setMobileMenuOpen(false); }} className="w-full text-left px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">

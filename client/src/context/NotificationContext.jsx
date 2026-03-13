@@ -1,47 +1,58 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { useAuth } from '../hooks/useAuth';
 
 export const NotificationContext = createContext();
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 
+// Minimum interval between fetches (ms) to avoid 429
+const FETCH_THROTTLE_MS = 5000;
+
 export const NotificationProvider = ({ children }) => {
+	const { token, isAuthenticated } = useAuth();
 	const [notifications, setNotifications] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const socketRef = useRef(null);
-	const tokenRef = useRef(null);
+	const lastFetchRef = useRef(0);
+	const fetchInFlightRef = useRef(null);
 
-	// Get token from localStorage (AuthContext stores it there)
-	const getToken = useCallback(() => {
-		try {
-			return localStorage.getItem('token') || null;
-		} catch {
-			return null;
-		}
-	}, []);
-
-	// Fetch notifications from backend API
-	const fetchNotifications = useCallback(async () => {
-		const token = getToken();
+	// Fetch notifications from backend API (throttled to prevent 429)
+	const fetchNotifications = useCallback(async (force = false) => {
 		if (!token) return;
 
+		const now = Date.now();
+		if (!force && now - lastFetchRef.current < FETCH_THROTTLE_MS) return;
+
+		// Deduplicate concurrent fetches
+		if (fetchInFlightRef.current) return fetchInFlightRef.current;
+
+		lastFetchRef.current = now;
 		setLoading(true);
-		try {
-			const res = await fetch(`${API_BASE}/notifications`, {
-				headers: { Authorization: `Bearer ${token}` },
-			});
-			const d = await res.json();
-			if (d.success) {
-				setNotifications(d.data?.notifications || d.data || []);
+
+		const promise = (async () => {
+			try {
+				const res = await fetch(`${API_BASE}/notifications`, {
+					headers: { Authorization: `Bearer ${token}` },
+				});
+				if (res.status === 429) return; // rate-limited — skip silently
+				const d = await res.json();
+				if (d.success) {
+					setNotifications(d.data?.notifications || d.data || []);
+				}
+			} catch {
+				// silent — graceful degradation
+			} finally {
+				setLoading(false);
+				fetchInFlightRef.current = null;
 			}
-		} catch {
-			// silent — graceful degradation
-		} finally {
-			setLoading(false);
-		}
-	}, [getToken]);
+		})();
+
+		fetchInFlightRef.current = promise;
+		return promise;
+	}, [token]);
 
 	// Show Airbnb-style toast for a notification
 	const showToast = useCallback((notif) => {
@@ -91,9 +102,15 @@ export const NotificationProvider = ({ children }) => {
 
 	// Connect Socket.IO for real-time notifications
 	useEffect(() => {
-		const token = getToken();
-		if (!token) return;
-		tokenRef.current = token;
+		if (!token) {
+			// Not logged in — disconnect any existing socket and clear state
+			if (socketRef.current) {
+				socketRef.current.disconnect();
+				socketRef.current = null;
+			}
+			setNotifications([]);
+			return;
+		}
 
 		const socket = io(SOCKET_URL, {
 			auth: { token },
@@ -114,12 +131,14 @@ export const NotificationProvider = ({ children }) => {
 			socket.disconnect();
 			socketRef.current = null;
 		};
-	}, [getToken, showToast]);
+	}, [token, showToast]);
 
-	// Fetch notifications on mount
+	// Fetch notifications when token becomes available (login / mount with existing session)
 	useEffect(() => {
-		fetchNotifications();
-	}, [fetchNotifications]);
+		if (token) {
+			fetchNotifications(true);
+		}
+	}, [token, fetchNotifications]);
 
 	// Notify booking confirmed — store in DB (already done by backend), refresh list, show toast
 	const notifyBookingConfirmed = useCallback((booking, listingTitle, city) => {
@@ -148,7 +167,6 @@ export const NotificationProvider = ({ children }) => {
 
 	// Mark as read (API + local state)
 	const markAsRead = useCallback(async (notificationId) => {
-		const token = getToken();
 		setNotifications((prev) =>
 			prev.map((n) => (n._id === notificationId || n.id === notificationId) ? { ...n, isRead: true, read: true } : n)
 		);
@@ -160,11 +178,10 @@ export const NotificationProvider = ({ children }) => {
 				});
 			} catch { /* silent */ }
 		}
-	}, [getToken]);
+	}, [token]);
 
 	// Mark all as read (API + local state)
 	const markAllAsRead = useCallback(async () => {
-		const token = getToken();
 		setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, read: true })));
 		if (token) {
 			try {
@@ -174,7 +191,7 @@ export const NotificationProvider = ({ children }) => {
 				});
 			} catch { /* silent */ }
 		}
-	}, [getToken]);
+	}, [token]);
 
 	const deleteNotification = useCallback((notificationId) => {
 		setNotifications((prev) =>
