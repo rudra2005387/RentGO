@@ -7,7 +7,7 @@ import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── helpers ─────────────────────────────────────────────────────────────────
 const apiFetch = (path) =>
   fetch(`${API_BASE}${path}`).then((r) => r.json());
 
@@ -16,31 +16,21 @@ const authFetch = (path, token) =>
     headers: { Authorization: `Bearer ${token}` },
   }).then((r) => r.json());
 
-// ─── Category filter config ──────────────────────────────────────────────────
+// ─── Category filter config ───────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: 'All', icon: '🏠', value: '' },
-  { label: 'Apartments', icon: '🏢', value: 'apartment' },
-  { label: 'Houses', icon: '🏡', value: 'house' },
+  { label: 'All',          icon: '🏠', value: '' },
+  { label: 'Apartments',   icon: '🏢', value: 'apartment' },
+  { label: 'Houses',       icon: '🏡', value: 'house' },
   { label: 'Private Room', icon: '🛏️', value: 'private_room' },
   { label: 'Entire Place', icon: '🪴', value: 'entire_place' },
-  { label: 'Villas', icon: '🏖️', value: 'villa' },
-  { label: 'Condos', icon: '🏗️', value: 'condo' },
-  { label: 'Townhouses', icon: '⛰️', value: 'townhouse' },
-  { label: 'Hotels', icon: '🏨', value: 'hotel' },
-  { label: 'Hostels', icon: '⛺', value: 'hostel' },
+  { label: 'Villas',       icon: '🏖️', value: 'villa' },
+  { label: 'Condos',       icon: '🏗️', value: 'condo' },
+  { label: 'Townhouses',   icon: '⛰️', value: 'townhouse' },
+  { label: 'Hotels',       icon: '🏨', value: 'hotel' },
+  { label: 'Hostels',      icon: '⛺', value: 'hostel' },
 ];
 
-// ─── Skeleton Card ───────────────────────────────────────────────────────────
-const SkeletonCard = () => (
-  <div className="space-y-3">
-    <div className="aspect-square skeleton rounded-2xl" />
-    <div className="h-4 skeleton rounded w-3/4" />
-    <div className="h-3 skeleton rounded w-1/2" />
-    <div className="h-3 skeleton rounded w-1/3" />
-  </div>
-);
-
-// ─── Property Card ───────────────────────────────────────────────────────────
+// ─── Property Card ────────────────────────────────────────────────────────────
 const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange }) => {
   const navigate = useNavigate();
   const [imgIndex, setImgIndex] = useState(0);
@@ -97,6 +87,7 @@ const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange 
             src={displayImgs[imgIndex]}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-500"
+            loading="lazy"
             onError={(e) => { e.target.src = 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'; }}
           />
         ) : (
@@ -121,7 +112,7 @@ const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange 
           </svg>
         </button>
 
-        {/* Carousel dots */}
+        {/* Carousel arrows + dots */}
         {displayImgs.length > 1 && (
           <>
             <button
@@ -164,13 +155,15 @@ const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange 
   );
 };
 
-// ─── Section with horizontal scroll ─────────────────────────────────────────
+// ─── Section with grid layout ─────────────────────────────────────────────────
 const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds, onWishlistChange }) => {
   if (!loading && listings.length === 0) return null;
   return (
     <section className="mb-10">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-[#222222]">{title} <span className="text-[#717171] font-normal text-base">→</span></h2>
+        <h2 className="text-xl font-semibold text-[#222222]">
+          {title} <span className="text-[#717171] font-normal text-base">→</span>
+        </h2>
       </div>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -185,7 +178,13 @@ const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: Math.min(i * 0.05, 0.4) }}
             >
-              <PropertyCard listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={onWishlistChange} />
+              <PropertyCard
+                listing={l}
+                token={token}
+                userId={userId}
+                wishlistedIds={wishlistedIds}
+                onWishlistChange={onWishlistChange}
+              />
             </motion.div>
           ))}
         </div>
@@ -194,35 +193,36 @@ const ListingSection = ({ title, listings, loading, token, userId, wishlistedIds
   );
 };
 
-// ─── MAIN HOME PAGE ──────────────────────────────────────────────────────────
+// ─── MAIN HOME PAGE ───────────────────────────────────────────────────────────
 export default function AirbnbHome() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
   const userId = user?._id || user?.id;
 
-  const [activeCategory, setActiveCategory] = useState('');
-  const [allListings, setAllListings] = useState([]);
+  const [activeCategory, setActiveCategory]     = useState('');
+  const [allListings, setAllListings]           = useState([]);
   const [featuredListings, setFeaturedListings] = useState([]);
   const [trendingListings, setTrendingListings] = useState([]);
-  const [nearbyListings, setNearbyListings] = useState([]);
-  const [recentlyViewed, setRecentlyViewed] = useState([]);
+  const [nearbyListings, setNearbyListings]     = useState([]);
+  const [recentlyViewed, setRecentlyViewed]     = useState([]);
 
-  const [loadingAll, setLoadingAll] = useState(true);
+  const [loadingAll, setLoadingAll]         = useState(true);
   const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [loadingTrending, setLoadingTrending] = useState(true);
-  const [loadingNearby, setLoadingNearby] = useState(false);
+  const [loadingNearby, setLoadingNearby]   = useState(false);
 
   const [wishlistedIds, setWishlistedIds] = useState(new Set());
 
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage]               = useState(1);
+  const [hasMore, setHasMore]         = useState(true);
   const [totalListings, setTotalListings] = useState(0);
-  const isFetchingRef = useRef(false); // prevent concurrent fetches
 
-  const observerRef = useRef(null);
-  const sentinelRef = useRef(null);
+  // ── refs ──────────────────────────────────────────────────────────────────
+  const isFetchingRef = useRef(false);
+  const observerRef   = useRef(null);
+  const sentinelRef   = useRef(null);
 
-  // ── Fetch featured & trending once
+  // ── Fetch featured & trending once ────────────────────────────────────────
   useEffect(() => {
     apiFetch('/listings/featured?limit=12')
       .then((d) => { if (d.success) setFeaturedListings(d.data?.listings || []); })
@@ -234,7 +234,6 @@ export default function AirbnbHome() {
       .catch(() => {})
       .finally(() => setLoadingTrending(false));
 
-    // Try geolocation for nearby
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
@@ -244,12 +243,12 @@ export default function AirbnbHome() {
             .catch(() => {})
             .finally(() => setLoadingNearby(false));
         },
-        () => {} // silently fail if denied
+        () => {}
       );
     }
   }, []);
 
-  // ── Fetch user's wishlist IDs on mount
+  // ── Wishlist ───────────────────────────────────────────────────────────────
   const fetchWishlist = useCallback(() => {
     if (!token || !userId) return;
     authFetch(`/users/${userId}/wishlist`, token)
@@ -263,6 +262,7 @@ export default function AirbnbHome() {
 
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
+  // ── Recently viewed ────────────────────────────────────────────────────────
   useEffect(() => {
     try {
       const recent = JSON.parse(localStorage.getItem('rg_recently_viewed') || '[]');
@@ -272,30 +272,30 @@ export default function AirbnbHome() {
     }
   }, []);
 
-  // ── Fetch paginated listings when category or page changes
+  // ── Core fetch function ────────────────────────────────────────────────────
   const fetchListings = useCallback(async (cat, pageNum, reset = false) => {
-    if (isFetchingRef.current) return; // prevent concurrent calls
+    if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    setLoadingAll(true);
+    if (reset) setLoadingAll(true);
+
     try {
       const params = new URLSearchParams({ page: pageNum, limit: 24 });
       if (cat) params.set('propertyType', cat);
+
       const res = await fetch(`${API_BASE}/listings?${params}`);
-      
-      // Stop completely on rate limit
+
       if (res.status === 429) {
         console.warn('Rate limited — stopping pagination');
         setHasMore(false);
         return;
       }
-      
+
       const d = await res.json();
       if (d.success) {
         const newListings = d.data?.listings || [];
         setAllListings((prev) => reset ? newListings : [...prev, ...newListings]);
         const pagination = d.data?.pagination;
         setTotalListings(pagination?.total || 0);
-        // Only allow more pages if backend confirms there are more
         setHasMore(pagination?.hasNextPage === true && newListings.length > 0);
       } else {
         setHasMore(false);
@@ -309,7 +309,7 @@ export default function AirbnbHome() {
     }
   }, []);
 
-  // Reset and fetch on category change
+  // ── Reset + fetch on category change ──────────────────────────────────────
   useEffect(() => {
     setPage(1);
     setAllListings([]);
@@ -317,40 +317,48 @@ export default function AirbnbHome() {
     fetchListings(activeCategory, 1, true);
   }, [activeCategory, fetchListings]);
 
-  // Infinite scroll: fetch more on page increment
+  // ── Fetch next page when page increments ──────────────────────────────────
   useEffect(() => {
     if (page > 1) fetchListings(activeCategory, page, false);
   }, [page, activeCategory, fetchListings]);
 
-  // Intersection observer for infinite scroll
+  // ── Infinite scroll observer ───────────────────────────────────────────────
+  // FIX 1: root:null  → observe against the viewport (not an inner container)
+  // FIX 2: rootMargin → pre-trigger 400px before sentinel hits the bottom
+  // FIX 3: threshold:0 → fire as soon as 1px of sentinel is visible
+  //         (was threshold:1.0 which requires 100% visibility — too strict)
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
-    if (!hasMore) return; // don't observe if no more pages
-    
-    observerRef.current = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && hasMore && !loadingAll && !isFetchingRef.current) {
-        setPage((p) => p + 1);
+    if (!hasMore) return;
+
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !loadingAll &&
+          !isFetchingRef.current
+        ) {
+          setPage((p) => p + 1);
+        }
+      },
+      {
+        root: null,              // viewport
+        rootMargin: '400px 0px', // pre-load before user reaches bottom
+        threshold: 0,            // trigger on first pixel visible
       }
-    }, { threshold: 1.0 });
-    
+    );
+
     if (sentinelRef.current) observerRef.current.observe(sentinelRef.current);
     return () => observerRef.current?.disconnect();
   }, [hasMore, loadingAll]);
 
-  // ── Search handler
-  const [searchQuery, setSearchQuery] = useState('');
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) navigate(`/search?search=${encodeURIComponent(searchQuery)}`);
-  };
-
   return (
     <div className="min-h-screen bg-white">
 
-      {/* ── CATEGORY FILTER BAR */}
+      {/* ── CATEGORY FILTER BAR ─────────────────────────────────────────── */}
       <div className="sticky top-[80px] z-30 bg-white/80 backdrop-blur-md border-b border-gray-divider">
         <div className="container-page">
-          {/* Category pills */}
           <div className="flex items-center gap-6 overflow-x-auto scrollbar-hide py-3">
             {CATEGORIES.map((cat) => (
               <button
@@ -370,10 +378,10 @@ export default function AirbnbHome() {
         </div>
       </div>
 
-      {/* ── MAIN CONTENT */}
+      {/* ── MAIN CONTENT ────────────────────────────────────────────────── */}
       <div className="container-page py-8">
 
-        {/* Nearby section (only if geolocation granted) */}
+        {/* Nearby */}
         {nearbyListings.length > 0 && (
           <ListingSection
             title="Near you"
@@ -386,7 +394,7 @@ export default function AirbnbHome() {
           />
         )}
 
-        {/* Featured section */}
+        {/* Featured */}
         {activeCategory === '' && (
           <ListingSection
             title="Featured homes"
@@ -399,7 +407,7 @@ export default function AirbnbHome() {
           />
         )}
 
-        {/* Trending section */}
+        {/* Trending */}
         {activeCategory === '' && (
           <ListingSection
             title="Trending this week"
@@ -412,7 +420,7 @@ export default function AirbnbHome() {
           />
         )}
 
-        {/* Recently viewed homes */}
+        {/* Recently viewed */}
         {activeCategory === '' && recentlyViewed.length > 0 && (
           <ListingSection
             title="Recently viewed homes"
@@ -425,7 +433,7 @@ export default function AirbnbHome() {
           />
         )}
 
-        {/* ── All listings grid with infinite scroll */}
+        {/* ── All listings with infinite scroll ───────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-[#222222]">
@@ -440,6 +448,7 @@ export default function AirbnbHome() {
             </h2>
           </div>
 
+          {/* Initial skeleton */}
           {allListings.length === 0 && loadingAll ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
               {Array.from({ length: 12 }).map((_, i) => <SkeletonPropertyCard key={i} />)}
@@ -453,39 +462,59 @@ export default function AirbnbHome() {
               onAction={() => setActiveCategory('')}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-              {allListings.map((l, i) => (
-                <motion.div
-                  key={l._id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.5) }}
-                >
-                  <PropertyCard listing={l} token={token} userId={userId} wishlistedIds={wishlistedIds} onWishlistChange={fetchWishlist} />
-                </motion.div>
-              ))}
-              {/* Loading more skeletons */}
-              {loadingAll && page > 1 && Array.from({ length: 6 }).map((_, i) => <SkeletonPropertyCard key={`sk-${i}`} />)}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {allListings.map((l, i) => (
+                  <motion.div
+                    key={l._id}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.5) }}
+                  >
+                    <PropertyCard
+                      listing={l}
+                      token={token}
+                      userId={userId}
+                      wishlistedIds={wishlistedIds}
+                      onWishlistChange={fetchWishlist}
+                    />
+                  </motion.div>
+                ))}
+
+                {/* Inline skeleton cards while loading more */}
+                {loadingAll && page > 1 &&
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <SkeletonPropertyCard key={`sk-more-${i}`} />
+                  ))
+                }
+              </div>
+            </>
           )}
 
-          {/* Infinite scroll sentinel */}
-          <div ref={sentinelRef} className="h-10 mt-4 flex items-center justify-center">
+          {/* ── Sentinel — IntersectionObserver watches this div ── */}
+          <div ref={sentinelRef} className="h-16 mt-6 flex items-center justify-center">
             {loadingAll && page > 1 && (
-              <p className="text-sm text-[#717171]">Loading more homes...</p>
+              <div className="flex items-center gap-2 text-sm text-[#717171]">
+                <span className="w-4 h-4 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
+                Loading more homes...
+              </div>
             )}
           </div>
 
           {/* End of results */}
           {!hasMore && allListings.length > 0 && (
-            <p className="text-center text-sm text-[#717171] py-6">
-              You've reached the end 🎉
-            </p>
+            <div className="flex flex-col items-center py-8 gap-2">
+              <div className="w-8 h-px bg-[#DDDDDD]" />
+              <p className="text-center text-sm text-[#717171]">
+                You've seen all {totalListings.toLocaleString()} homes 🎉
+              </p>
+              <div className="w-8 h-px bg-[#DDDDDD]" />
+            </div>
           )}
         </section>
       </div>
 
-      {/* ── SHOW MAP floating button */}
+      {/* ── SHOW MAP floating button ─────────────────────────────────────── */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
         <button
           onClick={() => navigate('/search?view=map')}
@@ -497,6 +526,7 @@ export default function AirbnbHome() {
           Show map
         </button>
       </div>
+
     </div>
   );
 }
