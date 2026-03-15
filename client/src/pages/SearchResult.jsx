@@ -385,6 +385,8 @@ const SearchResult = () => {
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [wishlistedIds, setWishlistedIds] = useState(new Set());
   const [noExactMatch, setNoExactMatch] = useState(false);
+
+  // ── refs ──────────────────────────────────────────────────────────────────
   const loaderRef = useRef(null);
   const observerRef = useRef(null);
   const listContainerRef = useRef(null);
@@ -410,7 +412,7 @@ const SearchResult = () => {
 
   useEffect(() => { fetchWishlist(); }, [fetchWishlist]);
 
-  // Reset pagination whenever query params or filters change.
+  // ── Reset pagination whenever query params or filters change ──────────────
   useEffect(() => {
     setListings([]);
     setTotalResults(0);
@@ -420,6 +422,7 @@ const SearchResult = () => {
     setInitialLoading(true);
   }, [city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
 
+  // ── Fetch listings ────────────────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
 
@@ -448,7 +451,7 @@ const SearchResult = () => {
           'price-low': 'price_low',
           'price-high': 'price_high',
           'rating': 'rating',
-          'newest': 'newest'
+          'newest': 'newest',
         };
         baseParams.set('sortBy', sortMap[sortBy] || 'newest');
         baseParams.set('page', String(page));
@@ -498,6 +501,9 @@ const SearchResult = () => {
     return () => controller.abort();
   }, [page, city, checkInDate, checkOutDate, guestsParam, filters, sortBy]);
 
+  // ── Infinite scroll observer ──────────────────────────────────────────────
+  // FIX: use root:null (viewport) instead of listContainerRef so the sentinel
+  // is observed correctly regardless of the inner-scroll container timing.
   useEffect(() => {
     if (observerRef.current) observerRef.current.disconnect();
     if (!loaderRef.current || !hasMore) return;
@@ -509,9 +515,9 @@ const SearchResult = () => {
         }
       },
       {
-        root: listContainerRef.current,
-        rootMargin: '220px 0px',
-        threshold: 0.1,
+        root: null,            // ← viewport (fixes trigger reliability)
+        rootMargin: '400px 0px', // ← pre-load before user hits bottom
+        threshold: 0,
       }
     );
 
@@ -540,6 +546,7 @@ const SearchResult = () => {
 
   return (
     <div className="min-h-screen bg-white">
+
       {/* ─── Sticky Header ──────────────────────────────────────────── */}
       <div className="sticky top-[80px] z-30 bg-white border-b border-[#EBEBEB]">
         <div className="max-w-[2000px] mx-auto px-4 lg:px-6">
@@ -643,9 +650,11 @@ const SearchResult = () => {
 
       {/* ─── Main Split Layout (Airbnb-style) ───────────────────────── */}
       <div className="max-w-[2000px] mx-auto flex" style={{ height: 'calc(100vh - 145px)' }}>
-        {/* inset-inline-start: Filters + Listings (scrollable) */}
+
+        {/* LEFT: Filters + Listings (scrollable) */}
         <div ref={listContainerRef} className="flex-1 overflow-y-auto" style={{ scrollBehavior: 'smooth' }}>
           <div className="flex">
+
             {/* Filters sidebar (desktop) */}
             <AnimatePresence>
               {showFilters && (
@@ -710,20 +719,30 @@ const SearchResult = () => {
                 </motion.div>
               )}
 
+              {/* ── Loading more skeletons ── */}
               {loadingMore && listings.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
                   {Array.from({ length: 4 }).map((_, i) => <SkeletonPropertyCard key={`infinite-sk-${i}`} />)}
                 </div>
               )}
 
-              <div ref={loaderRef} className="h-10 flex items-center justify-center mt-6">
-                {loadingMore && <p className="text-sm text-[#717171]">Loading more homes...</p>}
+              {/* ── Sentinel div — IntersectionObserver watches this ── */}
+              <div ref={loaderRef} className="h-16 flex items-center justify-center mt-4">
+                {loadingMore && (
+                  <div className="flex items-center gap-2 text-sm text-[#717171]">
+                    <span className="w-4 h-4 rounded-full border-2 border-[#FF385C] border-t-transparent animate-spin" />
+                    Loading more homes...
+                  </div>
+                )}
               </div>
 
+              {/* ── End of results ── */}
               {!hasMore && listings.length > 0 && (
-                <p className="text-center text-[#717171] py-6 text-sm">
-                  You've reached the end
-                </p>
+                <div className="flex flex-col items-center py-8 gap-2">
+                  <div className="w-8 h-px bg-[#DDDDDD]" />
+                  <p className="text-center text-[#717171] text-sm">You've seen all {totalResults.toLocaleString()} properties</p>
+                  <div className="w-8 h-px bg-[#DDDDDD]" />
+                </div>
               )}
             </div>
           </div>
@@ -808,6 +827,7 @@ const SearchResult = () => {
           </>
         )}
       </AnimatePresence>
+
     </div>
   );
 };

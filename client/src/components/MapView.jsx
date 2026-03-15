@@ -16,12 +16,58 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// ─── Get [lat, lng] from a listing ───────────────────────────────────────────
+// ─── Validate a [lat, lng] pair is usable ────────────────────────────────────
+function isValidLatLng(lat, lng) {
+  return (
+    lat != null && lng != null &&
+    typeof lat === 'number' && typeof lng === 'number' &&
+    isFinite(lat) && isFinite(lng) &&
+    !isNaN(lat) && !isNaN(lng) &&
+    !(lat === 0 && lng === 0) &&
+    lat >= -90 && lat <= 90 &&
+    lng >= -180 && lng <= 180
+  );
+}
+
+// ─── Safe parse — returns null instead of NaN ────────────────────────────────
+function safeNum(v) {
+  const n = Number(v);
+  return isFinite(n) && !isNaN(n) ? n : null;
+}
+
+// ─── Get [lat, lng] from a listing (null if invalid) ─────────────────────────
 function getLatLng(listing) {
+  if (!listing) return null;
+
+  // GeoJSON Point: location.coordinates = [lng, lat]
+  const coords = listing.location?.coordinates;
+  if (Array.isArray(coords) && coords.length === 2) {
+    const lat = safeNum(coords[1]);
+    const lng = safeNum(coords[0]);
+    if (lat !== null && lng !== null && isValidLatLng(lat, lng)) return [lat, lng];
+  }
+
+  // Nested geo: location.geo.coordinates = [lng, lat]
   const geo = listing.location?.geo?.coordinates;
-  if (geo?.length === 2 && (geo[0] !== 0 || geo[1] !== 0)) return [geo[1], geo[0]];
-  if (listing.location?.latitude != null && listing.location?.longitude != null)
-    return [listing.location.latitude, listing.location.longitude];
+  if (Array.isArray(geo) && geo.length === 2) {
+    const lat = safeNum(geo[1]);
+    const lng = safeNum(geo[0]);
+    if (lat !== null && lng !== null && isValidLatLng(lat, lng)) return [lat, lng];
+  }
+
+  // Flat lat/lng fields
+  const lat = safeNum(listing.location?.latitude ?? listing.location?.lat);
+  const lng = safeNum(listing.location?.longitude ?? listing.location?.lng);
+  if (lat !== null && lng !== null && isValidLatLng(lat, lng)) return [lat, lng];
+
+  return null;
+}
+
+// ─── Safely build a fly target — returns null if coords are bad ──────────────
+function safeCenter(lat, lng) {
+  const la = safeNum(lat);
+  const lo = safeNum(lng);
+  if (la !== null && lo !== null && isValidLatLng(la, lo)) return [la, lo];
   return null;
 }
 
@@ -34,28 +80,42 @@ function ViewportWatcher({ onBoundsChange }) {
   return null;
 }
 
-// ─── Fly-to helper ──────────────────────────────────────────────────────────
+// ─── Fly-to helper ────────────────────────────────────────────────────────────
+// Uses setView (no animation) instead of flyTo to avoid Leaflet's animation
+// frame calling unproject() with NaN during mid-flight projection math.
 function FlyTo({ center, zoom }) {
   const map = useMap();
   const prev = useRef(null);
+
   useEffect(() => {
-    if (!center) return;
-    const key = `${center[0]},${center[1]}`;
+    if (!center || !Array.isArray(center) || center.length < 2) return;
+    const [lat, lng] = center;
+    if (!isValidLatLng(lat, lng)) return;
+
+    const key = `${lat.toFixed(6)},${lng.toFixed(6)}`;
     if (prev.current === key) return;
     prev.current = key;
-    map.flyTo(center, zoom || 13, { duration: 1.2 });
+
+    try {
+      // Stop any in-progress animation first, then jump — no frame loop, no NaN
+      map.stop();
+      map.setView([lat, lng], zoom || 13, { animate: false });
+    } catch (e) {
+      console.warn('[MapView] setView failed:', e);
+    }
   }, [center, zoom, map]);
+
   return null;
 }
 
-// ─── Map bounds reader ──────────────────────────────────────────────────────
+// ─── Map bounds reader ───────────────────────────────────────────────────────
 function BoundsReader({ onReady }) {
   const map = useMap();
   useEffect(() => { onReady(map); }, [map, onReady]);
   return null;
 }
 
-// ─── Popup card ─────────────────────────────────────────────────────────────
+// ─── Popup card ──────────────────────────────────────────────────────────────
 function ListingPopupCard({ listing }) {
   const img = listing.images?.[0]?.url || listing.images?.[0];
   const price = listing.pricing?.basePrice || listing.price;
@@ -63,12 +123,22 @@ function ListingPopupCard({ listing }) {
   return (
     <Link to={`/listing/${listing._id}`} className="block w-60 no-underline text-inherit">
       <div className="rounded-xl overflow-hidden bg-white shadow-md">
-        {img && <img src={img} alt={listing.title} className="w-full h-36 object-cover" loading="lazy" />}
+        {img && (
+          <img
+            src={img}
+            alt={listing.title}
+            className="w-full h-36 object-cover"
+            loading="lazy"
+            onError={(e) => { e.target.style.display = 'none'; }}
+          />
+        )}
         <div className="p-3">
           <p className="text-sm font-semibold text-[#222222] truncate">{listing.title}</p>
           <p className="text-xs text-[#717171]">{city}</p>
           <div className="flex items-center justify-between mt-1.5">
-            <span className="text-sm font-bold text-[#222222]">${price}<span className="font-normal text-[#717171]">/night</span></span>
+            <span className="text-sm font-bold text-[#222222]">
+              ${price}<span className="font-normal text-[#717171]">/night</span>
+            </span>
             {listing.averageRating > 0 && (
               <span className="flex items-center gap-1 text-xs text-[#222222]">
                 <FaStar className="text-[#FF385C]" size={10} /> {listing.averageRating.toFixed(1)}
@@ -81,7 +151,7 @@ function ListingPopupCard({ listing }) {
   );
 }
 
-// ─── Geocoding search (OpenStreetMap Nominatim) ─────────────────────────────
+// ─── Geocoding search (OpenStreetMap Nominatim) ──────────────────────────────
 function useGeocoder() {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -103,24 +173,30 @@ function useGeocoder() {
         );
         const data = await res.json();
         setSuggestions(
-          data.map((d) => ({
-            label: d.display_name,
-            lat: parseFloat(d.lat),
-            lng: parseFloat(d.lon),
-            short: [d.address?.city || d.address?.town || d.address?.village || d.name, d.address?.country].filter(Boolean).join(', '),
-          }))
+          data
+            .map((d) => ({
+              label: d.display_name,
+              lat: safeNum(d.lat),
+              lng: safeNum(d.lon),
+              short: [
+                d.address?.city || d.address?.town || d.address?.village || d.name,
+                d.address?.country,
+              ].filter(Boolean).join(', '),
+            }))
+            // Only keep suggestions with valid coords
+            .filter((s) => s.lat !== null && s.lng !== null && isValidLatLng(s.lat, s.lng))
         );
-      } catch { /* silent */ }
-      finally { setSearching(false); }
+      } catch { /* silent */ } finally {
+        setSearching(false);
+      }
     }, 350);
   }, []);
 
   const clear = () => { setQuery(''); setSuggestions([]); };
-
   return { query, suggestions, searching, search, clear };
 }
 
-// ─── MAIN MAP COMPONENT ─────────────────────────────────────────────────────
+// ─── MAIN MAP COMPONENT ──────────────────────────────────────────────────────
 export default function MapView({ listings: externalListings, city, className = '', onListingsChange }) {
   const [listings, setListings] = useState(externalListings || []);
   const [hoveredId, setHoveredId] = useState(null);
@@ -132,14 +208,17 @@ export default function MapView({ listings: externalListings, city, className = 
   const mapRef = useRef(null);
   const geocoder = useGeocoder();
 
-  // Default center from listings or city
+  const FALLBACK_CENTER = [22.5726, 88.3639]; // Kolkata
+
+  // Compute a valid default center from listings, or fall back
   const defaultCenter = (() => {
     if (externalListings?.length) {
-      const first = externalListings[0];
-      const pos = getLatLng(first);
-      if (pos) return pos;
+      for (const l of externalListings) {
+        const pos = getLatLng(l);
+        if (pos) return pos;
+      }
     }
-    return [20.5937, 78.9629]; // Center of India
+    return FALLBACK_CENTER;
   })();
 
   // Sync external listings
@@ -150,7 +229,7 @@ export default function MapView({ listings: externalListings, city, className = 
     }
   }, [externalListings]);
 
-  // Geocode initial city prop
+  // Geocode initial city prop → only set flyTarget if coords are valid
   useEffect(() => {
     if (!city || externalListings?.length) return;
     (async () => {
@@ -161,7 +240,8 @@ export default function MapView({ listings: externalListings, city, className = 
         );
         const data = await res.json();
         if (data[0]) {
-          setFlyTarget([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+          const center = safeCenter(data[0].lat, data[0].lon);
+          if (center) setFlyTarget(center); // ← only set if valid
         }
       } catch { /* silent */ }
     })();
@@ -171,29 +251,20 @@ export default function MapView({ listings: externalListings, city, className = 
   const fetchInBounds = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
-
     if (fetchRef.current) clearTimeout(fetchRef.current);
+
     fetchRef.current = setTimeout(async () => {
-      const bounds = map.getBounds();
       setLoading(true);
       try {
-        const params = new URLSearchParams({
-          limit: '100',
-        });
-        // Use viewport bounds to filter — backend supports city filter as fallback
+        const bounds = map.getBounds();
         const ne = bounds.getNorthEast();
         const sw = bounds.getSouthWest();
-        // We search by city text from bounds center for best results
-        const center = map.getCenter();
-        // Try geo-search via nearby endpoint first, fall back to general
-        const nearbyRes = await fetch(
-          `${API_BASE}/listings?limit=100&page=1`
-        );
+
+        const nearbyRes = await fetch(`${API_BASE}/listings?limit=100&page=1`);
         const nearbyData = await nearbyRes.json();
 
         if (nearbyData.success) {
           const all = nearbyData.data?.listings || [];
-          // Client-side filter to viewport bounds
           const inView = all.filter((l) => {
             const pos = getLatLng(l);
             if (!pos) return false;
@@ -205,34 +276,43 @@ export default function MapView({ listings: externalListings, city, className = 
             onListingsChange?.(inView);
           }
         }
-      } catch { /* silent */ }
-      finally { setLoading(false); }
+      } catch { /* silent */ } finally {
+        setLoading(false);
+      }
     }, 500);
   }, [externalListings, onListingsChange]);
 
-  // Handle geocoder selection
+  // Handle geocoder selection — guard coords before setting flyTarget
   const handlePlaceSelect = (place) => {
-    setFlyTarget([place.lat, place.lng]);
-    setFlyZoom(13);
+    const center = safeCenter(place.lat, place.lng);
+    if (center) {
+      setFlyTarget(center);
+      setFlyZoom(13);
+    }
     geocoder.clear();
   };
 
-  // Handle "my location" button
+  // Handle "my location"
   const handleMyLocation = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setFlyTarget([pos.coords.latitude, pos.coords.longitude]);
-        setFlyZoom(13);
+        const center = safeCenter(pos.coords.latitude, pos.coords.longitude);
+        if (center) {
+          setFlyTarget(center);
+          setFlyZoom(13);
+        }
       },
       () => { /* denied */ }
     );
   };
 
+  // Only render markers for listings with valid coordinates
   const geoListings = listings.filter((l) => getLatLng(l) !== null);
 
   return (
     <div className={`relative w-full h-full min-h-[400px] ${className}`}>
+
       {/* ─── Search Bar Overlay ───────────────────────────────── */}
       <div className="absolute top-3 left-3 right-3 z-[1000] flex gap-2">
         <div className="relative flex-1 max-w-md">
@@ -247,6 +327,7 @@ export default function MapView({ listings: externalListings, city, className = 
             />
             {geocoder.searching && <FaSpinner className="animate-spin mr-3 text-[#717171]" size={14} />}
           </div>
+
           {/* Suggestions dropdown */}
           {geocoder.suggestions.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-[#EBEBEB] overflow-hidden max-h-64 overflow-y-auto">
@@ -263,6 +344,7 @@ export default function MapView({ listings: externalListings, city, className = 
             </div>
           )}
         </div>
+
         <button
           onClick={handleMyLocation}
           className="bg-white rounded-xl shadow-lg border border-[#EBEBEB] w-10 h-10 flex items-center justify-center hover:bg-[#F7F7F7] transition-colors flex-shrink-0"
@@ -300,10 +382,15 @@ export default function MapView({ listings: externalListings, city, className = 
         />
         <BoundsReader onReady={(m) => { mapRef.current = m; }} />
         <ViewportWatcher onBoundsChange={fetchInBounds} />
-        {flyTarget && <FlyTo center={flyTarget} zoom={flyZoom} />}
+
+        {/* Only render FlyTo when flyTarget is valid */}
+        {flyTarget && isValidLatLng(flyTarget[0], flyTarget[1]) && (
+          <FlyTo center={flyTarget} zoom={flyZoom} />
+        )}
 
         {geoListings.map((listing) => {
           const pos = getLatLng(listing);
+          if (!pos) return null; // extra safety
           const price = listing.pricing?.basePrice || listing.price || 0;
           return (
             <Marker
@@ -323,6 +410,7 @@ export default function MapView({ listings: externalListings, city, className = 
         })}
       </MapContainer>
 
+      {/* ─── No listings overlay ─────────────────────────────── */}
       {geoListings.length === 0 && !loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/70 rounded-xl z-[500] pointer-events-none">
           <div className="text-center pointer-events-auto">

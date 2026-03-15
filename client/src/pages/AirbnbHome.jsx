@@ -470,12 +470,16 @@ export default function AirbnbHome() {
           )}
 
           {/* Infinite scroll sentinel */}
-          <div ref={sentinelRef} className="h-10 mt-4" />
+          <div ref={sentinelRef} className="h-10 mt-4 flex items-center justify-center">
+            {loadingAll && page > 1 && (
+              <p className="text-sm text-[#717171]">Loading more homes...</p>
+            )}
+          </div>
 
           {/* End of results */}
           {!hasMore && allListings.length > 0 && (
             <p className="text-center text-sm text-[#717171] py-6">
-              You've seen all {allListings.length} listings ✓
+              You've reached the end 🎉
             </p>
           )}
         </section>
