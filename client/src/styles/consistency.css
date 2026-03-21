@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 @reference "tailwindcss";
 
 /* UI/UX Consistency Layer - Airbnb-Inspired Design System */
@@ -388,21 +392,13 @@ label {
    SHADOWS - Elevation hierarchy
    ============================================ */
 
-.shadow-xs {
-	@apply shadow-sm;
-}
 
-.shadow-md {
-	@apply shadow-md;
-}
 
-.shadow-lg {
-	@apply shadow-lg;
-}
 
-.shadow-xl {
-	@apply shadow-xl;
-}
+
+
+
+
 
 /* ============================================
    ANIMATIONS
@@ -514,3 +510,6 @@ label {
 		@apply border border-gray-400 shadow-none;
 	}
 }
+
+
+

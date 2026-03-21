@@ -1,33 +1,9 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ─── RentGo Design System (Tailwind v4 @theme) ─────────────────────────── */
-@theme {
-  --color-primary: #FF385C;
-  --color-primary-hover: #E0314F;
-  --color-primary-light: #FFF1F3;
 
-  --color-secondary: #222222;
-  --color-secondary-light: #484848;
-
-  --color-gray-soft: #F7F7F7;
-  --color-gray-border: #DDDDDD;
-  --color-gray-muted: #717171;
-  --color-gray-divider: #EBEBEB;
-
-  --color-success: #008A05;
-  --color-warning: #E07912;
-  --color-danger: #C13515;
-
-  --radius-card: 16px;
-  --radius-button: 12px;
-  --radius-pill: 9999px;
-  --radius-input: 10px;
-
-  --shadow-card: 0 1px 2px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
-  --shadow-card-hover: 0 2px 4px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.12);
-  --shadow-navbar: 0 1px 3px rgba(0,0,0,0.08);
-  --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.12);
-}
 
 /* ─── Global Container ───────────────────────────────────────────────────── */
 .container-page {

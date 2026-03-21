@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* ============================================
    AIRBNB-INSPIRED DESIGN SYSTEM
    ============================================ */
@@ -1174,3 +1178,5 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--black); outline
 		max-width: calc(100% - 40px);
 	}
 }
+
+
