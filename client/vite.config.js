@@ -6,13 +6,15 @@ export default defineConfig({
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
     exclude: ['react-router'],
+    esbuildOptions: {
+      target: 'es2020',
+    },
   },
   build: {
     rollupOptions: {
       output: {
         manualChunks: {
           'vendor-react': ['react', 'react-dom'],
-          'vendor-router': ['react-router-dom'],
           'vendor-ui': ['framer-motion'],
           'vendor-icons': ['react-icons'],
           'feature-auth': ['./src/context/AuthContext.jsx'],
