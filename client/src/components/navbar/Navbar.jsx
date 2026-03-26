@@ -73,192 +73,208 @@ export default function Navbar() {
         </form>
 
         {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center gap-4 lg:gap-6">
-          {/* Notifications Bell */}
-          <NotificationBell />
+        <div className="hidden md:flex items-center gap-2 lg:gap-4 ml-auto">
+          {/* Action Icons Group */}
+          <div className="flex items-center gap-3 lg:gap-4 pr-3 lg:pr-4 border-r border-gray-200 dark:border-gray-700">
+            {/* Notifications Bell */}
+            <NotificationBell />
 
-          {/* Messages */}
-          <div className="relative">
+            {/* Messages */}
+            <div className="relative">
+              <motion.button
+                onClick={() => setMessageDropdown(!messageDropdown)}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
+                title="Messages"
+              >
+                <FaEnvelope className="text-lg" />
+                {messageCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                    {messageCount}
+                  </span>
+                )}
+              </motion.button>
+
+              {/* Messages Dropdown */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: messageDropdown ? 1 : 0, y: messageDropdown ? 0 : -10 }}
+                transition={{ duration: 0.2 }}
+                className={`absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
+                  messageDropdown ? 'block' : 'hidden'
+                }`}
+              >
+                <div className="max-h-96 overflow-y-auto">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-white">{msg.sender}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{msg.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-500">{msg.time}</p>
+                    </div>
+                  ))}
+                </div>
+                <Link to="/messages" className="block text-center px-4 py-3 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold text-sm border-t border-gray-200 dark:border-gray-700">
+                  View All Messages
+                </Link>
+              </motion.div>
+            </div>
+
+            {/* Saved/Wishlist */}
             <motion.button
-              onClick={() => setMessageDropdown(!messageDropdown)}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.95 }}
-              className="relative text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
+              onClick={() => navigate('/saved')}
+              className="relative text-gray-700 dark:text-gray-300 hover:text-red-600 transition-colors"
+              title="Saved items"
             >
-              <FaEnvelope className="text-xl" />
-              {messageCount > 0 && (
+              <FaHeart className="text-lg" />
+              {savedCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                  {messageCount}
+                  {savedCount}
                 </span>
               )}
             </motion.button>
 
-            {/* Messages Dropdown */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: messageDropdown ? 1 : 0, y: messageDropdown ? 0 : -10 }}
-              transition={{ duration: 0.2 }}
-              className={`absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                messageDropdown ? 'block' : 'hidden'
-              }`}
+            {/* Bookings */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/dashboard')}
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
+              title="My bookings"
             >
-              <div className="max-h-96 overflow-y-auto">
-                {messages.map((msg) => (
-                  <div key={msg.id} className="px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{msg.sender}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{msg.message}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-500">{msg.time}</p>
-                  </div>
+              <FaCalendarAlt className="text-lg" />
+            </motion.button>
+          </div>
+
+          {/* Settings Group */}
+          <div className="flex items-center gap-2 lg:gap-3 pr-3 lg:pr-4 border-r border-gray-200 dark:border-gray-700">
+            {/* Theme Toggle */}
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleTheme}
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
+              title={isDark ? "Light mode" : "Dark mode"}
+            >
+              {isDark ? <FaSun className="text-lg" /> : <FaMoon className="text-lg" />}
+            </motion.button>
+
+            {/* Language Selector */}
+            <div className="relative">
+              <motion.button
+                onClick={() => setLanguageDropdown(!languageDropdown)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors text-sm font-medium"
+                title="Change language"
+              >
+                <FaGlobe className="text-lg" />
+                <span className="hidden lg:inline">{language.toUpperCase()}</span>
+              </motion.button>
+
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: languageDropdown ? 1 : 0, y: languageDropdown ? 0 : -10 }}
+                transition={{ duration: 0.2 }}
+                className={`absolute right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
+                  languageDropdown ? 'block' : 'hidden'
+                }`}
+              >
+                {['en', 'es', 'fr', 'de'].map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setLanguage(lang);
+                      setLanguageDropdown(false);
+                    }}
+                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                      language === lang
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {lang === 'en' ? 'English' : lang === 'es' ? 'Español' : lang === 'fr' ? 'Français' : 'Deutsch'}
+                  </button>
                 ))}
-              </div>
-              <Link to="/messages" className="block text-center px-4 py-3 text-blue-600 dark:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-700 font-semibold text-sm border-t border-gray-200 dark:border-gray-700">
-                View All Messages
-              </Link>
-            </motion.div>
+              </motion.div>
+            </div>
           </div>
 
-          {/* Saved/Wishlist */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/saved')}
-            className="relative text-gray-700 dark:text-gray-300 hover:text-red-600 transition-colors"
-          >
-            <FaHeart className="text-xl" />
-            {savedCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                {savedCount}
-              </span>
-            )}
-          </motion.button>
-
-          {/* Bookings */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/dashboard')}
-            className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
-          >
-            <FaCalendarAlt className="text-xl" />
-          </motion.button>
-
-          {/* Language Selector */}
-          <div className="relative">
+          {/* User & Host Group */}
+          <div className="flex items-center gap-3 lg:gap-4">
+            {/* Host Mode Toggle - only show on larger screens */}
             <motion.button
-              onClick={() => setLanguageDropdown(!languageDropdown)}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-1 text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
-            >
-              <FaGlobe className="text-lg" />
-              <span className="text-sm font-semibold hidden sm:inline">{language.toUpperCase()}</span>
-            </motion.button>
-
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: languageDropdown ? 1 : 0, y: languageDropdown ? 0 : -10 }}
-              transition={{ duration: 0.2 }}
-              className={`absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                languageDropdown ? 'block' : 'hidden'
+              onClick={() => setHostMode(!hostMode)}
+              className={`hidden lg:inline-flex px-3 py-1.5 rounded-lg font-medium text-sm transition-all ${
+                hostMode
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
             >
-              {['en', 'es', 'fr', 'de'].map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => {
-                    setLanguage(lang);
-                    setLanguageDropdown(false);
-                  }}
-                  className={`w-full text-left px-4 py-3 transition-colors ${
-                    language === lang
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700'
-                  }`}
-                >
-                  {lang === 'en' ? 'English' : lang === 'es' ? 'Español' : lang === 'fr' ? 'Français' : 'Deutsch'}
-                </button>
-              ))}
-            </motion.div>
-          </div>
-
-          {/* Theme Toggle */}
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={toggleTheme}
-            className="text-gray-700 dark:text-gray-300 hover:text-blue-600 transition-colors"
-          >
-            {isDark ? <FaSun className="text-xl" /> : <FaMoon className="text-xl" />}
-          </motion.button>
-
-          {/* Host Mode Toggle */}
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setHostMode(!hostMode)}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-              hostMode
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-            }`}
-          >
-            {hostMode ? 'Host Mode' : 'Become Host'}
-          </motion.button>
-
-          {/* User Dropdown */}
-          <div className="relative">
-            <motion.button
-              onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-            >
-              {user?.avatar ? (
-                <img src={user.avatar} alt="Profile" className="w-6 h-6 rounded-full" />
-              ) : (
-                <FaUser className="text-gray-700 dark:text-gray-300" />
-              )}
-              <span className="text-gray-700 dark:text-gray-300 font-semibold hidden sm:inline">
-                {user?.email ? user.email.split('@')[0] : 'Account'}
-              </span>
+              {hostMode ? 'Host Mode' : 'Become Host'}
             </motion.button>
 
-            {/* Dropdown Menu */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: userDropdownOpen ? 1 : 0, y: userDropdownOpen ? 0 : -10 }}
-              transition={{ duration: 0.2 }}
-              className={`absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
-                userDropdownOpen ? 'block' : 'hidden'
-              }`}
-            >
-              <Link
-                to="/profile"
-                className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700"
+            {/* User Dropdown */}
+            <div className="relative">
+              <motion.button
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
-                <FaUser className="inline mr-2" />
-                My Profile
-              </Link>
-              {hostMode && (
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Profile" className="w-6 h-6 rounded-full" />
+                ) : (
+                  <FaUser className="text-gray-700 dark:text-gray-300 text-sm" />
+                )}
+                <span className="text-gray-700 dark:text-gray-300 font-medium text-sm hidden lg:inline">
+                  {user?.email ? user.email.split('@')[0] : 'Account'}
+                </span>
+              </motion.button>
+
+              {/* Dropdown Menu */}
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: userDropdownOpen ? 1 : 0, y: userDropdownOpen ? 0 : -10 }}
+                transition={{ duration: 0.2 }}
+                className={`absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden ${
+                  userDropdownOpen ? 'block' : 'hidden'
+                }`}
+              >
                 <Link
-                  to="/host/dashboard"
-                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700"
+                  to="/profile"
+                  className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 text-sm"
+                  onClick={() => setUserDropdownOpen(false)}
                 >
-                  <FaHome className="inline mr-2" />
-                  Host Dashboard
+                  <FaUser className="inline mr-2 text-blue-600" />
+                  My Profile
                 </Link>
-              )}
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setUserDropdownOpen(false);
-                }}
-                className="w-full text-left px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors flex items-center"
-              >
-                <FaSignOutAlt className="mr-2" />
-                Logout
-              </button>
-            </motion.div>
+                {hostMode && (
+                  <Link
+                    to="/host/dashboard"
+                    className="block px-4 py-3 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 text-sm"
+                    onClick={() => setUserDropdownOpen(false)}
+                  >
+                    <FaHome className="inline mr-2 text-purple-600" />
+                    Host Dashboard
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setUserDropdownOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-gray-700 transition-colors text-sm flex items-center"
+                >
+                  <FaSignOutAlt className="mr-2" />
+                  Logout
+                </button>
+              </motion.div>
+            </div>
           </div>
         </div>
 
@@ -297,100 +313,97 @@ export default function Navbar() {
           </form>
 
           {/* Mobile Navigation Links */}
-          <div className="px-4 space-y-3">
-            <Link
-              to="/search"
-              className="block text-gray-700 dark:text-gray-300 hover:text-blue-600 font-semibold"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Search
-            </Link>
-            
-            {/* Mobile Notifications */}
-            <div className="flex items-center justify-between py-2 border-y border-gray-200 dark:border-gray-700">
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Notifications</span>
-              <div className="flex items-center gap-2">
-                <FaBell className="text-blue-600" />
-                {notificationCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {notificationCount}
-                  </span>
-                )}
+          <div className="px-4 space-y-4">
+            {/* Mobile Search */}
+            <form onSubmit={handleSearch}>
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="Search properties..."
+                  className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors"
+                />
               </div>
-            </div>
+            </form>
 
-            {/* Mobile Messages */}
-            <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Messages</span>
-              <div className="flex items-center gap-2">
-                <FaEnvelope className="text-blue-600" />
-                {messageCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {messageCount}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Saved */}
-            <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-              <span className="text-gray-700 dark:text-gray-300 font-semibold">Saved</span>
-              <div className="flex items-center gap-2">
-                <FaHeart className="text-red-600" />
-                {savedCount > 0 && (
-                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
-                    {savedCount}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Bookings */}
-            <Link
-              to="/dashboard"
-              className="flex items-center justify-between py-2 text-gray-700 dark:text-gray-300 hover:text-blue-600 font-semibold border-b border-gray-200 dark:border-gray-700"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              <span>My Bookings</span>
-              <FaCalendarAlt className="text-blue-600" />
-            </Link>
-
-            {/* Mobile Language */}
-            <div className="py-2">
-              <label className="text-gray-700 dark:text-gray-300 font-semibold text-sm block mb-2">Language</label>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+            {/* Quick Actions Section */}
+            <div className="space-y-2 pt-2">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Quick Actions</p>
+              
+              <Link
+                to="/dashboard"
+                className="flex items-center justify-between py-2 px-2 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
               >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-              </select>
+                <span className="font-medium">My Bookings</span>
+                <FaCalendarAlt className="text-blue-600" />
+              </Link>
+
+              <button
+                onClick={() => {
+                  navigate('/saved');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-between w-full py-2 px-2 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                <span className="font-medium">Saved Items {savedCount > 0 && `(${savedCount})`}</span>
+                <FaHeart className="text-red-600" />
+              </button>
+
+              <button
+                onClick={() => {
+                  navigate('/messages');
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center justify-between w-full py-2 px-2 text-gray-700 dark:text-gray-300 hover:bg-blue-50 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                <span className="font-medium">Messages {messageCount > 0 && `(${messageCount})`}</span>
+                <FaEnvelope className="text-blue-600" />
+              </button>
             </div>
 
-            {/* Mobile Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-semibold border-b border-gray-200 dark:border-gray-700 mb-2"
-            >
-              <span>Dark Mode</span>
-              {isDark ? <FaSun className="text-yellow-500" /> : <FaMoon className="text-gray-600" />}
-            </button>
+            {/* Settings Section */}
+            <div className="space-y-2 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Settings</p>
 
-            {/* Mobile Host Mode Toggle */}
-            <button
-              onClick={() => setHostMode(!hostMode)}
-              className={`w-full px-4 py-2 rounded-lg font-semibold transition-all ${
-                hostMode
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
-              }`}
-            >
-              {hostMode ? 'Host Mode ON' : 'Become Host'}
-            </button>
-          </div>
+              {/* Host Mode Toggle */}
+              <button
+                onClick={() => setHostMode(!hostMode)}
+                className={`w-full flex items-center justify-between px-2 py-2 rounded transition-all ${
+                  hostMode
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+              >
+                <span className="font-medium text-sm">{hostMode ? 'Host Mode ON' : 'Become Host'}</span>
+              </button>
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="flex items-center justify-between w-full px-2 py-2 bg-gray-100 dark:bg-gray-700 rounded text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors font-medium text-sm"
+              >
+                <span>Dark Mode</span>
+                {isDark ? <FaSun className="text-yellow-500" /> : <FaMoon className="text-gray-600" />}
+              </button>
+
+              {/* Language Selector */}
+              <div className="pb-2">
+                <label className="text-gray-700 dark:text-gray-300 font-medium text-sm block mb-2">Language</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:border-blue-500 dark:bg-gray-700 dark:text-white text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="es">Español</option>
+                  <option value="fr">Français</option>
+                  <option value="de">Deutsch</option>
+                </select>
+              </div>
+            </div>
 
           {/* Mobile User Links */}
           {user ? (
