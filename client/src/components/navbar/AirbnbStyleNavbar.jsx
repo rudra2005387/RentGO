@@ -389,12 +389,7 @@ export default function AirbnbStyleNavbar() {
                   Log out
                 </button>
               </>
-            ) : (
-              <>
-                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-semibold">Log in</Link>
-                <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="block px-4 py-3 text-[#222222] hover:bg-[#F7F7F7] rounded-lg text-sm font-medium">Sign up</Link>
-              </>
-            )}
+            ) : null}
           </div>
         </div>
       </motion.div>

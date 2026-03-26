@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { FaEye, FaEyeSlash, FaCheckCircle } from "react-icons/fa";
 import { useAuth } from "../hooks/useAuth";
 import { Button, Input, Alert } from "../components/ui";
 
@@ -16,8 +17,30 @@ const Register = () => {
     phone: "",
   });
 
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Validation logic
+  const isEmailValid = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const isPasswordStrong = (password) => password.length >= 8;
+
+  const isFormValid = () => {
+    return (
+      formData.fullName.trim().length > 0 &&
+      isEmailValid(formData.email) &&
+      isPasswordStrong(formData.password) &&
+      formData.password === formData.confirmPassword &&
+      formData.phone.length === 10 &&
+      termsAccepted
+    );
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,18 +62,28 @@ const Register = () => {
       return;
     }
 
+    if (!isEmailValid(formData.email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    if (formData.password.length < 8) {
+    if (!isPasswordStrong(formData.password)) {
       setError("Password must be at least 8 characters.");
       return;
     }
 
     if (formData.phone.length !== 10) {
       setError("Phone number must be 10 digits.");
+      return;
+    }
+
+    if (!termsAccepted) {
+      setError("Please accept the Terms of Service and Privacy Policy.");
       return;
     }
 
@@ -170,34 +203,80 @@ const Register = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Password
             </label>
-            <Input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="At least 8 characters"
-              required
-            />
+            <div className="relative">
+              <Input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="At least 8 characters"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <FaEyeSlash className="text-lg" />
+                ) : (
+                  <FaEye className="text-lg" />
+                )}
+              </button>
+            </div>
+            {formData.password && (
+              <p className={`text-xs mt-1 ${isPasswordStrong(formData.password) ? 'text-green-600' : 'text-orange-600'}`}>
+                {isPasswordStrong(formData.password) ? '✓ Strong password' : '⚠ At least 8 characters required'}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Confirm Password
             </label>
-            <Input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm password"
-              required
-            />
+            <div className="relative">
+              <Input
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm password"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
+                aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+              >
+                {showConfirmPassword ? (
+                  <FaEyeSlash className="text-lg" />
+                ) : (
+                  <FaEye className="text-lg" />
+                )}
+              </button>
+            </div>
+            {formData.confirmPassword && (
+              <p className={`text-xs mt-1 flex items-center gap-1 ${formData.password === formData.confirmPassword ? 'text-green-600' : 'text-red-600'}`}>
+                {formData.password === formData.confirmPassword ? (
+                  <>
+                    <FaCheckCircle /> Passwords match
+                  </>
+                ) : (
+                  '✗ Passwords do not match'
+                )}
+              </p>
+            )}
           </div>
 
-          <div className="flex items-start gap-2">
+          <div className="flex items-start gap-2 pt-2">
             <input
               type="checkbox"
               id="terms"
+              checked={termsAccepted}
+              onChange={(e) => setTermsAccepted(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary mt-1"
               required
             />
@@ -213,8 +292,29 @@ const Register = () => {
             </label>
           </div>
 
-          <Button type="submit" disabled={loading} className="w-full" variant="primary" size="lg">
-            {loading ? "Creating Account..." : "Create Account"}
+          <Button
+            type="submit"
+            disabled={loading || !isFormValid()}
+            className={`w-full mt-8 py-3 rounded-lg shadow-lg font-semibold text-white transition-all duration-200 transform ${
+              isFormValid()
+                ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 hover:shadow-xl hover:scale-105 active:scale-95 cursor-pointer'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            variant="primary"
+            size="lg"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center">
+                <span className="animate-spin mr-2">⟳</span>
+                Creating Account...
+              </span>
+            ) : (
+              <>
+                <span className="flex items-center justify-center">
+                  {isFormValid() ? '✓ Sign Up & Create Account' : 'Complete Form to Continue'}
+                </span>
+              </>
+            )}
           </Button>
 
         </form>
