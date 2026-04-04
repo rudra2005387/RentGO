@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     include: ['react', 'react-dom', 'react-router-dom'],
-    exclude: ['react-router'],
+    exclude: ['react-router-dom'],
     esbuildOptions: {
       target: 'es2020',
     },
