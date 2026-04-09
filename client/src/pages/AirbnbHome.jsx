@@ -276,7 +276,7 @@ export default function AirbnbHome() {
       const params = new URLSearchParams({ page: pageNum, limit: 24 });
       if (cat) params.set('propertyType', cat);
 
-      const res = await fetch(`${API_BASE}/listings?${params}`);
+      const res = await apiClient.get(`/listings?${params}`);
 
       if (res.status === 429) {
         console.warn('Rate limited — stopping pagination');
@@ -284,7 +284,7 @@ export default function AirbnbHome() {
         return;
       }
 
-      const d = await res.json();
+      const d = res.data;
       if (d.success) {
         const newListings = d.data?.listings || [];
         setAllListings((prev) => reset ? newListings : [...prev, ...newListings]);

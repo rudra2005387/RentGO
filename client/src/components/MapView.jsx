@@ -5,8 +5,7 @@ import { FaStar, FaSearch, FaSpinner, FaCrosshairs } from 'react-icons/fa';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createPriceIcon } from './PricePin';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 // Fix default Leaflet marker icon issue
 delete L.Icon.Default.prototype._getIconUrl;
@@ -260,8 +259,8 @@ export default function MapView({ listings: externalListings, city, className = 
         const ne = bounds.getNorthEast();
         const sw = bounds.getSouthWest();
 
-        const nearbyRes = await fetch(`${API_BASE}/listings?limit=100&page=1`);
-        const nearbyData = await nearbyRes.json();
+        const nearbyRes = await apiClient.get(`/listings?limit=100&page=1`);
+        const nearbyData = nearbyRes.data;
 
         if (nearbyData.success) {
           const all = nearbyData.data?.listings || [];

@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../../config/apiClient';
 
 export default function SearchBar() {
   const navigate = useNavigate();
@@ -51,8 +50,8 @@ export default function SearchBar() {
     const t = setTimeout(async () => {
       setSuggestLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/listings/suggestions?q=${encodeURIComponent(query)}&limit=6`);
-        const data = await res.json();
+        const res = await apiClient.get(`/listings/suggestions?q=${encodeURIComponent(query)}&limit=6`);
+        const data = res.data;
         if (data.success) {
           setSuggestions(data.data?.suggestions || []);
           setShowSuggestions(true);

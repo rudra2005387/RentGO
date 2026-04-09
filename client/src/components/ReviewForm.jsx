@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes } from 'react-icons/fa';
 import StarRating from './StarRating';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 const CATEGORIES = [
   { key: 'cleanliness', label: 'Cleanliness' },
@@ -34,20 +33,13 @@ export default function ReviewForm({ bookingId, token, onClose, onSubmitted }) {
     setSubmitting(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/reviews`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          bookingId,
-          overallRating,
-          comment: comment.trim(),
-          ratings,
-        }),
+      const res = await apiClient.post(`/reviews`, {
+        bookingId,
+        overallRating,
+        comment: comment.trim(),
+        ratings,
       });
-      const d = await res.json();
+      const d = res.data;
       if (d.success) {
         onSubmitted?.(d.data?.review || d.data);
         onClose();

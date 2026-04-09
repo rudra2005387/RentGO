@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { FaStar, FaThumbsUp } from 'react-icons/fa';
 import StarRating from './StarRating';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 function Avatar({ name, image }) {
   if (image) return <img src={image} alt={name} className="w-10 h-10 rounded-full object-cover" />;
@@ -27,11 +26,8 @@ function ReviewCard({ review, token }) {
   const markHelpful = useCallback(async () => {
     if (markedHelpful || !token) return;
     try {
-      const res = await fetch(`${API_BASE}/reviews/${review._id}/helpful`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const d = await res.json();
+      const res = await apiClient.post(`/reviews/${review._id}/helpful`);
+      const d = res.data;
       if (d.success) {
         setHelpfulCount((c) => c + 1);
         setMarkedHelpful(true);

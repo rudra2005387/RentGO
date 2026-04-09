@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import apiClient from '../config/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const authFetch = (path, token) =>
-  fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((r) => r.json());
+const authFetch = async (path, token) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
 const formatDate = (d) =>
   d ? new Date(d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '—';

@@ -10,8 +10,7 @@ import HostInfo from '../components/HostInfo.jsx';
 import ReviewList from '../components/ReviewList.jsx';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../context/NotificationContext';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 /* ── fonts ── */
 let _fontsLoaded = false;
@@ -869,9 +868,9 @@ export default function ListingDetails() {
     loadFonts();
     setLoading(true);
     Promise.all([
-      fetch(`${API_BASE}/listings/${id}`).then(r=>r.json()),
-      fetch(`${API_BASE}/reviews/listing/${id}`).then(r=>r.json()).catch(()=>({success:false})),
-      fetch(`${API_BASE}/listings/${id}/availability`).then(r=>r.json()).catch(()=>({success:false})),
+      apiClient.get(`/listings/${id}`).then(r=>r.data),
+      apiClient.get(`/reviews/listing/${id}`).then(r=>r.data).catch(()=>({success:false})),
+      apiClient.get(`/listings/${id}/availability`).then(r=>r.data).catch(()=>({success:false})),
     ]).then(([lr,rr,ar])=>{
       if (lr.success) setListing(lr.data?.listing||lr.data); else setError('Listing not found');
       if (rr.success) setReviews(rr.data?.reviews||[]);
@@ -936,18 +935,14 @@ export default function ListingDetails() {
         guestCount: guests,
       };
 
-      const res = await fetch(`${API_BASE}/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
+      const res = await apiClient.post(`/bookings`, payload);
 
-      const d = await res.json();
+      const d = res.data;
 
       // Log full server response for debugging
       console.log('[Booking response]', res.status, JSON.stringify(d));
 
-      if (d.success || res.ok) {
+      if (d.success || res.status < 400) {
         const bookingObj = d.data?.booking || d.data || d.booking || d;
         notifyBookingConfirmed(bookingObj, listing?.title, listing?.location?.city);
         setBLoading(false);

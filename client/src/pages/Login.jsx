@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
 import { Button, Input, Alert } from '../components/ui';
+import apiClient from '../config/apiClient';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -26,13 +27,9 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Login failed');
+      const res = await apiClient.post(`/auth/login`, { email, password });
+      const data = res.data;
+      if (!data.success) throw new Error(data.message || 'Login failed');
       login(data.data.user, data.data.token);
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });

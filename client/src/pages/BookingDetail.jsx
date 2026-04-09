@@ -2,17 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import apiClient from '../config/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const authFetch = (path, token, opts = {}) =>
-  fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(opts.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-  }).then((r) => r.json());
+const authFetch = async (path, token, opts = {}) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
 const P = '#FF385C';
 const PD = '#E31C5F';

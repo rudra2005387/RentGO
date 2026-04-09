@@ -1,19 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import apiClient from "../config/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-const authFetch = (path, token, opts = {}) =>
-  fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(!opts.body || opts.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
-      ...(opts.headers || {}),
-    },
-  }).then((r) => r.json());
 
 const P  = "#FF385C";
 const PD = "#E31C5F";
@@ -124,8 +113,8 @@ export default function Profile() {
 
   useEffect(() => {
     if (!token || !userId) { navigate("/login"); return; }
-    authFetch(`/users/${userId}`, token)
-      .then(d => { if (d.success) { const u = d.data?.user || d.data; setProfileData(u); setForm({ firstName: u.firstName || "", lastName: u.lastName || "", email: u.email || "", phone: u.phone || "", bio: u.bio || "", address: u.address || "" }); } })
+    apiClient.get(`/users/${userId}`)
+      .then(r => { const d = r.data; if (d.success) { const u = d.data?.user || d.data; setProfileData(u); setForm({ firstName: u.firstName || "", lastName: u.lastName || "", email: u.email || "", phone: u.phone || "", bio: u.bio || "", address: u.address || "" }); } })
       .catch(() => {}).finally(() => setLoadingProfile(false));
   }, [token, userId, navigate]);
 
@@ -134,7 +123,8 @@ export default function Profile() {
   const handleSave = async e => {
     e.preventDefault(); setSaving(true); setProfileAlert(null);
     try {
-      const d = await authFetch(`/users/${userId}`, token, { method: "PUT", body: JSON.stringify(form), headers: { "Content-Type": "application/json" } });
+      const r = await apiClient.put(`/users/${userId}`, form);
+      const d = r.data;
       if (d.success) { setProfileData(d.data?.user || d.data); login({ ...user, firstName: form.firstName, lastName: form.lastName, email: form.email }, token); setProfileAlert({ type: "success", msg: "Profile updated successfully." }); }
       else setProfileAlert({ type: "error", msg: d.message || "Failed to save changes." });
     } catch { setProfileAlert({ type: "error", msg: "Network error. Please try again." }); }
@@ -146,7 +136,8 @@ export default function Profile() {
     setAvatarLoading(true);
     const fd = new FormData(); fd.append("image", file);
     try {
-      const d = await authFetch(`/users/${userId}/profile-image`, token, { method: "POST", body: fd });
+      const r = await apiClient.post(`/users/${userId}/profile-image`, fd);
+      const d = r.data;
       if (d.success) { const url = d.data?.profileImage || d.data?.url; setProfileData(p => ({ ...p, profileImage: url })); login({ ...user, profileImage: url }, token); setProfileAlert({ type: "success", msg: "Profile photo updated." }); }
       else setProfileAlert({ type: "error", msg: d.message || "Upload failed." });
     } catch { setProfileAlert({ type: "error", msg: "Upload failed. Please try again." }); }
@@ -159,7 +150,8 @@ export default function Profile() {
     if (pwForm.newPassword.length < 6) { setPwAlert({ type: "error", msg: "Password must be at least 6 characters." }); return; }
     setPwSaving(true); setPwAlert(null);
     try {
-      const d = await authFetch("/auth/change-password", token, { method: "POST", body: JSON.stringify({ currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword }), headers: { "Content-Type": "application/json" } });
+      const r = await apiClient.post("/auth/change-password", { currentPassword: pwForm.currentPassword, newPassword: pwForm.newPassword });
+      const d = r.data;
       if (d.success) { setPwForm({ currentPassword: "", newPassword: "", confirmPassword: "" }); setPwAlert({ type: "success", msg: "Password changed successfully." }); }
       else setPwAlert({ type: "error", msg: d.message || "Failed to change password." });
     } catch { setPwAlert({ type: "error", msg: "Network error. Please try again." }); }
@@ -344,7 +336,7 @@ export default function Profile() {
                             style={{ flex: 1, fontFamily: BF, fontSize: 13, fontWeight: 600, color: "#555", background: "#F3F4F6", border: "none", borderRadius: 12, padding: "12px", cursor: "pointer" }}>Cancel</button>
                           <button disabled={deleteInput !== "DELETE"}
                             style={{ flex: 1, fontFamily: BF, fontSize: 13, fontWeight: 700, color: "#fff", background: deleteInput === "DELETE" ? "#BE123C" : "#E5E7EB", border: "none", borderRadius: 12, padding: "12px", cursor: deleteInput === "DELETE" ? "pointer" : "not-allowed" }}
-                            onClick={async () => { try { await authFetch(`/users/${userId}/deactivate`, token, { method: "POST", body: JSON.stringify({}), headers: { "Content-Type": "application/json" } }); } catch {} navigate("/login"); }}>
+                            onClick={async () => { try { await apiClient.post(`/users/${userId}/deactivate`, {}); } catch {} navigate("/login"); }}>
                             Delete Account
                           </button>
                         </div>

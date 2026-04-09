@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaArrowLeft, FaComments } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
+import apiClient from '../config/apiClient';
 import useSocket from '../hooks/useSocket';
 import ChatWindow from '../components/ChatWindow';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 function Avatar({ name, image }) {
   if (image) return <img src={image} alt={name} className="w-10 h-10 rounded-full object-cover" />;
@@ -76,20 +75,16 @@ export default function MessagesPage() {
 
     const fetchConversations = async () => {
       try {
-        const res = await fetch(`${API_BASE}/messages/conversations`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const d = await res.json();
+        const res = await apiClient.get(`/messages/conversations`);
+        const d = res.data;
         if (d.success) {
           setConversations(d.data?.conversations || d.data || []);
         }
       } catch {
         // Try alternative endpoint — bookings with messages
         try {
-          const res = await fetch(`${API_BASE}/bookings?role=guest&limit=20`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const d = await res.json();
+          const res = await apiClient.get(`/bookings?role=guest&limit=20`);
+          const d = res.data;
           if (d.success) {
             const bookings = d.data?.bookings || [];
             const convos = bookings.map((b) => ({
@@ -120,20 +115,16 @@ export default function MessagesPage() {
       setLoadingMessages(true);
       try {
         // Try conversation endpoint first
-        const res = await fetch(`${API_BASE}/messages/${activeConversationId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const d = await res.json();
+        const res = await apiClient.get(`/messages/${activeConversationId}`);
+        const d = res.data;
         if (d.success) {
           setMessages(d.data?.messages || d.data || []);
         }
       } catch {
         // Fallback: try booking messages
         try {
-          const res = await fetch(`${API_BASE}/bookings/${activeConversationId}/messages`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          const d = await res.json();
+          const res = await apiClient.get(`/bookings/${activeConversationId}/messages`);
+          const d = res.data;
           if (d.success) {
             setMessages(d.data?.messages || d.data || []);
           }
@@ -204,25 +195,11 @@ export default function MessagesPage() {
 
       // Also persist via REST
       try {
-        await fetch(`${API_BASE}/messages/${activeConversationId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ content: text }),
-        });
+        await apiClient.post(`/messages/${activeConversationId}`, { content: text });
       } catch {
         // Try booking messages endpoint
         try {
-          await fetch(`${API_BASE}/bookings/${activeConversationId}/messages`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ content: text }),
-          });
+          await apiClient.post(`/bookings/${activeConversationId}/messages`, { content: text });
         } catch {
           // silent
         }

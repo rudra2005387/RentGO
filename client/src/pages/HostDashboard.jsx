@@ -1,18 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import apiClient from "../config/apiClient";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts';
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-const authFetch = (path, token, opts = {}) =>
-  fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(opts.body ? { "Content-Type": "application/json" } : {}),
-    },
-  }).then((r) => r.json());
 
 // ── Tiny primitives
 const Badge = ({ children, color = "gray" }) => {
@@ -76,22 +66,18 @@ export default function HostDashboard() {
   const fetchAll = useCallback(async () => {
     if (!token || !userId) return;
 
-    authFetch(`/users/${userId}/stats`, token)
-      .then((d) => { if (d.success) setStats(d.data?.stats); })
+    apiClient.get(`/users/${userId}/stats`)
+      .then((r) => { const d = r.data; if (d.success) setStats(d.data?.stats); })
       .catch(() => {})
       .finally(() => setLoaded("stats"));
 
-    authFetch(`/users/${userId}/listings?limit=50`, token)
-      .then((d) => {
-        if (d.success) {
-          setListings(d.data?.listings || d.data || []);
-        }
-      })
+    apiClient.get(`/users/${userId}/listings?limit=50`)
+      .then((r) => { const d = r.data; if (d.success) { setListings(d.data?.listings || d.data || []); } })
       .catch(() => {})
       .finally(() => setLoaded("listings"));
 
-    authFetch(`/bookings?role=host&limit=30`, token)
-      .then((d) => { if (d.success) setBookings(d.data?.bookings || []); })
+    apiClient.get(`/bookings?role=host&limit=30`)
+      .then((r) => { const d = r.data; if (d.success) setBookings(d.data?.bookings || []); })
       .catch(() => {})
       .finally(() => setLoaded("bookings"));
   }, [token, userId]);
@@ -106,10 +92,8 @@ export default function HostDashboard() {
   const handleBookingStatus = async (bookingId, status) => {
     setActionLoading((p) => ({ ...p, [bookingId]: status }));
     try {
-      const d = await authFetch(`/bookings/${bookingId}/status`, token, {
-        method: "PUT",
-        body: JSON.stringify({ status }),
-      });
+      const r = await apiClient.put(`/bookings/${bookingId}/status`, { status });
+      const d = r.data;
       if (d.success) {
         setBookings((prev) =>
           prev.map((b) => (b._id === bookingId ? { ...b, status } : b))
@@ -123,7 +107,8 @@ export default function HostDashboard() {
   const handleArchive = async (listingId) => {
     setActionLoading((p) => ({ ...p, [listingId]: "archiving" }));
     try {
-      const d = await authFetch(`/listings/${listingId}/archive`, token, { method: "POST", body: JSON.stringify({}) });
+      const r = await apiClient.post(`/listings/${listingId}/archive`, {});
+      const d = r.data;
       if (d.success) {
         setListings((prev) =>
           prev.map((l) => (l._id === listingId ? { ...l, status: "archived" } : l))

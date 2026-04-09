@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FaLock, FaCreditCard, FaArrowLeft } from 'react-icons/fa';
 import { useAuth } from '../hooks/useAuth';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 function PriceLine({ label, amount, bold }) {
   return (
@@ -33,10 +32,8 @@ export default function PaymentPage() {
 
     const fetchBooking = async () => {
       try {
-        const res = await fetch(`${API_BASE}/bookings/${bookingId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const d = await res.json();
+        const res = await apiClient.get(`/bookings/${bookingId}`);
+        const d = res.data;
         if (d.success) {
           setBooking(d.data?.booking || d.data);
         } else {
@@ -54,15 +51,8 @@ export default function PaymentPage() {
   const handlePay = async () => {
     setPaying(true);
     try {
-      const res = await fetch(`${API_BASE}/payments/checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ bookingId }),
-      });
-      const d = await res.json();
+      const res = await apiClient.post(`/payments/checkout`, { bookingId });
+      const d = res.data;
       if (d.success && d.data?.sessionUrl) {
         // Redirect to Stripe Checkout
         window.location.href = d.data.sessionUrl;

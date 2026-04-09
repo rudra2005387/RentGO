@@ -3,13 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import ReviewForm from "../components/ReviewForm";
 import { motion, AnimatePresence } from "framer-motion";
+import apiClient from "../config/apiClient";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-const authFetch = (path, token) =>
-  fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((r) => r.json());
+const authFetch = async (path, token) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
 /* ── Design tokens ── */
 const P = "#FF385C";
