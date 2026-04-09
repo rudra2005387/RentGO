@@ -2,11 +2,11 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { useAuth } from '../hooks/useAuth';
+import apiClient, { API_BASE_URL } from '../config/apiClient';
 
 export const NotificationContext = createContext();
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL?.replace('/api', '') || 'http://localhost:5000';
 
 // Minimum interval between fetches (ms) to avoid 429
 const FETCH_THROTTLE_MS = 5000;
@@ -34,11 +34,8 @@ export const NotificationProvider = ({ children }) => {
 
 		const promise = (async () => {
 			try {
-				const res = await fetch(`${API_BASE}/notifications`, {
-					headers: { Authorization: `Bearer ${token}` },
-				});
-				if (res.status === 429) return; // rate-limited — skip silently
-				const d = await res.json();
+				const res = await apiClient.get('/notifications');
+				const d = res.data;
 				if (d.success) {
 					setNotifications(d.data?.notifications || d.data || []);
 				}
@@ -172,10 +169,7 @@ export const NotificationProvider = ({ children }) => {
 		);
 		if (token) {
 			try {
-				await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
-					method: 'PUT',
-					headers: { Authorization: `Bearer ${token}` },
-				});
+				await apiClient.put(`/notifications/${notificationId}/read`);
 			} catch { /* silent */ }
 		}
 	}, [token]);
@@ -185,10 +179,7 @@ export const NotificationProvider = ({ children }) => {
 		setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true, read: true })));
 		if (token) {
 			try {
-				await fetch(`${API_BASE}/notifications/read-all`, {
-					method: 'PUT',
-					headers: { Authorization: `Bearer ${token}` },
-				});
+				await apiClient.put('/notifications/read-all');
 			} catch { /* silent */ }
 		}
 	}, [token]);

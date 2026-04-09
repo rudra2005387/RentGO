@@ -4,17 +4,18 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-const apiFetch = (path) =>
-  fetch(`${API_BASE}${path}`).then((r) => r.json());
+const apiFetch = async (path) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
-const authFetch = (path, token) =>
-  fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((r) => r.json());
+const authFetch = async (path, token) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
 // ─── Category filter config ───────────────────────────────────────────────────
 const CATEGORIES = [
@@ -57,17 +58,10 @@ const PropertyCard = ({ listing, token, userId, wishlistedIds, onWishlistChange 
     setWishlistLoading(true);
     try {
       if (isWishlisted) {
-        await fetch(`${API_BASE}/users/${userId}/wishlist/${listing._id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.delete(`/users/${userId}/wishlist/${listing._id}`);
         setIsWishlisted(false);
       } else {
-        await fetch(`${API_BASE}/users/${userId}/wishlist`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ listingId: listing._id }),
-        });
+        await apiClient.post(`/users/${userId}/wishlist`, { listingId: listing._id });
         setIsWishlisted(true);
       }
       onWishlistChange?.();

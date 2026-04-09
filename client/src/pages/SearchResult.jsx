@@ -7,14 +7,14 @@ const MapView = lazy(() => import('../components/MapView'));
 import { useAuth } from '../hooks/useAuth';
 import EmptyState from '../components/ui/EmptyState';
 import { SkeletonPropertyCard } from '../components/ui/SkeletonLoaders';
+import apiClient from '../config/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const PAGE_LIMIT = 12;
 
-const authFetch = (path, token) =>
-  fetch(`${API_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  }).then((r) => r.json());
+const authFetch = async (path, token) => {
+  const response = await apiClient.get(path);
+  return response.data;
+};
 
 // ─── Property types ──────────────────────────────────────────────────────────
 const PROPERTY_TYPES = [
@@ -69,16 +69,9 @@ const ResultCard = ({ listing, token, userId, isWishlisted, onWishlistToggle }) 
     setWishLoading(true);
     try {
       if (isWishlisted) {
-        await fetch(`${API_BASE}/users/${userId}/wishlist/${listing._id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        await apiClient.delete(`/users/${userId}/wishlist/${listing._id}`);
       } else {
-        await fetch(`${API_BASE}/users/${userId}/wishlist`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ listingId: listing._id }),
-        });
+        await apiClient.post(`/users/${userId}/wishlist`, { listingId: listing._id });
       }
       onWishlistToggle?.();
     } catch (err) {
@@ -349,19 +342,21 @@ const fetchWithFallback = async (baseParams, cityQuery, signal) => {
     p1.set('city', cityQuery.trim());
     p1.set('search', cityQuery.trim());
   }
-  const r1 = await fetch(`${API_BASE}/listings?${p1}`, { signal });
-  const d1 = await r1.json();
-  if (d1.success && (d1.data?.listings?.length || 0) > 0) return d1;
+  try {
+    const d1 = await apiClient.get(`/listings?${p1}`, { signal });
+    if (d1.data?.success && (d1.data?.data?.listings?.length || 0) > 0) return d1.data;
+  } catch (e) {}
 
   const p2 = new URLSearchParams(baseParams);
   if (cityQuery?.trim()) p2.set('search', cityQuery.trim());
-  const r2 = await fetch(`${API_BASE}/listings?${p2}`, { signal });
-  const d2 = await r2.json();
-  if (d2.success && (d2.data?.listings?.length || 0) > 0) return d2;
+  try {
+    const d2 = await apiClient.get(`/listings?${p2}`, { signal });
+    if (d2.data?.success && (d2.data?.data?.listings?.length || 0) > 0) return d2.data;
+  } catch (e) {}
 
   const p3 = new URLSearchParams(baseParams);
-  const r3 = await fetch(`${API_BASE}/listings?${p3}`, { signal });
-  return await r3.json();
+  const r3 = await apiClient.get(`/listings?${p3}`, { signal });
+  return r3.data;
 };
 
 const SearchResult = () => {

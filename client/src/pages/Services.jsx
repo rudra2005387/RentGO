@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../config/apiClient';
 
 const SERVICE_CATEGORIES = [
   { id: 'cleaning', icon: '🧹', title: 'Cleaning Services', desc: 'Professional deep cleaning before and after every stay. Certified cleaners, eco-friendly products.', color: 'from-sky-50 to-blue-50 border-sky-100', tag: 'Most Popular', tagColor: 'bg-sky-100 text-sky-700' },
@@ -70,21 +69,18 @@ export default function Services() {
   const [subscribed, setSubscribed] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/listings/featured?limit=4`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setFeaturedListings(d.data?.listings || []); })
+    apiClient.get('/listings/featured?limit=4')
+      .then((r) => { if (r.data.success) setFeaturedListings(r.data.data?.listings || []); })
       .catch(() => {})
       .finally(() => setLoading((p) => ({ ...p, featured: false })));
 
-    fetch(`${API_BASE}/listings/trending?limit=4`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setTrendingListings(d.data?.listings || []); })
+    apiClient.get('/listings/trending?limit=4')
+      .then((r) => { if (r.data.success) setTrendingListings(r.data.data?.listings || []); })
       .catch(() => {})
       .finally(() => setLoading((p) => ({ ...p, trending: false })));
 
-    fetch(`${API_BASE}/listings?limit=1`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setTotalListings(d.data?.pagination?.total); })
+    apiClient.get('/listings?limit=1')
+      .then((r) => { if (r.data.success) setTotalListings(r.data.data?.pagination?.total); })
       .catch(() => {});
   }, []);
 

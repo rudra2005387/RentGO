@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+import apiClient from "../config/apiClient";
 
 const CATEGORIES = [
   { label: "Nature", icon: "🌲" },
@@ -98,21 +97,18 @@ export default function Experiences() {
   const [loadingTopRated, setLoadingTopRated] = useState(true);
 
   useEffect(() => {
-    fetch(`${API_BASE}/listings/featured?limit=8`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setFeatured(d.data?.listings || d.data || []); })
+    apiClient.get('/listings/featured?limit=8')
+      .then((r) => { if (r.data.success) setFeatured(r.data.data?.listings || r.data.data || []); })
       .catch(() => {})
       .finally(() => setLoadingFeatured(false));
 
-    fetch(`${API_BASE}/listings/trending?limit=8`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setTrending(d.data?.listings || d.data || []); })
+    apiClient.get('/listings/trending?limit=8')
+      .then((r) => { if (r.data.success) setTrending(r.data.data?.listings || r.data.data || []); })
       .catch(() => {})
       .finally(() => setLoadingTrending(false));
 
-    fetch(`${API_BASE}/listings?sortBy=rating&limit=12`)
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setTopRated(d.data?.listings || d.data || []); })
+    apiClient.get('/listings?sortBy=rating&limit=12')
+      .then((r) => { if (r.data.success) setTopRated(r.data.data?.listings || r.data.data || []); })
       .catch(() => {})
       .finally(() => setLoadingTopRated(false));
   }, []);

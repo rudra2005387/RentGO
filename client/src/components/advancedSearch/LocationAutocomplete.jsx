@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import apiClient from '../../config/apiClient';
 
 export default function LocationAutocomplete({ value, onChange, placeholder = "Enter location" }) {
 	const [suggestions, setSuggestions] = useState([]);
@@ -28,8 +27,8 @@ export default function LocationAutocomplete({ value, onChange, placeholder = "E
 		const t = setTimeout(async () => {
 			setLoading(true);
 			try {
-				const res = await fetch(`${API_BASE}/listings/suggestions?q=${encodeURIComponent(query)}&limit=7`);
-				const data = await res.json();
+				const res = await apiClient.get(`/listings/suggestions?q=${encodeURIComponent(query)}&limit=7`);
+				const data = res.data;
 				if (data.success) {
 					setSuggestions(data.data?.suggestions || []);
 				}
