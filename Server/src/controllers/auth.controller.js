@@ -1,10 +1,16 @@
 const { User } = require('../models');
 const { generateToken } = require('../utils/helpers');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendOtpEmail } = require('../utils/resend');
+const redisService = require('../services/redis.service');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { cacheUserSession, logoutUser } = require('../middleware/cache.middleware');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const otpGenerator = require('otp-generator');
+
+const OTP_TTL_SECONDS = 5 * 60;
+const OTP_KEY_PREFIX = 'otp:';
 
 /**
  * Register new user
@@ -375,4 +381,117 @@ exports.verifyEmail = asyncHandler(async (req, res) => {
   } catch (error) {
     throw new APIError('Invalid or expired verification token', 401);
   }
+});
+
+/**
+ * Send OTP for passwordless login
+ * POST /api/auth/send-otp
+ */
+exports.sendOtp = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new APIError('Email is required', 400);
+  }
+
+  if (!redisService.isAvailable()) {
+    throw new APIError('OTP service unavailable. Please try again later.', 503);
+  }
+
+  const normalizedEmail = email.toLowerCase();
+  const otpCode = otpGenerator.generate(6, {
+    upperCaseAlphabets: false,
+    lowerCaseAlphabets: false,
+    specialChars: false
+  });
+
+  const otpHash = crypto.createHash('sha256').update(otpCode).digest('hex');
+  const otpKey = `${OTP_KEY_PREFIX}${normalizedEmail}`;
+
+  await redisService.set(otpKey, { otpHash }, OTP_TTL_SECONDS);
+  await sendOtpEmail(normalizedEmail, otpCode);
+
+  res.status(200).json({
+    success: true,
+    message: 'OTP sent to email'
+  });
+});
+
+/**
+ * Verify OTP for passwordless login
+ * POST /api/auth/verify-otp
+ */
+exports.verifyOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    throw new APIError('Email and OTP are required', 400);
+  }
+
+  if (!redisService.isAvailable()) {
+    throw new APIError('OTP service unavailable. Please try again later.', 503);
+  }
+
+  const normalizedEmail = email.toLowerCase();
+  const otpKey = `${OTP_KEY_PREFIX}${normalizedEmail}`;
+  const cachedOtp = await redisService.get(otpKey);
+
+  if (!cachedOtp || !cachedOtp.otpHash) {
+    throw new APIError('OTP expired or invalid', 400);
+  }
+
+  const otpHash = crypto.createHash('sha256').update(otp.toString()).digest('hex');
+  if (otpHash !== cachedOtp.otpHash) {
+    throw new APIError('Invalid OTP', 401);
+  }
+
+  await redisService.del(otpKey);
+
+  let user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) {
+    const emailPrefix = normalizedEmail.split('@')[0] || 'Guest';
+    const randomPassword = crypto.randomBytes(16).toString('hex');
+
+    user = new User({
+      firstName: emailPrefix.slice(0, 20),
+      lastName: 'User',
+      email: normalizedEmail,
+      password: randomPassword,
+      role: 'guest',
+      isEmailVerified: true
+    });
+
+    await user.save();
+  } else {
+    user.isEmailVerified = true;
+    user.lastLogin = new Date();
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+    await user.save();
+  }
+
+  const token = generateToken(user._id, user.role);
+  const userResponse = user.getProfile();
+
+  let tokenExpiresIn = 7 * 24 * 60 * 60;
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && decoded.exp) {
+      tokenExpiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+    }
+  } catch (_) {
+    // Fallback to default TTL
+  }
+
+  await cacheUserSession(user._id.toString(), userResponse, token, tokenExpiresIn);
+
+  res.status(200).json({
+    success: true,
+    message: 'OTP verified',
+    data: {
+      user: userResponse,
+      token
+    }
+  });
 });

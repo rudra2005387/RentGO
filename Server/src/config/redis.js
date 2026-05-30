@@ -1,3 +1,9 @@
+const path = require('path');
+const dotenv = require('dotenv');
+
+// Ensure env vars are loaded when this module is required directly
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 let redisClient = null;
 
 const initRedis = () => {

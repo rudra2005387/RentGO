@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(verifyToken, authorize('admin'));
 
 router.get('/dashboard', adminController.getDashboard);
+router.get('/cache-stats', adminController.getCacheStats);
 
 router.get('/users', adminController.getAllUsers);
 router.put('/users/:id/status', adminController.updateUserStatus);

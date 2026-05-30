@@ -1,8 +1,9 @@
-const { Review, Booking, Listing, User } = require('../models');
+const { Review, Booking, Listing, User, Notification } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo, calculateAverageRating } = require('../utils/helpers');
 const { clearCache } = require('../middleware/cache.middleware');
 const listingCacheService = require('../services/listingCache.service');
+const { publishUserNotification } = require('../services/notificationPubSub.service');
 
 /**
  * Create a review for a completed booking
@@ -87,6 +88,19 @@ exports.createReview = asyncHandler(async (req, res) => {
   await clearCache('/api/listings*');
   await clearCache('/api/reviews*');
   await listingCacheService.invalidateListing({ listingId: booking.listing.toString() });
+
+  if (reviewType === 'guest_to_host') {
+    const hostNotification = await Notification.create({
+      user: booking.host,
+      type: 'review',
+      title: 'New Review Posted',
+      message: `${booking.guest.firstName} left a review on ${listing.title}.`,
+      bookingId: booking._id
+    });
+
+    const io = req.app.get('io');
+    await publishUserNotification(io, booking.host.toString(), hostNotification);
+  }
 
   res.status(201).json({
     success: true,

@@ -14,6 +14,14 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [otpMode, setOtpMode] = useState(false);
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpNotice, setOtpNotice] = useState('');
+  const [otpRequestLoading, setOtpRequestLoading] = useState(false);
+  const [otpVerifyLoading, setOtpVerifyLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [forgotPassword, setForgotPassword] = useState(false);
@@ -26,9 +34,18 @@ const Login = () => {
     const remembered = localStorage.getItem('rentgo_remembered_email');
     if (remembered) {
       setEmail(remembered);
+      setOtpEmail(remembered);
       setRememberMe(true);
     }
   }, []);
+
+  useEffect(() => {
+    if (!otpSent || otpCountdown <= 0) return;
+    const timer = setInterval(() => {
+      setOtpCountdown((prev) => Math.max(0, prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpSent, otpCountdown]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -92,6 +109,72 @@ const Login = () => {
       setError(message);
     } finally {
       setResetLoading(false);
+    }
+  };
+
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setOtpNotice('');
+
+    if (!otpEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    setOtpRequestLoading(true);
+    try {
+      const res = await apiClient.post('/auth/send-otp', { email: otpEmail });
+      if (!res.data.success) throw new Error(res.data.message || 'Failed to send OTP');
+      setOtpSent(true);
+      setOtpCode('');
+      setOtpCountdown(60);
+      setOtpNotice('OTP sent. Check your inbox for the 6-digit code.');
+    } catch (err) {
+      const message = err.response?.data?.message ||
+                     err.response?.data?.errors?.[0]?.message ||
+                     err.message ||
+                     'Failed to send OTP. Please try again.';
+      setError(message);
+    } finally {
+      setOtpRequestLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setOtpNotice('');
+
+    if (!otpEmail || !otpCode) {
+      setError('Please enter your email and the OTP code.');
+      return;
+    }
+
+    setOtpVerifyLoading(true);
+    try {
+      const res = await apiClient.post('/auth/verify-otp', { email: otpEmail, otp: otpCode });
+      const data = res.data;
+      if (!data.success) throw new Error(data.message || 'OTP verification failed');
+
+      login(data.data.user, data.data.token);
+
+      if (rememberMe) {
+        localStorage.setItem('rentgo_remembered_email', otpEmail);
+      } else {
+        localStorage.removeItem('rentgo_remembered_email');
+      }
+
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    } catch (err) {
+      const message = err.response?.data?.message ||
+                     err.response?.data?.errors?.[0]?.message ||
+                     err.message ||
+                     'OTP verification failed. Please try again.';
+      setError(message);
+    } finally {
+      setOtpVerifyLoading(false);
     }
   };
 
@@ -171,13 +254,55 @@ const Login = () => {
 
                 {/* Form Card */}
                 <motion.form
-                  onSubmit={handleSubmit}
+                  onSubmit={otpMode ? handleVerifyOtp : handleSubmit}
                   custom={1}
                   variants={itemVariants}
                   initial="hidden"
                   animate="visible"
                   className="mt-8 space-y-6 bg-white p-6 sm:p-8 rounded-2xl shadow-lg"
                 >
+                  {/* Mode Toggle */}
+                  <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpMode(false);
+                        if (!email && otpEmail) setEmail(otpEmail);
+                        setOtpSent(false);
+                        setOtpCountdown(0);
+                        setOtpCode('');
+                        setError('');
+                        setOtpNotice('');
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                        !otpMode
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpMode(true);
+                        if (!otpEmail && email) setOtpEmail(email);
+                        setOtpSent(false);
+                        setOtpCountdown(0);
+                        setOtpCode('');
+                        setError('');
+                        setOtpNotice('');
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                        otpMode
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Email OTP
+                    </button>
+                  </div>
+
                   {/* Error Alert */}
                   {error && (
                     <motion.div
@@ -191,6 +316,18 @@ const Login = () => {
                     </motion.div>
                   )}
 
+                  {/* Success Notice */}
+                  {otpNotice && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3"
+                    >
+                      <span className="text-emerald-600 text-xl">✅</span>
+                      <p className="text-sm text-emerald-700">{otpNotice}</p>
+                    </motion.div>
+                  )}
+
                   {/* Email Input */}
                   <motion.div custom={2} variants={itemVariants} initial="hidden" animate="visible">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -198,40 +335,69 @@ const Login = () => {
                     </label>
                     <input
                       type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={otpMode ? otpEmail : email}
+                      onChange={(e) => (otpMode ? setOtpEmail(e.target.value) : setEmail(e.target.value))}
                       placeholder="you@example.com"
                       required
-                      disabled={loading}
+                      disabled={loading || otpRequestLoading || otpVerifyLoading}
                       className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-rose-500 focus:outline-none transition-all bg-gray-50 focus:bg-white disabled:opacity-50"
                     />
                   </motion.div>
 
-                  {/* Password Input */}
-                  <motion.div custom={3} variants={itemVariants} initial="hidden" animate="visible">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Password
-                    </label>
-                    <div className="relative">
+                  {!otpMode ? (
+                    <motion.div custom={3} variants={itemVariants} initial="hidden" animate="visible">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Password
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          required
+                          disabled={loading}
+                          className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-rose-500 focus:outline-none transition-all bg-gray-50 focus:bg-white disabled:opacity-50 pr-12"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          disabled={loading}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
+                        >
+                          {showPassword ? <FaEyeSlash /> : <FaEye />}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : (
+                    <motion.div custom={3} variants={itemVariants} initial="hidden" animate="visible">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        OTP Code
+                      </label>
                       <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        type="text"
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="Enter 6-digit code"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
                         required
-                        disabled={loading}
-                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-rose-500 focus:outline-none transition-all bg-gray-50 focus:bg-white disabled:opacity-50 pr-12"
+                        disabled={otpVerifyLoading || otpRequestLoading}
+                        className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-rose-500 focus:outline-none transition-all bg-gray-50 focus:bg-white disabled:opacity-50 tracking-[0.3em] text-center text-lg"
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        disabled={loading}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
-                      >
-                        {showPassword ? <FaEyeSlash /> : <FaEye />}
-                      </button>
-                    </div>
-                  </motion.div>
+                      <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
+                        <span>Did not get the code?</span>
+                        <button
+                          type="button"
+                          onClick={handleSendOtp}
+                          disabled={otpRequestLoading || otpCountdown > 0}
+                          className="font-semibold text-rose-500 hover:text-rose-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {otpCountdown > 0 ? `Resend in ${otpCountdown}s` : 'Resend OTP'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
 
                   {/* Remember Me & Forgot Password */}
                   <motion.div
@@ -246,18 +412,20 @@ const Login = () => {
                         type="checkbox"
                         checked={rememberMe}
                         onChange={(e) => setRememberMe(e.target.checked)}
-                        disabled={loading}
+                        disabled={loading || otpRequestLoading || otpVerifyLoading}
                         className="w-4 h-4 rounded border-gray-300 text-rose-500 focus:ring-rose-500 cursor-pointer"
                       />
                       <span className="text-gray-600">Remember me</span>
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setForgotPassword(true)}
-                      className="text-rose-500 font-medium hover:text-rose-600 transition-colors"
-                    >
-                      Forgot password?
-                    </button>
+                    {!otpMode && (
+                      <button
+                        type="button"
+                        onClick={() => setForgotPassword(true)}
+                        className="text-rose-500 font-medium hover:text-rose-600 transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
                   </motion.div>
 
                   {/* Submit Button */}
@@ -267,23 +435,47 @@ const Login = () => {
                     initial="hidden"
                     animate="visible"
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || otpVerifyLoading}
                     whileHover={{ scale: loading ? 1 : 1.02 }}
                     whileTap={{ scale: loading ? 1 : 0.98 }}
                     className="w-full mt-8 bg-gradient-to-r from-rose-500 to-rose-600 hover:shadow-lg text-white font-bold py-3 rounded-lg shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    {loading ? (
+                    {loading || otpVerifyLoading ? (
                       <>
                         <FaSpinner className="animate-spin" />
-                        Signing in...
+                        {otpMode ? 'Verifying...' : 'Signing in...'}
                       </>
                     ) : (
                       <>
-                        Sign In
+                        {otpMode ? 'Verify & Sign In' : 'Sign In'}
                         <FaArrowRight className="text-sm" />
                       </>
                     )}
                   </motion.button>
+
+                  {otpMode && (
+                    <motion.button
+                      custom={6}
+                      variants={itemVariants}
+                      initial="hidden"
+                      animate="visible"
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={otpRequestLoading}
+                      whileHover={{ scale: otpRequestLoading ? 1 : 1.01 }}
+                      whileTap={{ scale: otpRequestLoading ? 1 : 0.99 }}
+                      className="w-full border-2 border-rose-200 text-rose-600 font-semibold py-3 rounded-lg hover:bg-rose-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {otpRequestLoading ? (
+                        <>
+                          <FaSpinner className="animate-spin" />
+                          Sending OTP...
+                        </>
+                      ) : (
+                        'Send OTP'
+                      )}
+                    </motion.button>
+                  )}
                 </motion.form>
 
                 {/* Sign Up Link */}

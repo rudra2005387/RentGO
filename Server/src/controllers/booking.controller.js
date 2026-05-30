@@ -3,6 +3,12 @@ const { Booking, Listing, User, Payment, Notification } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { calculateBookingPrice, calculateNights, isDateRangeAvailable, generateBookingReference, getPaginationInfo } = require('../utils/helpers');
 const { sendBookingConfirmation, sendReviewRequest, sendCancellationEmail } = require('../utils/email');
+const availabilityCacheService = require('../services/availabilityCache.service');
+const {
+  publishUserNotification,
+  publishBookingUpdate,
+  publishChatMessage
+} = require('../services/notificationPubSub.service');
 
 /**
  * Create a new booking
@@ -54,10 +60,17 @@ exports.createBooking = asyncHandler(async (req, res) => {
   }
 
   // Check if dates are available (include pending to prevent double-booking)
-  const existingBookings = await Booking.find({
-    listing: listingId,
-    status: { $in: ['pending', 'confirmed', 'completed'] }
-  });
+  let existingBookings = await availabilityCacheService.getBookings(listingId);
+  if (!existingBookings) {
+    existingBookings = await Booking.find({
+      listing: listingId,
+      status: { $in: ['pending', 'confirmed', 'completed'] }
+    })
+      .select('checkInDate checkOutDate status')
+      .lean();
+
+    await availabilityCacheService.setBookings(listingId, existingBookings);
+  }
 
   if (!isDateRangeAvailable(checkInDate, checkOutDate, existingBookings)) {
     throw new APIError('Selected dates are not available', 400);
@@ -131,10 +144,15 @@ exports.createBooking = asyncHandler(async (req, res) => {
 
   // Emit real-time notification via Socket.IO if available
   const io = req.app.get('io');
-  if (io) {
-    io.to(`user_${req.user.userId}`).emit('notification', notification);
-    io.to(`user_${listing.host}`).emit('notification', hostNotification);
-  }
+  await publishUserNotification(io, req.user.userId, notification);
+  await publishUserNotification(io, listing.host.toString(), hostNotification);
+  await publishBookingUpdate(io, {
+    bookingId: booking._id.toString(),
+    status: booking.status,
+    userIds: [req.user.userId, listing.host.toString()]
+  });
+
+  await availabilityCacheService.invalidateListing(listingId);
 
   res.status(201).json({
     success: true,
@@ -275,9 +293,27 @@ exports.updateBookingStatus = asyncHandler(async (req, res) => {
 
   await booking.save();
 
+  await availabilityCacheService.invalidateListing(booking.listing.toString());
+
   // Send email notification
   await booking.populate('guest', 'email firstName');
   const emailMessage = status === 'confirmed' ? 'Your booking has been approved!' : 'Your booking has been rejected.';
+
+  const guestNotification = await Notification.create({
+    user: booking.guest,
+    type: 'booking',
+    title: status === 'confirmed' ? 'Booking Confirmed' : 'Booking Rejected',
+    message: emailMessage,
+    bookingId: booking._id
+  });
+
+  const io = req.app.get('io');
+  await publishUserNotification(io, booking.guest.toString(), guestNotification);
+  await publishBookingUpdate(io, {
+    bookingId: booking._id.toString(),
+    status: booking.status,
+    userIds: [booking.guest.toString(), booking.host.toString()]
+  });
   
   res.status(200).json({
     success: true,
@@ -330,6 +366,8 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
 
   await booking.save();
 
+  await availabilityCacheService.invalidateListing(booking.listing.toString());
+
   // Send cancellation email
   await booking.populate('guest', 'email firstName');
   await booking.populate('listing', 'title');
@@ -359,10 +397,13 @@ exports.cancelBooking = asyncHandler(async (req, res) => {
   });
 
   const io = req.app.get('io');
-  if (io) {
-    io.to(`user_${booking.guest._id}`).emit('notification', guestNotification);
-    io.to(`user_${booking.host}`).emit('notification', hostNotification);
-  }
+  await publishUserNotification(io, booking.guest._id.toString(), guestNotification);
+  await publishUserNotification(io, booking.host.toString(), hostNotification);
+  await publishBookingUpdate(io, {
+    bookingId: booking._id.toString(),
+    status: booking.status,
+    userIds: [booking.guest._id.toString(), booking.host.toString()]
+  });
 
   res.status(200).json({
     success: true,
@@ -432,6 +473,35 @@ exports.updatePaymentStatus = asyncHandler(async (req, res) => {
 
   await booking.save();
 
+  await availabilityCacheService.invalidateListing(booking.listing.toString());
+
+  const io = req.app.get('io');
+  if (paymentStatus === 'paid' && booking.status === 'confirmed') {
+    const guestNotification = await Notification.create({
+      user: booking.guest,
+      type: 'payment',
+      title: 'Payment Received',
+      message: 'Your payment was received and your booking is confirmed.',
+      bookingId: booking._id
+    });
+
+    const hostNotification = await Notification.create({
+      user: booking.host,
+      type: 'payment',
+      title: 'Booking Confirmed',
+      message: 'A booking has been confirmed after payment.',
+      bookingId: booking._id
+    });
+
+    await publishUserNotification(io, booking.guest.toString(), guestNotification);
+    await publishUserNotification(io, booking.host.toString(), hostNotification);
+    await publishBookingUpdate(io, {
+      bookingId: booking._id.toString(),
+      status: booking.status,
+      userIds: [booking.guest.toString(), booking.host.toString()]
+    });
+  }
+
   res.status(200).json({
     success: true,
     message: 'Payment status updated',
@@ -474,6 +544,29 @@ exports.sendMessage = asyncHandler(async (req, res) => {
   });
 
   await booking.save();
+
+  await availabilityCacheService.invalidateListing(booking.listing.toString());
+
+  const io = req.app.get('io');
+  const receiverId = booking.guest.toString() === req.user.userId
+    ? booking.host.toString()
+    : booking.guest.toString();
+
+  const messageNotification = await Notification.create({
+    user: receiverId,
+    type: 'message',
+    title: 'New Message',
+    message: message,
+    bookingId: booking._id
+  });
+
+  await publishUserNotification(io, receiverId, messageNotification);
+  await publishChatMessage(io, booking._id.toString(), {
+    bookingId: booking._id.toString(),
+    senderId: req.user.userId,
+    message,
+    createdAt: booking.messages[booking.messages.length - 1]?.createdAt
+  });
 
   res.status(201).json({
     success: true,
@@ -536,6 +629,24 @@ exports.completeBooking = asyncHandler(async (req, res) => {
 
   booking.status = 'completed';
   await booking.save();
+
+  await availabilityCacheService.invalidateListing(booking.listing.toString());
+
+  const io = req.app.get('io');
+  const hostNotification = await Notification.create({
+    user: booking.host,
+    type: 'booking',
+    title: 'Booking Completed',
+    message: 'A booking has been marked as completed.',
+    bookingId: booking._id
+  });
+
+  await publishUserNotification(io, booking.host.toString(), hostNotification);
+  await publishBookingUpdate(io, {
+    bookingId: booking._id.toString(),
+    status: booking.status,
+    userIds: [booking.guest.toString(), booking.host.toString()]
+  });
 
   // Send review request email
   await booking.populate('guest', 'email firstName');

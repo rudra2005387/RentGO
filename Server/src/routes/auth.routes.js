@@ -1,7 +1,7 @@
 const express = require('express');
 const authController = require('../controllers/auth.controller');
 const { verifyToken, isAuthenticated } = require('../middleware/auth.middleware');
-const { validateRegister, validateLogin, validateCreateBooking, handleValidationErrors } = require('../middleware/validation.middleware');
+const { validateRegister, validateLogin, validateSendOtp, validateVerifyOtp, validateCreateBooking, handleValidationErrors } = require('../middleware/validation.middleware');
 
 const router = express.Router();
 
@@ -14,6 +14,12 @@ router.post('/register', validateRegister, handleValidationErrors, authControlle
 
 // Login user
 router.post('/login', validateLogin, handleValidationErrors, authController.login);
+
+// Send OTP for passwordless login
+router.post('/send-otp', validateSendOtp, handleValidationErrors, authController.sendOtp);
+
+// Verify OTP for passwordless login
+router.post('/verify-otp', validateVerifyOtp, handleValidationErrors, authController.verifyOtp);
 
 // Forgot password - Send reset email
 router.post('/forgot-password', authController.forgotPassword);

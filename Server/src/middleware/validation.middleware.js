@@ -62,6 +62,26 @@ exports.validateLogin = [
     .withMessage('Password is required')
 ];
 
+exports.validateSendOtp = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email')
+    .normalizeEmail()
+];
+
+exports.validateVerifyOtp = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email')
+    .normalizeEmail(),
+  body('otp')
+    .trim()
+    .isLength({ min: 6, max: 6 })
+    .withMessage('OTP must be 6 digits')
+    .matches(/^[0-9]{6}$/)
+    .withMessage('OTP must be numeric')
+];
+
 /**
  * Validation rules for listings
  */

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const { User, Listing, Booking, Review, Payment } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo } = require('../utils/helpers');
+const { getCacheStats } = require('../services/cacheAnalytics.service');
 
 /**
  * Dashboard overview
@@ -316,5 +317,28 @@ exports.getRevenueStats = asyncHandler(async (req, res) => {
       revenueByStatus,
       topListings
     }
+  });
+});
+
+/**
+ * Cache analytics
+ * GET /api/admin/cache-stats
+ */
+exports.getCacheStats = asyncHandler(async (req, res) => {
+  const stats = await getCacheStats();
+
+  if (!stats.available) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        available: false,
+        message: 'Redis not available'
+      }
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: stats
   });
 });

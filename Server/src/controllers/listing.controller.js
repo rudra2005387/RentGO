@@ -4,6 +4,8 @@ const { getPaginationInfo, getAvailabilityFilter, calculateAverageRating } = req
 const { uploadImage, deleteImage, uploadFromBuffer } = require('../utils/cloudinary');
 const { clearCache } = require('../middleware/cache.middleware');
 const listingCacheService = require('../services/listingCache.service');
+const availabilityCacheService = require('../services/availabilityCache.service');
+const { publishListingUpdate } = require('../services/notificationPubSub.service');
 
 /**
  * Create a new listing
@@ -62,6 +64,13 @@ exports.createListing = asyncHandler(async (req, res) => {
   await listingCacheService.invalidateListing({
     listingId: listing._id.toString(),
     hostId: listing.host.toString()
+  });
+
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
   });
 
   res.status(201).json({
@@ -395,6 +404,13 @@ exports.updateListing = asyncHandler(async (req, res) => {
     hostId: listing.host.toString()
   });
 
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
+  });
+
   res.status(200).json({
     success: true,
     message: 'Listing updated successfully',
@@ -442,6 +458,13 @@ exports.uploadListingImages = asyncHandler(async (req, res) => {
     hostId: listing.host.toString()
   });
 
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
+  });
+
   res.status(200).json({
     success: true,
     message: 'Images uploaded successfully',
@@ -478,6 +501,13 @@ exports.deleteListingImage = asyncHandler(async (req, res) => {
   await listingCacheService.invalidateListing({
     listingId: listing._id.toString(),
     hostId: listing.host.toString()
+  });
+
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
   });
 
   res.status(200).json({
@@ -519,6 +549,13 @@ exports.publishListing = asyncHandler(async (req, res) => {
     hostId: listing.host.toString()
   });
 
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
+  });
+
   res.status(200).json({
     success: true,
     message: 'Listing published successfully',
@@ -551,6 +588,13 @@ exports.archiveListing = asyncHandler(async (req, res) => {
   await listingCacheService.invalidateListing({
     listingId: listing._id.toString(),
     hostId: listing.host.toString()
+  });
+
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
   });
 
   res.status(200).json({
@@ -591,6 +635,13 @@ exports.deleteListing = asyncHandler(async (req, res) => {
     hostId: listing.host.toString()
   });
 
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: id,
+    status: 'deleted',
+    userIds: [listing.host.toString()]
+  });
+
   res.status(200).json({
     success: true,
     message: 'Listing deleted successfully'
@@ -604,6 +655,11 @@ exports.deleteListing = asyncHandler(async (req, res) => {
 exports.getAvailability = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { startDate, endDate } = req.query;
+
+  const cached = await availabilityCacheService.getAvailability(id, startDate, endDate);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
 
   const listing = await Listing.findById(id);
   if (!listing) {
@@ -638,7 +694,7 @@ exports.getAvailability = asyncHandler(async (req, res) => {
     checkOutDate: b.checkOutDate
   }));
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listing: {
@@ -654,7 +710,12 @@ exports.getAvailability = asyncHandler(async (req, res) => {
         endDate
       }
     }
-  });
+  };
+
+  await availabilityCacheService.setAvailability(id, startDate, endDate, responsePayload);
+  await availabilityCacheService.setAvailabilityDays(id, startDate, endDate, bookedDates, unavailableDates);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -692,6 +753,14 @@ exports.setAvailability = asyncHandler(async (req, res) => {
   await listingCacheService.invalidateListing({
     listingId: listing._id.toString(),
     hostId: listing.host.toString()
+  });
+  await availabilityCacheService.invalidateListing(listing._id.toString());
+
+  const io = req.app.get('io');
+  await publishListingUpdate(io, {
+    listingId: listing._id.toString(),
+    status: listing.status,
+    userIds: [listing.host.toString()]
   });
 
   res.status(200).json({
