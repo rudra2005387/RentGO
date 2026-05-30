@@ -393,10 +393,9 @@ exports.sendOtp = asyncHandler(async (req, res) => {
   if (!email) {
     throw new APIError('Email is required', 400);
   }
-
-  if (!redisService.isAvailable()) {
-    throw new APIError('OTP service unavailable. Please try again later.', 503);
-  }
+if (!redisService.isAvailable()) {
+  console.warn('Redis unavailable - OTP service running without Redis');
+}
 
   const normalizedEmail = email.toLowerCase();
   const otpCode = otpGenerator.generate(6, {
@@ -429,8 +428,8 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   }
 
   if (!redisService.isAvailable()) {
-    throw new APIError('OTP service unavailable. Please try again later.', 503);
-  }
+  console.warn('Redis unavailable - OTP verification running without Redis');
+}
 
   const normalizedEmail = email.toLowerCase();
   const otpKey = `${OTP_KEY_PREFIX}${normalizedEmail}`;
