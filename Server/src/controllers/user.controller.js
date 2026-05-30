@@ -1,6 +1,7 @@
 const { User, Listing, Booking } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo } = require('../utils/helpers');
+const listingCacheService = require('../services/listingCache.service');
 
 /**
  * Get user profile by ID
@@ -118,6 +119,17 @@ exports.getUserListings = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { page = 1, limit = 10, status } = req.query;
 
+  const cacheParams = {
+    page: Number(page),
+    limit: Number(limit),
+    status: status || ''
+  };
+
+  const cached = await listingCacheService.getHostListings(id, cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
   // Check if user exists
   const user = await User.findById(id);
   if (!user) {
@@ -140,13 +152,17 @@ exports.getUserListings = asyncHandler(async (req, res) => {
     .limit(pagination.limit)
     .sort({ createdAt: -1 });
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listings,
       pagination
     }
-  });
+  };
+
+  await listingCacheService.setHostListings(id, cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**

@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('../controllers/user.controller');
 const { verifyToken, isAuthenticated } = require('../middleware/auth.middleware');
+const { sessionCacheMiddleware } = require('../middleware/cache.middleware');
 const { uploadSingleImage } = require('../middleware/upload.middleware');
 
 const router = express.Router();
@@ -26,23 +27,23 @@ router.get('/:id/listings', userController.getUserListings);
  */
 
 // Update user profile
-router.put('/:id', verifyToken, userController.updateUserProfile);
+router.put('/:id', verifyToken, sessionCacheMiddleware, userController.updateUserProfile);
 
 // Upload profile image (supports both file upload and URL)
-router.post('/:id/profile-image', verifyToken, uploadSingleImage, userController.uploadProfileImage);
+router.post('/:id/profile-image', verifyToken, sessionCacheMiddleware, uploadSingleImage, userController.uploadProfileImage);
 
 // Get user's bookings
-router.get('/:id/bookings', verifyToken, userController.getUserBookings);
+router.get('/:id/bookings', verifyToken, sessionCacheMiddleware, userController.getUserBookings);
 
 // Wishlist operations
-router.get('/:id/wishlist', verifyToken, userController.getWishlist);
-router.post('/:id/wishlist', verifyToken, userController.addToWishlist);
-router.delete('/:id/wishlist/:listingId', verifyToken, userController.removeFromWishlist);
+router.get('/:id/wishlist', verifyToken, sessionCacheMiddleware, userController.getWishlist);
+router.post('/:id/wishlist', verifyToken, sessionCacheMiddleware, userController.addToWishlist);
+router.delete('/:id/wishlist/:listingId', verifyToken, sessionCacheMiddleware, userController.removeFromWishlist);
 
 // Switch role (guest <-> host)
-router.post('/:id/switch-role', verifyToken, userController.switchRole);
+router.post('/:id/switch-role', verifyToken, sessionCacheMiddleware, userController.switchRole);
 
 // Deactivate account
-router.post('/:id/deactivate', verifyToken, userController.deactivateAccount);
+router.post('/:id/deactivate', verifyToken, sessionCacheMiddleware, userController.deactivateAccount);
 
 module.exports = router;

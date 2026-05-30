@@ -2,6 +2,7 @@ const { Review, Booking, Listing, User } = require('../models');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo, calculateAverageRating } = require('../utils/helpers');
 const { clearCache } = require('../middleware/cache.middleware');
+const listingCacheService = require('../services/listingCache.service');
 
 /**
  * Create a review for a completed booking
@@ -85,6 +86,7 @@ exports.createReview = asyncHandler(async (req, res) => {
   await review.populate('author', 'firstName lastName profileImage');
   await clearCache('/api/listings*');
   await clearCache('/api/reviews*');
+  await listingCacheService.invalidateListing({ listingId: booking.listing.toString() });
 
   res.status(201).json({
     success: true,
@@ -215,6 +217,7 @@ exports.updateReview = asyncHandler(async (req, res) => {
   await review.populate('author', 'firstName lastName profileImage');
   await clearCache('/api/listings*');
   await clearCache('/api/reviews*');
+  await listingCacheService.invalidateListing({ listingId: review.listing.toString() });
 
   res.status(200).json({
     success: true,
@@ -251,6 +254,7 @@ exports.deleteReview = asyncHandler(async (req, res) => {
 
   await clearCache('/api/listings*');
   await clearCache('/api/reviews*');
+  await listingCacheService.invalidateListing({ listingId: listingId.toString() });
 
   res.status(200).json({
     success: true,

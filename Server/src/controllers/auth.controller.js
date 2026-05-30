@@ -2,6 +2,7 @@ const { User } = require('../models');
 const { generateToken } = require('../utils/helpers');
 const { sendWelcomeEmail, sendPasswordResetEmail } = require('../utils/email');
 const { asyncHandler, APIError } = require('../middleware/error.middleware');
+const { cacheUserSession, logoutUser } = require('../middleware/cache.middleware');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
@@ -128,6 +129,19 @@ exports.login = asyncHandler(async (req, res) => {
   // Get user profile without password
   const userResponse = user.getProfile();
 
+  // PHASE 1: Cache user session in Redis for faster authentication
+  let tokenExpiresIn = 7 * 24 * 60 * 60;
+  try {
+    const decoded = jwt.decode(token);
+    if (decoded && decoded.exp) {
+      tokenExpiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+    }
+  } catch (_) {
+    // Fallback to default TTL
+  }
+
+  await cacheUserSession(user._id.toString(), userResponse, token, tokenExpiresIn);
+
   res.status(200).json({
     success: true,
     message: 'Login successful',
@@ -143,10 +157,23 @@ exports.login = asyncHandler(async (req, res) => {
  * POST /api/auth/logout
  */
 exports.logout = asyncHandler(async (req, res) => {
-  // In a stateless JWT system, logout is mainly frontend responsibility
-  // but we can track it server-side if needed
+  // PHASE 1: Blacklist token and invalidate session
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    let tokenExpiresIn = 7 * 24 * 60 * 60; // 7 days
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        tokenExpiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+      }
+    } catch (_) {
+      // Fallback to default TTL
+    }
+    await logoutUser(req.user.userId, token, tokenExpiresIn);
+  }
 
-  // Update user's last logout time (optional)
+  // Update user's last logout time
   await User.findByIdAndUpdate(req.user.userId, {
     lastLogin: new Date()
   });
@@ -287,6 +314,24 @@ exports.changePassword = asyncHandler(async (req, res) => {
   // Update password
   user.password = newPassword;
   await user.save();
+
+  // PHASE 1: Invalidate cached session and token after password change
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    let tokenExpiresIn = 7 * 24 * 60 * 60;
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded && decoded.exp) {
+        tokenExpiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+      }
+    } catch (_) {
+      // Fallback to default TTL
+    }
+    await logoutUser(req.user.userId, token, tokenExpiresIn);
+  } else {
+    await logoutUser(req.user.userId, null, 0);
+  }
 
   res.status(200).json({
     success: true,

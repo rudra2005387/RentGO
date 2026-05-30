@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const { errorHandler } = require('./middleware/error.middleware');
 const { initRedis } = require('./config/redis');
+const redisService = require('./services/redis.service');
 
 const app = express();
 
@@ -13,6 +14,7 @@ connectDB();
 
 // Initialize Redis (optional — caching degrades gracefully if unavailable)
 initRedis();
+redisService.init();
 
 // Middleware
 app.use(cors({

@@ -3,6 +3,7 @@ const { asyncHandler, APIError } = require('../middleware/error.middleware');
 const { getPaginationInfo, getAvailabilityFilter, calculateAverageRating } = require('../utils/helpers');
 const { uploadImage, deleteImage, uploadFromBuffer } = require('../utils/cloudinary');
 const { clearCache } = require('../middleware/cache.middleware');
+const listingCacheService = require('../services/listingCache.service');
 
 /**
  * Create a new listing
@@ -52,7 +53,16 @@ exports.createListing = asyncHandler(async (req, res) => {
 
   await listing.save();
 
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
+
   await clearCache('/api/listings*');
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
 
   res.status(201).json({
     success: true,
@@ -84,6 +94,28 @@ exports.getListings = asyncHandler(async (req, res) => {
     minRating,
     sortBy = 'newest'
   } = req.query;
+
+  const minRatingValue = minRating ?? rating;
+  const cacheParams = {
+    page: Number(page),
+    limit: Number(limit),
+    search: search || '',
+    city: city || '',
+    propertyType: propertyType || '',
+    minPrice: minPrice || '',
+    maxPrice: maxPrice || '',
+    guests: guests || '',
+    checkInDate: checkInDate || '',
+    checkOutDate: checkOutDate || '',
+    amenities: amenities || '',
+    minRating: minRatingValue || '',
+    sortBy
+  };
+
+  const cached = await listingCacheService.getSearchResults(cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
 
   // Build query
   const query = { status: 'published', isActive: true };
@@ -153,7 +185,6 @@ exports.getListings = asyncHandler(async (req, res) => {
   }
 
   // Filter by minimum rating
-  const minRatingValue = minRating ?? rating;
   if (minRatingValue) {
     query.averageRating = { $gte: parseFloat(minRatingValue) };
   }
@@ -181,9 +212,10 @@ exports.getListings = asyncHandler(async (req, res) => {
     .populate('host', 'firstName lastName profileImage hostInfo')
     .skip(pagination.skip)
     .limit(pagination.limit)
-    .sort(sortOption);
+    .sort(sortOption)
+    .lean();
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listings,
@@ -198,7 +230,11 @@ exports.getListings = asyncHandler(async (req, res) => {
         rating
       }
     }
-  });
+  };
+
+  await listingCacheService.setSearchResults(cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -208,6 +244,12 @@ exports.getListings = asyncHandler(async (req, res) => {
 exports.getLocationSuggestions = asyncHandler(async (req, res) => {
   const q = (req.query.q || '').trim();
   const limit = Math.min(parseInt(req.query.limit || '8', 10), 12);
+
+  const cacheParams = { q, limit };
+  const cached = await listingCacheService.getSuggestions(cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
 
   if (!q || q.length < 2) {
     return res.status(200).json({
@@ -265,12 +307,16 @@ exports.getLocationSuggestions = asyncHandler(async (req, res) => {
     .filter((v, i, arr) => arr.indexOf(v) === i)
     .slice(0, limit);
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       suggestions: merged
     }
-  });
+  };
+
+  await listingCacheService.setSuggestions(cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -280,8 +326,14 @@ exports.getLocationSuggestions = asyncHandler(async (req, res) => {
 exports.getListingDetails = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  const cached = await listingCacheService.getListing(id);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
   const listing = await Listing.findById(id)
-    .populate('host', 'firstName lastName profileImage hostInfo stats');
+    .populate('host', 'firstName lastName profileImage hostInfo stats')
+    .lean();
 
   if (!listing) {
     throw new APIError('Listing not found', 404);
@@ -295,14 +347,18 @@ exports.getListingDetails = asyncHandler(async (req, res) => {
 
   const reviewCount = await Review.countDocuments({ listing: id, isPublic: true });
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listing,
       reviews,
       reviewCount
     }
-  });
+  };
+
+  await listingCacheService.setListing(id, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -334,6 +390,10 @@ exports.updateListing = asyncHandler(async (req, res) => {
   await listing.save();
 
   await clearCache('/api/listings*');
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -377,6 +437,11 @@ exports.uploadListingImages = asyncHandler(async (req, res) => {
 
   await listing.save();
 
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
+
   res.status(200).json({
     success: true,
     message: 'Images uploaded successfully',
@@ -409,6 +474,11 @@ exports.deleteListingImage = asyncHandler(async (req, res) => {
   // Remove image
   listing.images.splice(imageIndex, 1);
   await listing.save();
+
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -444,6 +514,10 @@ exports.publishListing = asyncHandler(async (req, res) => {
   await listing.save();
 
   await clearCache('/api/listings*');
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -473,6 +547,11 @@ exports.archiveListing = asyncHandler(async (req, res) => {
   listing.status = 'archived';
   listing.isActive = false;
   await listing.save();
+
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -507,6 +586,10 @@ exports.deleteListing = asyncHandler(async (req, res) => {
   await Listing.findByIdAndDelete(id);
 
   await clearCache('/api/listings*');
+  await listingCacheService.invalidateListing({
+    listingId: id,
+    hostId: listing.host.toString()
+  });
 
   res.status(200).json({
     success: true,
@@ -606,6 +689,11 @@ exports.setAvailability = asyncHandler(async (req, res) => {
 
   await listing.save();
 
+  await listingCacheService.invalidateListing({
+    listingId: listing._id.toString(),
+    hostId: listing.host.toString()
+  });
+
   res.status(200).json({
     success: true,
     message: 'Availability updated',
@@ -622,20 +710,31 @@ exports.setAvailability = asyncHandler(async (req, res) => {
 exports.getTrendingListings = asyncHandler(async (req, res) => {
   const { limit = 10 } = req.query;
 
+  const cacheParams = { limit: Number(limit) };
+  const cached = await listingCacheService.getTrending(cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
   const listings = await Listing.find({
     status: 'published',
     isActive: true
   })
     .populate('host', 'firstName lastName profileImage')
     .sort({ totalBookings: -1, averageRating: -1 })
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .lean();
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listings
     }
-  });
+  };
+
+  await listingCacheService.setTrending(cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -645,6 +744,12 @@ exports.getTrendingListings = asyncHandler(async (req, res) => {
 exports.getFeaturedListings = asyncHandler(async (req, res) => {
   const { limit = 10 } = req.query;
 
+  const cacheParams = { limit: Number(limit) };
+  const cached = await listingCacheService.getFeatured(cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
+
   const listings = await Listing.find({
     status: 'published',
     isActive: true,
@@ -652,14 +757,19 @@ exports.getFeaturedListings = asyncHandler(async (req, res) => {
   })
     .populate('host', 'firstName lastName profileImage')
     .sort({ averageRating: -1, totalBookings: -1 })
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .lean();
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listings
     }
-  });
+  };
+
+  await listingCacheService.setFeatured(cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -669,6 +779,12 @@ exports.getFeaturedListings = asyncHandler(async (req, res) => {
 exports.getSimilarListings = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { limit = 6 } = req.query;
+
+  const cacheParams = { limit: Number(limit) };
+  const cached = await listingCacheService.getSimilar(id, cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
 
   const listing = await Listing.findById(id);
   if (!listing) {
@@ -694,12 +810,17 @@ exports.getSimilarListings = asyncHandler(async (req, res) => {
   })
     .populate('host', 'firstName lastName profileImage')
     .sort({ averageRating: -1 })
-    .limit(parseInt(limit));
+    .limit(parseInt(limit))
+    .lean();
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: { listings: similar }
-  });
+  };
+
+  await listingCacheService.setSimilar(id, cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**
@@ -719,6 +840,19 @@ exports.getNearbyListings = asyncHandler(async (req, res) => {
   const pageNum = parseInt(page);
   const limitNum = parseInt(limit);
   const skip = (pageNum - 1) * limitNum;
+
+  const cacheParams = {
+    lat: latitude,
+    lng: longitude,
+    radius: Number(radius),
+    page: pageNum,
+    limit: limitNum
+  };
+
+  const cached = await listingCacheService.getNearby(cacheParams);
+  if (cached) {
+    return res.status(200).json(cached);
+  }
 
   const results = await Listing.aggregate([
     {
@@ -754,7 +888,7 @@ exports.getNearbyListings = asyncHandler(async (req, res) => {
   const listings = results[0].data;
   const total = results[0].total[0]?.count || 0;
 
-  res.status(200).json({
+  const responsePayload = {
     success: true,
     data: {
       listings,
@@ -765,7 +899,11 @@ exports.getNearbyListings = asyncHandler(async (req, res) => {
         totalPages: Math.ceil(total / limitNum)
       }
     }
-  });
+  };
+
+  await listingCacheService.setNearby(cacheParams, responsePayload);
+
+  res.status(200).json(responsePayload);
 });
 
 /**

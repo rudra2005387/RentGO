@@ -1,4 +1,5 @@
 const { getRedisClient } = require('../config/redis');
+const redisService = require('../services/redis.service');
 
 /**
  * Cache GET responses in Redis (or skip gracefully if Redis is unavailable).
@@ -51,4 +52,102 @@ const clearCache = async (pattern) => {
   }
 };
 
-module.exports = { cache, clearCache };
+/**
+ * PHASE 1: Check Redis for cached session before processing
+ * Reduces database queries for every authenticated request
+ */
+const sessionCacheMiddleware = async (req, res, next) => {
+  try {
+    // Only check if user is authenticated
+    if (req.user && req.user.userId) {
+      const cachedSession = await redisService.getSession(req.user.userId);
+      if (cachedSession) {
+        req.cachedSession = cachedSession;
+        req.sessionSource = 'redis';
+      } else {
+        req.sessionSource = 'database';
+      }
+    }
+    next();
+  } catch (error) {
+    console.warn(`⚠️  Session cache check failed: ${error.message}`);
+    next();
+  }
+};
+
+/**
+ * PHASE 1: Check if token is blacklisted (after logout)
+ * Prevents using old tokens after logout
+ */
+const tokenBlacklistMiddleware = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.substring(7);
+    const isBlacklisted = await redisService.isTokenBlacklisted(token);
+    
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been revoked. Please login again.'
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.warn(`⚠️  Token blacklist check failed: ${error.message}`);
+    next();
+  }
+};
+
+/**
+ * PHASE 1: Cache user session after successful login
+ */
+const cacheUserSession = async (userId, userData, token, tokenExpiresIn = 7 * 24 * 60 * 60) => {
+  try {
+    const sessionData = {
+      userId,
+      email: userData.email,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      avatar: userData.avatar,
+      role: userData.role,
+      isActive: userData.isActive,
+      cachedAt: new Date().toISOString()
+    };
+    await redisService.setSession(userId, sessionData, tokenExpiresIn);
+
+    if (token) {
+      await redisService.set(`session-token:${token}`, { userId }, tokenExpiresIn);
+    }
+  } catch (error) {
+    console.warn(`⚠️  Failed to cache session: ${error.message}`);
+  }
+};
+
+/**
+ * PHASE 1: Logout user by invalidating session and token
+ */
+const logoutUser = async (userId, token, tokenExpiresIn = 7 * 24 * 60 * 60) => {
+  try {
+    await redisService.deleteSession(userId);
+    await redisService.blacklistToken(token, tokenExpiresIn);
+    if (token) {
+      await redisService.del(`session-token:${token}`);
+    }
+  } catch (error) {
+    console.warn(`⚠️  Logout failed: ${error.message}`);
+  }
+};
+
+module.exports = { 
+  cache, 
+  clearCache,
+  sessionCacheMiddleware,
+  tokenBlacklistMiddleware,
+  cacheUserSession,
+  logoutUser
+};

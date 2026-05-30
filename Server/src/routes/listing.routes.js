@@ -3,7 +3,6 @@ const listingController = require('../controllers/listing.controller');
 const { verifyToken, authorize } = require('../middleware/auth.middleware');
 const { validateCreateListing, handleValidationErrors } = require('../middleware/validation.middleware');
 const { uploadMultipleImages } = require('../middleware/upload.middleware');
-const { cache } = require('../middleware/cache.middleware');
 
 const router = express.Router();
 
@@ -12,25 +11,25 @@ const router = express.Router();
  */
 
 // Get all listings with filters
-router.get('/', cache(120), listingController.getListings);
+router.get('/', listingController.getListings);
 
 // Get trending listings
-router.get('/trending', cache(300), listingController.getTrendingListings);
+router.get('/trending', listingController.getTrendingListings);
 
 // Get featured listings
-router.get('/featured', cache(300), listingController.getFeaturedListings);
+router.get('/featured', listingController.getFeaturedListings);
 
 // Get nearby listings (geolocation) — must be before /:id
-router.get('/nearby', cache(120), listingController.getNearbyListings);
+router.get('/nearby', listingController.getNearbyListings);
 
 // Smart location suggestions (must be before /:id)
-router.get('/suggestions', cache(60), listingController.getLocationSuggestions);
+router.get('/suggestions', listingController.getLocationSuggestions);
 
 // Get single listing details
-router.get('/:id', cache(180), listingController.getListingDetails);
+router.get('/:id', listingController.getListingDetails);
 
 // Get similar listings
-router.get('/:id/similar', cache(180), listingController.getSimilarListings);
+router.get('/:id/similar', listingController.getSimilarListings);
 
 // Get availability for listing
 router.get('/:id/availability', listingController.getAvailability);

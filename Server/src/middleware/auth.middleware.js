@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const redisService = require('../services/redis.service');
 
 /**
  * Verify JWT Token
@@ -16,8 +17,26 @@ exports.verifyToken = async (req, res, next) => {
       });
     }
 
+    // Check blacklist before accepting token
+    const isBlacklisted = await redisService.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has been revoked'
+      });
+    }
+
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Use cached session to avoid DB lookup when available
+    const cachedSession = await redisService.getSession(decoded.userId);
+    if (cachedSession) {
+      req.user = decoded;
+      req.userId = decoded.userId;
+      req.userSession = cachedSession;
+      return next();
+    }
     
     // Check if user still exists
     const user = await User.findById(decoded.userId);

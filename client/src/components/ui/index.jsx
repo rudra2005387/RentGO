@@ -279,6 +279,130 @@ export const Skeleton = ({
 	);
 };
 
+/**
+ * Standardized Avatar Component
+ */
+export const Avatar = ({
+	src,
+	name = 'U',
+	size = 'md',
+	className = '',
+	...props
+}) => {
+	const sizes = {
+		sm: 'w-8 h-8 text-xs',
+		md: 'w-10 h-10 text-sm',
+		lg: 'w-12 h-12 text-base',
+		xl: 'w-16 h-16 text-lg',
+	};
+
+	return src ? (
+		<img
+			src={src}
+			alt={name}
+			className={`rounded-full object-cover ${sizes[size]} ${className}`}
+			{...props}
+		/>
+	) : (
+		<div
+			className={`rounded-full bg-gradient-to-br from-primary to-pink-600 text-white flex items-center justify-center font-semibold ${sizes[size]} ${className}`}
+			{...props}
+		>
+			{name?.charAt(0)?.toUpperCase()}
+		</div>
+	);
+};
+
+/**
+ * Standardized Divider Component
+ */
+export const Divider = ({
+	orientation = 'horizontal',
+	className = '',
+	...props
+}) => {
+	const orientationClass = orientation === 'vertical' ? 'h-full w-0.5' : 'w-full h-0.5';
+	return (
+		<div
+			className={`bg-gray-200 ${orientationClass} ${className}`}
+			{...props}
+		/>
+	);
+};
+
+/**
+ * Standardized Rating Component
+ */
+export const Rating = ({
+	value = 0,
+	max = 5,
+	onChange,
+	readonly = false,
+	size = 'md',
+	className = '',
+}) => {
+	const sizes = {
+		sm: 'text-sm',
+		md: 'text-base',
+		lg: 'text-xl',
+	};
+
+	return (
+		<div className={`flex gap-1 ${sizes[size]} ${className}`}>
+			{Array.from({ length: max }).map((_, i) => (
+				<button
+					key={i}
+					onClick={() => !readonly && onChange?.(i + 1)}
+					disabled={readonly}
+					className={`transition-colors ${readonly ? 'cursor-default' : 'cursor-pointer hover:text-yellow-400'} ${
+						i < value ? 'text-yellow-400' : 'text-gray-300'
+					}`}
+					aria-label={`Rate ${i + 1} out of ${max}`}
+				>
+					★
+				</button>
+			))}
+		</div>
+	);
+};
+
+/**
+ * Standardized Tag Component
+ */
+export const Tag = ({
+	children,
+	variant = 'neutral',
+	onRemove,
+	className = '',
+	...props
+}) => {
+	const variants = {
+		primary: 'bg-primary-light text-primary',
+		success: 'bg-green-100 text-green-800',
+		danger: 'bg-red-100 text-red-800',
+		warning: 'bg-yellow-100 text-yellow-800',
+		neutral: 'bg-gray-100 text-gray-800',
+	};
+
+	return (
+		<span
+			className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium ${variants[variant]} ${className}`}
+			{...props}
+		>
+			{children}
+			{onRemove && (
+				<button
+					onClick={onRemove}
+					className="hover:opacity-70 transition-opacity ml-1"
+					aria-label="Remove tag"
+				>
+					✕
+				</button>
+			)}
+		</span>
+	);
+};
+
 export default {
 	Button,
 	Card,
@@ -288,6 +412,10 @@ export default {
 	Spinner,
 	Modal,
 	Skeleton,
+	Avatar,
+	Divider,
+	Rating,
+	Tag,
 };
 
 // ─── Re-export new UI components ──────────────────────────────────────────

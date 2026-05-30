@@ -45,8 +45,11 @@ exports.validateRegister = [
     .withMessage('Password must contain uppercase, lowercase, and number'),
   body('phone')
     .optional()
-    .isMobilePhone()
+    .trim()
+    .matches(/^[\d\s\-\+\(\)]+$/)
     .withMessage('Please provide a valid phone number')
+    .isLength({ min: 7, max: 20 })
+    .withMessage('Phone number must be between 7-20 characters')
 ];
 
 exports.validateLogin = [
