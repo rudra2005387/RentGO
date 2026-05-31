@@ -204,7 +204,7 @@ exports.refreshToken = asyncHandler(async (req, res) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
 
-    // Check if user still exists
+    // Check if user still exists   
     const user = await User.findById(decoded.userId);
     if (!user || !user.isActive) {
       throw new APIError('User not found or inactive', 401);
@@ -393,21 +393,38 @@ exports.sendOtp = asyncHandler(async (req, res) => {
   if (!email) {
     throw new APIError('Email is required', 400);
   }
-if (!redisService.isAvailable()) {
-  console.warn('Redis unavailable - OTP service running without Redis');
-}
 
   const normalizedEmail = email.toLowerCase();
+
+  if (!redisService.isAvailable()) {
+    throw new APIError('Redis is not available', 500);
+  }
+
   const otpCode = otpGenerator.generate(6, {
     upperCaseAlphabets: false,
     lowerCaseAlphabets: false,
     specialChars: false
   });
 
-  const otpHash = crypto.createHash('sha256').update(otpCode).digest('hex');
+  const otpHash = crypto
+    .createHash('sha256')
+    .update(otpCode)
+    .digest('hex');
+
   const otpKey = `${OTP_KEY_PREFIX}${normalizedEmail}`;
 
   await redisService.set(otpKey, { otpHash }, OTP_TTL_SECONDS);
+
+  // DEBUG
+  const savedOtp = await redisService.get(otpKey);
+
+  console.log('================ OTP DEBUG ================');
+  console.log('EMAIL:', normalizedEmail);
+  console.log('OTP GENERATED:', otpCode);
+  console.log('OTP KEY:', otpKey);
+  console.log('OTP SAVED IN REDIS:', savedOtp);
+  console.log('===========================================');
+
   await sendOtpEmail(normalizedEmail, otpCode);
 
   res.status(200).json({
@@ -427,19 +444,35 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
     throw new APIError('Email and OTP are required', 400);
   }
 
-  if (!redisService.isAvailable()) {
-  console.warn('Redis unavailable - OTP verification running without Redis');
-}
-
   const normalizedEmail = email.toLowerCase();
+
+  if (!redisService.isAvailable()) {
+    throw new APIError('Redis is not available', 500);
+  }
+
   const otpKey = `${OTP_KEY_PREFIX}${normalizedEmail}`;
+
   const cachedOtp = await redisService.get(otpKey);
+
+  console.log('================ VERIFY DEBUG ================');
+  console.log('EMAIL:', normalizedEmail);
+  console.log('OTP ENTERED:', otp);
+  console.log('OTP KEY:', otpKey);
+  console.log('OTP FROM REDIS:', cachedOtp);
+  console.log('================================================');
 
   if (!cachedOtp || !cachedOtp.otpHash) {
     throw new APIError('OTP expired or invalid', 400);
   }
 
-  const otpHash = crypto.createHash('sha256').update(otp.toString()).digest('hex');
+  const otpHash = crypto
+    .createHash('sha256')
+    .update(otp.toString())
+    .digest('hex');
+
+  console.log('ENTERED HASH:', otpHash);
+  console.log('REDIS HASH:', cachedOtp.otpHash);
+
   if (otpHash !== cachedOtp.otpHash) {
     throw new APIError('Invalid OTP', 401);
   }
@@ -474,16 +507,23 @@ exports.verifyOtp = asyncHandler(async (req, res) => {
   const userResponse = user.getProfile();
 
   let tokenExpiresIn = 7 * 24 * 60 * 60;
+
   try {
     const decoded = jwt.decode(token);
     if (decoded && decoded.exp) {
-      tokenExpiresIn = Math.max(0, decoded.exp - Math.floor(Date.now() / 1000));
+      tokenExpiresIn = Math.max(
+        0,
+        decoded.exp - Math.floor(Date.now() / 1000)
+      );
     }
-  } catch (_) {
-    // Fallback to default TTL
-  }
+  } catch (_) {}
 
-  await cacheUserSession(user._id.toString(), userResponse, token, tokenExpiresIn);
+  await cacheUserSession(
+    user._id.toString(),
+    userResponse,
+    token,
+    tokenExpiresIn
+  );
 
   res.status(200).json({
     success: true,
