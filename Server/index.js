@@ -3,8 +3,13 @@ require('dotenv').config();
 const http = require('http');
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
+
 const app = require('./src/app');
 const { initNotificationSubscriber } = require('./src/services/notificationPubSub.service');
+
+// ✅ REDIS IMPORTS
+const { initRedis } = require('./src/config/redis');
+const redisService = require('./src/services/redis.service');
 
 // ==================== ENV VALIDATION ====================
 
@@ -33,6 +38,16 @@ const PORT = process.env.PORT || 5000;
 console.log('✅ Environment variables loaded');
 console.log(`📧 Resend From Email: ${process.env.RESEND_FROM_EMAIL}`);
 
+// ==================== REDIS INIT ====================
+
+try {
+  initRedis();
+  redisService.init();
+  console.log('✅ Redis initialization completed');
+} catch (error) {
+  console.error('❌ Redis initialization failed:', error.message);
+}
+
 // ==================== HTTP SERVER ====================
 
 const server = http.createServer(app);
@@ -49,7 +64,8 @@ const io = new Server(server, {
 // Make io accessible throughout app
 app.set('io', io);
 
-// Socket authentication
+// ==================== SOCKET AUTH ====================
+
 io.use((socket, next) => {
   const token = socket.handshake.auth?.token;
 
@@ -71,7 +87,8 @@ io.use((socket, next) => {
   }
 });
 
-// Socket connection handler
+// ==================== SOCKET CONNECTION ====================
+
 io.on('connection', (socket) => {
   console.log(`🔌 User connected: ${socket.userId}`);
 
@@ -97,7 +114,15 @@ io.on('connection', (socket) => {
 
 // ==================== REDIS PUB/SUB ====================
 
-initNotificationSubscriber(io);
+try {
+  initNotificationSubscriber(io);
+  console.log('✅ Redis notification subscriber initialized');
+} catch (error) {
+  console.error(
+    '❌ Failed to initialize notification subscriber:',
+    error.message
+  );
+}
 
 // ==================== START SERVER ====================
 
